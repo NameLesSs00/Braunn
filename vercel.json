@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "installCommand": "cd app && npm ci --include=dev",
+  "buildCommand": "cd app && npm run build",
+  "outputDirectory": "app/dist",
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/[...path].js?path=$1"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
+
+
+
+

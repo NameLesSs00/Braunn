@@ -1,0 +1,78 @@
+import { PmsReservation, PmsReservationDetails, PmsCheckInByDate, PmsInHouseReservation } from '../../models/PmsReservation'
+import { apiRequest, unwrapApiResponse } from './apiClient'
+
+const basePath = 'pms/reservations'
+
+export interface GetPmsReservationsParams {
+  startDate: string
+  endDate: string
+}
+
+export function getPmsReservations(params: GetPmsReservationsParams, signal?: AbortSignal) {
+  const query = new URLSearchParams(params as any).toString()
+  return apiRequest<PmsReservation[]>({
+    method: 'GET',
+    path: `${basePath}?${query}`,
+    signal
+  }).then((r) => unwrapApiResponse<PmsReservation[]>(r))
+}
+
+export function getPmsReservationById(id: string, signal?: AbortSignal) {
+  return apiRequest<PmsReservationDetails>({
+    method: 'GET',
+    path: `${basePath}/${id}`,
+    signal
+  }).then((r) => unwrapApiResponse<PmsReservationDetails>(r))
+}
+
+export interface PmsCheckInParams {
+  reservationId: string
+  roomNumber: string
+  selectedServices: Array<{
+    additionalServiceId: string
+    quantity: number
+  }>
+  selectedDiscountIds: string[]
+}
+
+export function checkInPmsReservation(params: PmsCheckInParams, signal?: AbortSignal) {
+  return apiRequest<void>({
+    method: 'POST',
+    path: `${basePath}/check-in`,
+    body: params,
+    signal,
+  }).then((r) => unwrapApiResponse<void>(r))
+}
+
+export function getPmsCheckInsByDate(date: string, signal?: AbortSignal) {
+  return apiRequest<PmsCheckInByDate[]>({
+    method: 'GET',
+    path: `${basePath}/check-ins/by-date?date=${date}`,
+    signal
+  }).then((r) => unwrapApiResponse<PmsCheckInByDate[]>(r))
+}
+
+export function getPmsInHouseReservations(signal?: AbortSignal) {
+  return apiRequest<PmsInHouseReservation[]>({
+    method: 'GET',
+    path: `${basePath}/in-house`,
+    signal
+  }).then((r) => unwrapApiResponse<PmsInHouseReservation[]>(r))
+}
+
+export interface AddPmsReservationServiceParams {
+  reservationId: string
+  additionalServiceId: string
+  quantity: number
+  serviceDate: string
+}
+
+export function addPmsReservationService(id: string, params: AddPmsReservationServiceParams, signal?: AbortSignal) {
+  return apiRequest<{ success: boolean; message: string }>({
+    method: 'POST',
+    path: `${basePath}/${id}/add-service`,
+    body: params,
+    signal,
+  }).then((r) => unwrapApiResponse<{ success: boolean; message: string }>(r))
+}
+
