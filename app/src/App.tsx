@@ -25,6 +25,7 @@ import { AuthGuard } from './shared/ui/AuthGuard'
 import { LaundryOverviewPage } from './pages/laundry/overview/LaundryOverviewPage'
 import { RoomRequestsPage } from './pages/laundry/roomRequests/RoomRequestsPage'
 import { InventoryPage } from './pages/laundry/inventory/InventoryPage'
+import { SettingsLaundryPage } from './pages/laundry/settings/SettingsLaundryPage'
 import { HousekeepingLayout } from './widgets/layout/HousekeepingLayout/HousekeepingLayout'
 import { DashboardHKPage } from './pages/HKPages/dashboard/DashboardHKPage'
 import { CleaningTasksHKPage } from './pages/HKPages/cleaningTasks/CleaningTasksHKPage'
@@ -81,6 +82,7 @@ export default function App() {
             <Route path={routes.laundry.overview} element={<LaundryOverviewPage />} />
             <Route path={routes.laundry.roomRequests} element={<RoomRequestsPage />} />
             <Route path={routes.laundry.inventory} element={<InventoryPage />} />
+            <Route path={routes.laundry.settings} element={<SettingsLaundryPage />} />
           </Route>
 
           <Route element={<HousekeepingLayout />}>

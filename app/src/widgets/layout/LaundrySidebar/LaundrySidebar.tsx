@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
-import { IoHomeOutline } from 'react-icons/io5'
+import { IoHomeOutline, IoSettingsOutline } from 'react-icons/io5'
 import { MdOutlineInventory2 } from 'react-icons/md'
 import { PiTShirt } from 'react-icons/pi'
 import type { IconType } from 'react-icons'
@@ -15,6 +15,7 @@ const navItems: NavItem[] = [
   { to: routes.laundry.overview, label: 'Overview', icon: IoHomeOutline },
   { to: routes.laundry.roomRequests, label: 'Room Requests', icon: PiTShirt },
   { to: routes.laundry.inventory, label: 'Inventory', icon: MdOutlineInventory2 },
+  { to: routes.laundry.settings, label: 'Settings', icon: IoSettingsOutline },
 ]
 
 function LaundrySidebarLink({ item }: { item: NavItem }) {

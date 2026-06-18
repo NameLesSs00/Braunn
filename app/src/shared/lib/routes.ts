@@ -22,6 +22,7 @@ export const routes = {
     overview: '/laundry/overview',
     roomRequests: '/laundry/room-requests',
     inventory: '/laundry/inventory',
+    settings: '/laundry/settings',
   },
   hk: {
     dashboard: '/HK/Dashboard',

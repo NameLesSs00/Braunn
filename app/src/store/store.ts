@@ -40,6 +40,9 @@ import { lostAndFoundReducer } from '../features/HKfeatures/lostAndFound/lostAnd
 import { hrLeavesReducer } from '../features/HRMfeatures/leaves/hrLeavesSlice'
 import { hrPayrollReducer } from '../features/HRMfeatures/payroll/hrPayrollSlice'
 import { hrTerminationsReducer } from '../features/HRMfeatures/terminations/hrTerminationsSlice'
+import { laundryInventoryItemsReducer } from '../features/Laundryfeatures/laundryInventoryItems/laundryInventoryItemsSlice'
+import { laundryInventoryCategoriesReducer } from '../features/Laundryfeatures/laundryInventoryCategories/laundryInventoryCategoriesSlice'
+import { laundryInventoryUnitsReducer } from '../features/Laundryfeatures/laundryInventoryUnits/laundryInventoryUnitsSlice'
 
 export const store = configureStore({
   reducer: {
@@ -84,6 +87,9 @@ export const store = configureStore({
     hrLeaves: hrLeavesReducer,
     hrPayroll: hrPayrollReducer,
     hrTerminations: hrTerminationsReducer,
+    laundryInventoryItems: laundryInventoryItemsReducer,
+    laundryInventoryCategories: laundryInventoryCategoriesReducer,
+    laundryInventoryUnits: laundryInventoryUnitsReducer,
   },
 })
 
