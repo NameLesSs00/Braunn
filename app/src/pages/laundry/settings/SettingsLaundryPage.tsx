@@ -11,13 +11,19 @@ import {
   fetchLaundryInventoryCategories,
   createLaundryInventoryCategory,
 } from '../../../features/Laundryfeatures/laundryInventoryCategories/laundryInventoryCategoriesSlice';
+import {
+  fetchLaundryTypes,
+  createLaundryType,
+} from '../../../features/Laundryfeatures/laundryTypes/laundryTypesSlice';
 import { LaundrySettingsTabs, type LaundrySettingsTab } from './components/LaundrySettingsTabs';
 import { LaundryUnitsTable } from './components/LaundryUnitsTable';
 import { LaundryCategoriesTable } from './components/LaundryCategoriesTable';
 import { LaundryItemsTable } from './components/LaundryItemsTable';
+import { LaundryTypesTable } from './components/LaundryTypesTable';
 import { AddUnitModal } from './components/AddUnitModal';
 import { AddCategoryModal } from './components/AddCategoryModal';
 import { AddItemModal } from './components/AddItemModal';
+import { AddTypeModal } from './components/AddTypeModal';
 import { IoSettingsOutline } from 'react-icons/io5';
 import { FiPlus } from 'react-icons/fi';
 
@@ -48,14 +54,17 @@ export function SettingsLaundryPage() {
 
   const { units, status: unitsStatus, error: unitsError } = useAppSelector((s) => s.laundryInventoryUnits);
   const { categories, status: catStatus, error: catError } = useAppSelector((s) => s.laundryInventoryCategories);
+  const { types, status: typesStatus, error: typesError } = useAppSelector((s) => s.laundryTypes);
 
   const [activeTab, setActiveTab] = useState<LaundrySettingsTab>('Units');
   const [addUnitOpen, setAddUnitOpen] = useState(false);
   const [addCatOpen, setAddCatOpen] = useState(false);
   const [addItemOpen, setAddItemOpen] = useState(false);
+  const [addTypeOpen, setAddTypeOpen] = useState(false);
 
   const [isAddingUnit, setIsAddingUnit] = useState(false);
   const [isAddingCat, setIsAddingCat] = useState(false);
+  const [isAddingType, setIsAddingType] = useState(false);
 
   // Lazy-load data when switching tabs
   useEffect(() => {
@@ -65,11 +74,14 @@ export function SettingsLaundryPage() {
     if (activeTab === 'Category' && catStatus === 'idle') {
       dispatch(fetchLaundryInventoryCategories());
     }
+    if (activeTab === 'Types' && typesStatus === 'idle') {
+      dispatch(fetchLaundryTypes());
+    }
     if (activeTab === 'Items') {
       if (unitsStatus === 'idle') dispatch(fetchLaundryInventoryUnits());
       if (catStatus === 'idle') dispatch(fetchLaundryInventoryCategories());
     }
-  }, [activeTab, unitsStatus, catStatus, dispatch]);
+  }, [activeTab, unitsStatus, catStatus, typesStatus, dispatch]);
 
   const handleAddUnit = async (name: string) => {
     setIsAddingUnit(true);
@@ -92,6 +104,18 @@ export function SettingsLaundryPage() {
       showSuccess('Category created successfully');
     } else {
       showError((result.payload as string) || 'Failed to create category');
+    }
+  };
+
+  const handleAddType = async (name: string) => {
+    setIsAddingType(true);
+    const result = await dispatch(createLaundryType({ name }));
+    setIsAddingType(false);
+    setAddTypeOpen(false);
+    if (createLaundryType.fulfilled.match(result)) {
+      showSuccess('Type created successfully');
+    } else {
+      showError((result.payload as string) || 'Failed to create type');
     }
   };
 
@@ -142,6 +166,16 @@ export function SettingsLaundryPage() {
                 Add Item
               </button>
             )}
+            {activeTab === 'Types' && (
+              <button
+                onClick={() => setAddTypeOpen(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0a4bbd] text-[13px] font-semibold text-white hover:bg-blue-800 transition-colors shadow-sm"
+              >
+                {/* @ts-ignore */}
+                <FiPlus className="w-4 h-4" />
+                Add Type
+              </button>
+            )}
           </div>
         </div>
 
@@ -182,6 +216,9 @@ export function SettingsLaundryPage() {
           <LaundryCategoriesTable categories={categories} isLoading={catStatus === 'loading'} error={catError} />
         )}
         {activeTab === 'Items' && <LaundryItemsTable />}
+        {activeTab === 'Types' && (
+          <LaundryTypesTable types={types} isLoading={typesStatus === 'loading'} error={typesError} />
+        )}
       </div>
 
       {/* Modals */}
@@ -200,6 +237,12 @@ export function SettingsLaundryPage() {
       <AddItemModal
         isOpen={addItemOpen}
         onClose={() => setAddItemOpen(false)}
+      />
+      <AddTypeModal
+        isOpen={addTypeOpen}
+        onConfirm={handleAddType}
+        onCancel={() => setAddTypeOpen(false)}
+        isSaving={isAddingType}
       />
     </div>
   );

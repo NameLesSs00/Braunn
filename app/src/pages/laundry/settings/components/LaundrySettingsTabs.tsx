@@ -1,6 +1,6 @@
-export type LaundrySettingsTab = 'Units' | 'Category' | 'Items';
+export type LaundrySettingsTab = 'Units' | 'Category' | 'Items' | 'Types';
 
-export const LAUNDRY_SETTINGS_TABS: LaundrySettingsTab[] = ['Units', 'Category', 'Items'];
+export const LAUNDRY_SETTINGS_TABS: LaundrySettingsTab[] = ['Units', 'Category', 'Items', 'Types'];
 
 interface LaundrySettingsTabsProps {
   activeTab: LaundrySettingsTab;

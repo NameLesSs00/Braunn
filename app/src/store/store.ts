@@ -40,9 +40,12 @@ import { lostAndFoundReducer } from '../features/HKfeatures/lostAndFound/lostAnd
 import { hrLeavesReducer } from '../features/HRMfeatures/leaves/hrLeavesSlice'
 import { hrPayrollReducer } from '../features/HRMfeatures/payroll/hrPayrollSlice'
 import { hrTerminationsReducer } from '../features/HRMfeatures/terminations/hrTerminationsSlice'
-import { laundryInventoryItemsReducer } from '../features/Laundryfeatures/laundryInventoryItems/laundryInventoryItemsSlice'
-import { laundryInventoryCategoriesReducer } from '../features/Laundryfeatures/laundryInventoryCategories/laundryInventoryCategoriesSlice'
-import { laundryInventoryUnitsReducer } from '../features/Laundryfeatures/laundryInventoryUnits/laundryInventoryUnitsSlice'
+import { laundryInventoryItemsReducer } from '../features/Laundryfeatures/laundryInventoryItems/laundryInventoryItemsSlice';
+import { laundryInventoryCategoriesReducer } from '../features/Laundryfeatures/laundryInventoryCategories/laundryInventoryCategoriesSlice';
+import { laundryInventoryUnitsReducer } from '../features/Laundryfeatures/laundryInventoryUnits/laundryInventoryUnitsSlice';
+import { laundryTypesReducer } from '../features/Laundryfeatures/laundryTypes/laundryTypesSlice';
+import { laundryIssuesReducer } from '../features/Laundryfeatures/laundryIssues/laundryIssuesSlice';
+import { laundryPurchasesReducer } from '../features/Laundryfeatures/laundryPurchases/laundryPurchasesSlice';
 
 export const store = configureStore({
   reducer: {
@@ -90,6 +93,9 @@ export const store = configureStore({
     laundryInventoryItems: laundryInventoryItemsReducer,
     laundryInventoryCategories: laundryInventoryCategoriesReducer,
     laundryInventoryUnits: laundryInventoryUnitsReducer,
+    laundryTypes: laundryTypesReducer,
+    laundryIssues: laundryIssuesReducer,
+    laundryPurchases: laundryPurchasesReducer,
   },
 })
 
