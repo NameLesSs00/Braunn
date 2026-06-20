@@ -7,9 +7,10 @@ import { housekeepingReducer } from '../features/housekeeping/housekeepingSlice'
 import { notificationsReducer } from '../features/notifications/notificationsSlice'
 import { draftReducer } from '../features/reservations/draftSlice'
 import { shiftReducer } from '../features/shift/shiftSlice'
-import { rtReducer } from '../features/rt/rtSlice'
+import { additionalServicesReducer } from '../features/admin/additionalServicesSlice'
+
 import { authReducer } from '../features/auth/authSlice'
-import { ariReducer } from '../features/ari/ariSlice'
+
 import { pmsReducer } from '../features/pms/pmsSlice'
 import { financialSettingsReducer } from '../features/adminFinancialSettings/financialSettingsSlice'
 import { reportsReducer } from '../features/reports/reportsSlice'
@@ -57,9 +58,10 @@ export const store = configureStore({
     notifications: notificationsReducer,
     reservationDraft: draftReducer,
     shift: shiftReducer,
-    rt: rtReducer,
+    additionalServices: additionalServicesReducer,
+
     auth: authReducer,
-    ari: ariReducer,
+
     pms: pmsReducer,
     financialSettings: financialSettingsReducer,
     reports: reportsReducer,

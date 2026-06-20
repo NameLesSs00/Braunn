@@ -11,6 +11,8 @@ export interface LocalARIRate {
   groupApplied: string | null
   groupDiscountAmount: number
   finalRateAfterTax: number
+  modifiedBy: string
+  modifiedAt: string
 }
 
 export interface GetLocalARIRatesParams {
@@ -68,5 +70,33 @@ export interface UpdateLocalARISingleDayRatePayload {
   ratePlanCode: string
   date: string
   newBaseRate: number
+}
+
+export interface CreateLocalARIRestrictionPayload {
+  roomTypeId: string
+  dateFrom: string
+  dateTo: string
+  ratePlanCode: string
+  closedToArrival: boolean
+  closedToDeparture: boolean
+  stopSell: boolean
+  minLOS: number
+  maxLOS: number
+}
+
+export interface GetLocalARIRatesHistoryParams {
+  roomTypeId?: string
+  date?: string
+}
+
+export interface LocalARIRateHistory {
+  id: string
+  roomTypeId: string
+  ratePlanCode: string
+  date: string
+  oldBaseRate: number
+  newBaseRate: number
+  changedBy: string
+  changedAt: string
 }
 

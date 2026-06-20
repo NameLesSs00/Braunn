@@ -2,8 +2,8 @@
 // Vercel Serverless Proxy — runs at the REPO ROOT level.
 // Forwards all /api/* requests to the HTTP backend server-side so the browser
 // stays on HTTPS (Vercel) while Vercel talks to the upstream HTTP API.
-// const DEFAULT_BACKEND_URL = 'http://gear-pms-api.runasp.net'
-const DEFAULT_BACKEND_URL = 'https://pmss.runasp.net/'
+const DEFAULT_BACKEND_URL = 'http://gear-pms-api.runasp.net'
+// const DEFAULT_BACKEND_URL = 'https://pmss.runasp.net/'
 const BACKEND_BASE_URL = (process.env.BACKEND_BASE_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, '')
 
 function getProxyPath(req) {

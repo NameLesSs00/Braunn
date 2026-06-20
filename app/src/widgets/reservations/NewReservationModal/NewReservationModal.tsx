@@ -1,9 +1,10 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
+import Swal from 'sweetalert2'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { updateDraft, resetDraft } from '../../../features/reservations/draftSlice'
 import { addNotification } from '../../../features/notifications/notificationsSlice'
-import { syncRTReservation, syncRTOps } from '../../../features/rt/rtSlice'
+import { createLocalReservation } from '../../../features/localReservations/localReservationsSlice'
 import { createOptionalReservation } from '../../../features/reservations/optionalReservationsSlice'
 
 
@@ -30,9 +31,9 @@ type Step4Page = 1 | 2
 export function NewReservationModal({ open, onClose }: Props) {
   const dispatch = useAppDispatch()
   const draft = useAppSelector((state) => state.reservationDraft)
-  const ariState = useAppSelector((state) => state.ari)
-  const rt = useAppSelector((state) => state.rt)
+  const localAriState = useAppSelector((state) => state.localAri)
   const optionalReservations = useAppSelector((state) => state.optionalReservations)
+  const financialSettings = useAppSelector((state) => state.financialSettings)
 
 
   const [step, setStep] = useState<Step>(1)
@@ -81,7 +82,6 @@ export function NewReservationModal({ open, onClose }: Props) {
             ? 'Payment'
             : 'Reservation Details'
 
-  const canGoBack = step > 1
   const nextLabel =
     step === 3
       ? 'continue to Payment'
@@ -98,7 +98,7 @@ export function NewReservationModal({ open, onClose }: Props) {
     return Number.isFinite(n) && n > 0 ? n : 0
   }, [draft.nights])
 
-  const checkInPricing = useMemo(() => computePricing(draft, nightsForPricing), [draft, nightsForPricing])
+  const checkInPricing = useMemo(() => computePricing(draft, nightsForPricing, localAriState), [draft, nightsForPricing, localAriState])
 
   const openCheckInProcess = () => {
     setCheckInOpen(true)
@@ -120,7 +120,7 @@ export function NewReservationModal({ open, onClose }: Props) {
           <div className="flex items-center justify-between bg-[#0B4EA2] px-8 py-5">
             <div className="text-lg font-semibold text-white">{title}</div>
             <div className="flex items-center gap-4">
-              {draft.isGroupReservation ? (
+              {draft.bookingSource === 'GroupContract' ? (
                 <div className="inline-flex h-8 items-center rounded-full bg-emerald-100 px-5 text-sm font-semibold text-emerald-800">
                   Group
                 </div>
@@ -228,7 +228,7 @@ export function NewReservationModal({ open, onClose }: Props) {
                       expectedCheckIn: draft.checkInDate ? new Date(draft.checkInDate).toISOString() : '',
                       expectedCheckOut: draft.checkOutDate ? new Date(draft.checkOutDate).toISOString() : '',
                       totalAmount: checkInPricing.totalAmount || 0,
-                      expirationDate: draft.optionExpiryDate ? new Date(draft.optionExpiryDate).toISOString() : (draft.checkInDate ? new Date(draft.checkInDate).toISOString() : new Date().toISOString())
+                      expirationDate: draft.checkInDate ? new Date(draft.checkInDate).toISOString() : new Date().toISOString()
                     }
 
                     dispatch(createOptionalReservation(payload)).unwrap()
@@ -237,7 +237,12 @@ export function NewReservationModal({ open, onClose }: Props) {
                       })
                       .catch((err) => {
                         console.error('Optional reservation failed:', err)
-                        alert('Failed to save optional reservation: ' + err)
+                        Swal.fire({
+                          icon: 'error',
+                          title: 'Error',
+                          text: 'Failed to save optional reservation: ' + err,
+                          confirmButtonColor: '#0B4EA2',
+                        })
                       })
                   }}
                 >
@@ -251,176 +256,75 @@ export function NewReservationModal({ open, onClose }: Props) {
                 type="button"
                 className={[
                   'h-12 rounded-xl px-16 text-sm font-semibold flex items-center justify-center gap-2',
-                  'bg-[#0B4EA2] text-white',
-                  rt.status === 'loading' ? 'opacity-80 cursor-not-allowed' : '',
+                  'bg-[#0B4EA2] text-white'
                 ].join(' ')}
-                disabled={rt.status === 'loading'}
                 onClick={async () => {
                   if (step === 4) {
                     if (step4Page === 1) {
-                      // Generate nightly rates for the payload
-                      const nightlyRates = []
-                      if (draft.checkInDate && draft.checkOutDate) {
-                        const start = new Date(draft.checkInDate)
-                        const end = new Date(draft.checkOutDate)
-                        
-                        for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-                          const dateStr = d.toISOString().split('T')[0]
-                          const rateMatch = ariState.rates.find(r => {
-                            if (!r.date) return false
-                            const rDateStr = r.date.split(' ')[0]
-                            return (
-                              r.invTypeCode === draft.ratePlan &&
-                              r.ratePlanCode === draft.rateCode &&
-                              rDateStr === dateStr
-                            )
-                          })
-
-                          const rate = rateMatch?.additionalGuestAmounts[0]?.amount ?? 0
-                          const total = rateMatch?.baseGuestAmounts[0]?.amountAfterTax ?? 0
-                          
-                          const effectiveDate = new Date(d)
-                          const expireDate = new Date(d)
-                          expireDate.setDate(expireDate.getDate() + 1)
-
-                          nightlyRates.push({
-                            amountAfterTax: total,
-                            amountBeforeTax: rate,
-                            effectiveDate: effectiveDate.toISOString(),
-                            expireDate: expireDate.toISOString()
-                          })
-                        }
-                      }
-
-                      const channelName = draft.bookingSource === 'OTA' ? (draft.otaSource || 'OTA') : (draft.bookingSource || 'Direct')
-
-                      // Prepare RT Payload with full reservation structure
-                      const totalAfterTax = nightlyRates.reduce((acc, curr) => acc + curr.amountAfterTax, 0)
-                      const totalBeforeTax = nightlyRates.reduce((acc, curr) => acc + curr.amountBeforeTax, 0)
-
-                      const rtPayload = {
-                        hotelReservation: {
-                          createDateTime: new Date().toISOString(),
-                          creatorID: draft.creatorID || "system",
-                          currency: "EUR",
-                          hotelCode: "57928",
-                          resStatus: draft.reservationStatus || 'commit',
-                          timeStamp: new Date().toISOString(),
-                          success: true,
-                          error: {
-                            type: "",
-                            errorCode: ""
-                          },
-                          uniqueID: {
-                            idValue: "0",
-                            type: "14"
-                          },
-                          pos: {
-                            channelCode: "12",
-                            channelName: channelName,
-                          },
-                          guarantee: {
-                            guaranteeCode: "",
-                            guaranteeType: draft.paymentMethod || "None",
-                            paymentCard: {
-                              cardCode: draft.cardCode || "",
-                              cardHolderName: draft.cardHolderName || "",
-                              cardNo: draft.cardNo || "",
-                              cardType: draft.cardType || "",
-                              expire: draft.cardExpire || "",
-                              seriesCode: draft.cardSeriesCode || ""
-                            }
-                          },
-                          depositAmount: Number(draft.paidAmount) || 0,
-                          guestDetails: [
-                            {
-                              personName: {
-                                firstName: draft.firstName,
-                                middleName: draft.middleName,
-                                salutation: draft.salutation,
-                                surName: draft.surName,
-                              },
-                              email: draft.email,
-                              guestID: draft.creatorID || "1",
-                              telePhone: {
-                                phoneNo: draft.phone,
-                                locationType: "Home",
-                                phoneTechType: "Voice"
-                              },
-                              address: {
-                                addressLine: draft.addressLine || "",
-                                addressType: draft.addressType || "Home",
-                                city: draft.city || "",
-                                countryCode: draft.countryCode || draft.nationality || "",
-                                postalCode: draft.postalCode || "",
-                                state: draft.state || ""
-                              },
-                              profileType: "Guest"
-                            },
-                          ],
-                          roomStays: [
-                            {
-                              roomStayID: "1",
-                              isGuestPerRoom: "true",
-                              mealCode: draft.mealPlan || "none",
-                              mealPlanIndicator: draft.mealPlan ? "true" : "false",
-                              comments: [
-                                {
-                                  guestViewable: "true",
-                                  text: draft.specialRequests,
-                                },
-                              ],
-                              specialRequests: [
-                                {
-                                  requestCode: "Note",
-                                  text: draft.notes,
-                                },
-                              ],
-                              roomRates: [
-                                {
-                                  invCode: draft.ratePlan,
-                                  numberOfUnits: Number(draft.nights) || 1,
 
 
-                                  ratePlanCode: draft.rateCode,
-                                  rates: nightlyRates
-                                }
-                              ],
-                              timeSpan: {
-                                start: draft.checkInDate ? new Date(draft.checkInDate).toISOString() : '',
-                                end: draft.checkOutDate ? new Date(draft.checkOutDate).toISOString() : '',
-                              },
-                              totalPrice: {
-                                amountAfterTax: totalAfterTax,
-                                amountBeforeTax: totalBeforeTax,
-                                taxAmount: totalAfterTax - totalBeforeTax
-                              },
-                              guestCount: [
-                                { ageQualifyingCode: '10', count: Number(draft.adultCount) || 0 },
-                                { ageQualifyingCode: '8', count: Number(draft.childCount) || 0 }
-                              ],
-                              guestIDs: [draft.creatorID || "1"]
-                            },
-                          ],
-                          resGlobalInfo: {
-                            hotelReservationIDs: [
-                              {
-                                resIDType: "14",
-                                resIDValue: "MM"
-                              }
-                            ]
-                          }
+                      const localReservationPayload = {
+                        guest: {
+                          firstName: draft.firstName || 'Unknown',
+                          lastName: draft.surName || 'Unknown',
+                          email: draft.email || '',
+                          phone: draft.phone || '',
+                          nationalId: draft.idNumber || '',
+                          address: draft.addressLine || '',
+                          countryCode: draft.countryCode || draft.nationality || '',
                         },
+                        checkInDate: draft.checkInDate || new Date().toISOString().split('T')[0],
+                        checkOutDate: draft.checkOutDate || new Date().toISOString().split('T')[0],
+                        status: draft.reservationStatus || 'Reserved',
+                        bookingSource: draft.bookingSource || 'WalkIn',
+                        reservationType: draft.isVip ? 'VIP' : 'Normal',
+                        currency: draft.currency || 'USD',
+                        roomRequests: [
+                          {
+                            roomTypeId: draft.rooms[0]?.roomTypeId || '00000000-0000-0000-0000-000000000000',
+                            quantity: Number(draft.rooms[0]?.roomCount) || 1,
+                            adults: Number(draft.adultCount) || 1,
+                            children: Number(draft.childCount) || 0,
+                            ratePlanCode: draft.rateCode || 'STD',
+                            pricePerNight: localAriState.rates[0]?.amountBeforeTax || 0,
+                          }
+                        ],
+                        selectedServices: draft.extras.map(extra => ({
+                          additionalServiceId: financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)?.id || '00000000-0000-0000-0000-000000000000',
+                          quantity: extra.qty || 1,
+                          serviceDate: extra.serviceDate || draft.checkInDate || new Date().toISOString().split('T')[0]
+                        })),
+                        selectedMealPlans: draft.mealPlans.map(mp => ({
+                          mealPlanId: mp.mealPlanId,
+                          price: mp.price || 0,
+                          serviceDateStart: mp.serviceDateStart || new Date().toISOString().split('T')[0],
+                          serviceDateEnd: mp.serviceDateEnd || new Date().toISOString().split('T')[0]
+                        })),
+                        companions: (draft.companions || []).map(c => ({
+                          firstName: c.firstName,
+                          lastName: c.lastName,
+                          phoneNumber: c.phoneNumber,
+                          email: c.email,
+                          address: c.address,
+                          nationalId: c.nationalId
+                        })),
+                        specialRequests: draft.specialRequests || '',
+                        comments: draft.notes || ''
                       }
 
-                dispatch(syncRTOps(rtPayload)).unwrap()
+                dispatch(createLocalReservation(localReservationPayload)).unwrap()
                   .then(() => {
                     setFinalConfirmationOpen(true)
                     setStep4Page(2)
                   })
                   .catch((err) => {
-                    console.error('Reservation sync failed:', err)
-                    alert('Failed to confirm reservation: ' + err)
+                    console.error('Reservation creation failed:', err)
+                    Swal.fire({
+                      icon: 'error',
+                      title: 'Error',
+                      text: 'Failed to confirm reservation: ' + err,
+                      confirmButtonColor: '#0B4EA2',
+                    })
                   })
                 return
               }
@@ -435,9 +339,6 @@ export function NewReservationModal({ open, onClose }: Props) {
                 }}
 
               >
-                {rt.status === 'loading' && step === 4 && step4Page === 1 ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : null}
                 {nextLabel}
               </button>
             </div>

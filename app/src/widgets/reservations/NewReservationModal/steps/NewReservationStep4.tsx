@@ -6,6 +6,8 @@ import { computePricing } from './step4/pricing'
 import { Step4PaymentForm } from './step4/Step4PaymentForm'
 import { Step4ReviewPage } from './step4/Step4ReviewPage'
 
+import { useAppSelector } from '../../../../store/hooks'
+
 type Props = {
   value: ReservationDraft
   onChange: (patch: Partial<ReservationDraft>) => void
@@ -20,8 +22,10 @@ export const NewReservationStep4: any = ({ value, onChange, page, onOpenCheckIn,
     return Number.isFinite(n) && n > 0 ? n : 0
   }, [value.nights])
 
-  const guestsTotal = value.adultCount + value.childCount + value.infantCount
-  const pricing = useMemo(() => computePricing(value, nights), [value, nights])
+  const localAriState = useAppSelector((state) => state.localAri)
+
+  const guestsTotal = value.adultCount + value.childCount + (value.infantCount || 0)
+  const pricing = useMemo(() => computePricing(value, nights, localAriState), [value, nights, localAriState])
 
   return page === 2 ? (
     <Step4ReviewPage

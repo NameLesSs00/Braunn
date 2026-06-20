@@ -1,48 +1,48 @@
 import type { ReservationDraft } from '../../../../../features/reservations/draftSlice'
-
 import { parseNumberOrZero } from '../../../CheckInProcessModal/utils'
 import type { Pricing } from '../../../CheckInProcessModal/types'
+import type { LocalARIState } from '../../../../../features/localAri/localAriSlice'
 
-export function computePricing(value: ReservationDraft, nights: number): Pricing {
-  const firstRoom = value.rooms[0]
-  const roomType = firstRoom?.roomType || 'single'
-
-  const rates: Record<string, { adult: number; child: number; infant: number }> = {
-    single: { adult: 100, child: 50, infant: 25 },
-    double: { adult: 150, child: 75, infant: 35 },
-    suit: { adult: 250, child: 120, infant: 60 },
-    doublex: { adult: 350, child: 170, infant: 80 },
-  }
-
-  const currentRates = rates[roomType] || rates.single
-
-  const adultRate = currentRates.adult
-  const childRate = currentRates.child
-  const infantRate = currentRates.infant
-
+export function computePricing(value: ReservationDraft, nights: number, localAriState: LocalARIState): Pricing {
+  const baseRate = localAriState?.rates[0]?.amountBeforeTax || 0
   const nightsSafe = Math.max(1, nights || 1)
 
-  const adultTotal = value.adultCount * adultRate * nightsSafe
-  const childTotal = value.childCount * childRate * nightsSafe
-  const infantTotal = value.infantCount * infantRate * nightsSafe
+  // In the updated UI, adult and child use the same baseRate per night
+  const adultTotal = (value.adultCount || 0) * baseRate * nightsSafe
+  const childTotal = (value.childCount || 0) * baseRate * nightsSafe
 
-  const subtotal = adultTotal + childTotal + infantTotal
+  // Extras calculation
+  const extrasTotal = (value.extras || []).reduce((sum, extra) => {
+    return sum + (extra.qty || 0) * (extra.price || 0)
+  }, 0)
+
+  // Meal plans calculation
+  const mealPlansTotal = (value.mealPlans || []).reduce((sum, mp) => {
+    // Basic day diff logic, defaulting to 1 day if not set
+    let days = 1
+    if (mp.serviceDateStart && mp.serviceDateEnd) {
+      const start = new Date(mp.serviceDateStart).getTime()
+      const end = new Date(mp.serviceDateEnd).getTime()
+      if (!isNaN(start) && !isNaN(end)) {
+         days = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)))
+      }
+    }
+    return sum + (mp.price || 0) * days
+  }, 0)
+
+  const subtotal = adultTotal + childTotal + extrasTotal + mealPlansTotal
 
   let discountValue = 0
-  if (value.discountType === 'percentage') {
-    const pct = Math.max(0, Math.min(100, parseNumberOrZero(value.discountPercentage)))
-    discountValue = (subtotal * pct) / 100
-  } else if (value.discountType === 'fixed') {
-    discountValue = Math.max(0, parseNumberOrZero(value.discountFixed))
-  }
-
+  // Handle discount if applicable (from the old draft fields if they still exist, else default to 0)
+  // Assuming they don't exist, this will just be 0
+  
   const totalAmount = Math.max(0, subtotal - discountValue)
   const requiredDeposit = totalAmount * 0.25
 
   return {
     adultTotal,
     childTotal,
-    infantTotal,
+    infantTotal: 0,
     subtotal,
     discountValue,
     totalAmount,

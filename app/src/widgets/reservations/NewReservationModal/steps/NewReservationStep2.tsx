@@ -1,10 +1,9 @@
 import { IconImage } from '../../../../shared/ui/IconImage'
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
 import { fetchRoomTypes } from '../../../../features/roomTypes/roomTypesSlice'
-import { fetchFinancialServices, fetchFinancialDiscounts, createFinancialDiscount, createFinancialService } from '../../../../features/adminFinancialSettings/financialSettingsSlice'
-import { RoomViewEnum } from '../../../../shared/Enums/roomViewEnum'
-import { fetchARIRates } from '../../../../features/ari/ariSlice'
+import { fetchFinancialServices, fetchFinancialDiscounts } from '../../../../features/adminFinancialSettings/financialSettingsSlice'
+import { fetchLocalARIRates } from '../../../../features/localAri/localAriSlice'
 import { fetchMealPlans } from '../../../../features/admin/mealPlansSlice'
 import { MdDateRange } from "react-icons/md";
 import type { IconType } from "react-icons";
@@ -12,7 +11,7 @@ import type { IconType } from "react-icons";
 
 
 
-import { Trash2, Minus, RefreshCw, Edit3, RotateCcw } from 'lucide-react'
+import { Trash2, RefreshCw } from 'lucide-react'
 
 import type { ReservationDraft } from '../../../../features/reservations/draftSlice'
 
@@ -41,6 +40,8 @@ type ControlProps = {
   type?: 'text' | 'date'
   value?: string
   disabled?: boolean
+  min?: string
+  max?: string
   onChange?: (value: string) => void
 }
 
@@ -51,6 +52,8 @@ function InputControl({
   type = 'text',
   value,
   disabled,
+  min,
+  max,
   onChange,
 }: ControlProps) {
   return (
@@ -75,6 +78,8 @@ function InputControl({
         type={type}
         value={value}
         disabled={disabled}
+        min={min}
+        max={max}
         onChange={(e) => onChange?.(e.target.value)}
         onFocus={(e) => {
           if (type !== 'date') return
@@ -130,14 +135,14 @@ function SelectControlWithOptions({
 type CounterProps = {
   label: string
   value: number
-  priceText: string
+  priceText?: string
   onIncrease: () => void
   onDecrease: () => void
 }
 
 function Counter({ label, value, priceText, onIncrease, onDecrease }: CounterProps) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+    <div className="flex w-full items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
       <div className="text-sm font-medium text-slate-700">{label}</div>
       <div className="flex items-center gap-3">
         <button
@@ -155,7 +160,9 @@ function Counter({ label, value, priceText, onIncrease, onDecrease }: CounterPro
         >
           −
         </button>
-        <div className="text-sm font-semibold text-slate-700">{priceText}</div>
+        {priceText !== undefined && (
+          <div className="text-sm font-semibold text-slate-700 min-w-[60px] text-right">{priceText}</div>
+        )}
       </div>
     </div>
   )
@@ -168,9 +175,10 @@ type Props = {
 export function NewReservationStep2({ value, onChange }: Props) {
   const dispatch = useAppDispatch()
   const roomTypesState = useAppSelector((state) => state.roomTypes)
-  const ariState = useAppSelector((state) => state.ari)
+  const localAriState = useAppSelector((state) => state.localAri)
   const financialSettings = useAppSelector((state) => state.financialSettings)
   const mealPlansState = useAppSelector((state) => state.mealPlans)
+  const hasFetchedMealPlans = useRef(false)
 
 
   useEffect(() => {
@@ -184,36 +192,35 @@ export function NewReservationStep2({ value, onChange }: Props) {
       dispatch(fetchFinancialServices())
       dispatch(fetchFinancialDiscounts())
     }
-    if (mealPlansState.status === 'idle' || mealPlansState.status === 'failed') {
+    if (mealPlansState.status === 'idle' || (mealPlansState.status === 'failed' && !hasFetchedMealPlans.current)) {
+      hasFetchedMealPlans.current = true
       dispatch(fetchMealPlans())
     }
   }, [dispatch, financialSettings.status, mealPlansState.status])
 
-
-
-
   useEffect(() => {
-    if (value.checkInDate && value.checkOutDate) {
-      dispatch(fetchARIRates({ startDate: value.checkInDate, endDate: value.checkOutDate }))
+    const roomTypeId = value.rooms[0]?.roomTypeId
+    if (value.checkInDate && value.checkOutDate && roomTypeId && value.rateCode) {
+      dispatch(fetchLocalARIRates({
+        roomTypeId,
+        ratePlanCode: value.rateCode,
+        startDate: value.checkInDate,
+        endDate: value.checkOutDate,
+        roomCount: value.rooms[0]?.roomCount || 1,
+        adults: value.adultCount || 1,
+        children: value.childCount || 0,
+        extraBeds: 0,
+      }))
     }
-  }, [dispatch, value.checkInDate, value.checkOutDate])
-
-
+  }, [dispatch, value.checkInDate, value.checkOutDate, value.rooms, value.rateCode, value.adultCount, value.childCount])
 
   const roomRates = useMemo(() => {
-    const type = value.rooms[0]?.roomType || 'single'
-    const rates: Record<string, { adult: number; child: number; infant: number }> = {
-      single: { adult: 100, child: 50, infant: 25 },
-      double: { adult: 150, child: 75, infant: 35 },
-      suit: { adult: 250, child: 120, infant: 60 },
-      doublex: { adult: 350, child: 170, infant: 80 },
-    }
-    return rates[type] || rates.single
-  }, [value.rooms])
+    const baseRate = localAriState.rates[0]?.amountBeforeTax || 0
+    return { adult: baseRate, child: baseRate }
+  }, [localAriState.rates])
 
   const adultTotalText = useMemo(() => `$ ${(value.adultCount * roomRates.adult).toFixed(2)}`, [value.adultCount, roomRates])
   const childTotalText = useMemo(() => `$ ${(value.childCount * roomRates.child).toFixed(2)}`, [value.childCount, roomRates])
-  const infantTotalText = useMemo(() => `$ ${(value.infantCount * roomRates.infant).toFixed(2)}`, [value.infantCount, roomRates])
 
   const roomTypeOptions: SelectOption[] = useMemo(() => {
     const options = roomTypesState.items.map((item) => ({
@@ -234,100 +241,56 @@ export function NewReservationStep2({ value, onChange }: Props) {
 
 
 
-  const roomViewOptions: SelectOption[] = [
-    { value: 'SeaView', label: 'Sea View' },
-    { value: 'PoolView', label: 'Pool View' },
-    { value: 'CityView', label: 'City View' },
-    { value: 'GardenView', label: 'Garden View' },
-  ]
-
-
-  const roomNumberOptions: SelectOption[] = [
-    { value: '101', label: '101' },
-    { value: '102', label: '102' },
-    { value: '103', label: '103' },
-    { value: '104', label: '104' },
-    { value: '105', label: '105' },
-  ]
-
-  const discountTypeOptions: SelectOption[] = useMemo(() => {
-    const options: SelectOption[] = [{ value: 'none', label: 'No Discount' }]
-
-    financialSettings.discounts.forEach((d) => {
-      options.push({ value: d.id, label: d.name })
-    })
-
-    options.push({ value: 'custom', label: 'Custom Discount' })
-    return options
-  }, [financialSettings.discounts])
-
-  const rateCodeOptions: SelectOption[] = [
-    { value: 'restricted-roots', label: 'Restricted Roots' },
-    { value: 'group-reservation', label: 'Groub reservation' },
-    { value: 'pseudo-roots', label: 'pseudo roots' },
-    { value: 'room-type-conservation', label: 'room type conservation' },
-  ]
-
-  const ratePlanOptions: SelectOption[] = useMemo(() => {
-    if (ariState.rates.length > 0) {
-      // Use unique invTypeCodes for options
-      const uniqueCodes = Array.from(new Set(ariState.rates.map((r) => r.invTypeCode)))
-      return uniqueCodes.map((code) => ({
-        value: code,
-        label: code,
-      }))
-    }
-    return [
-      { value: 'room-only', label: 'Room only' },
-      { value: 'bed-breakfast', label: 'Bed& Breakfast' },
-      { value: 'half-board', label: 'Half board' },
-      { value: 'full-board', label: 'Full board' },
-      { value: 'all-inclusive', label: 'All inclusive' },
-      { value: 'ultra-all-inclusive', label: 'ultra all inclusive' },
-    ]
-  }, [ariState.rates])
-
   const mealPlanOptions: SelectOption[] = useMemo(() => {
-    if (mealPlansState.items.length > 0) {
-      return mealPlansState.items.map((item) => ({
-        value: item.code,
-        label: item.name,
-      }))
-    }
-    return [
-      { value: 'room-only', label: 'Room only' },
-      { value: 'bed-breakfast', label: 'Bed& Breakfast' },
-      { value: 'half-board', label: 'Half board' },
-      { value: 'full-board', label: 'Full board' },
-      { value: 'all-inclusive', label: 'All inclusive' },
-      { value: 'ultra-all-inclusive', label: 'ultra all inclusive' },
-    ]
+    return mealPlansState.items.map((item) => ({
+      value: item.id,
+      label: item.name,
+    }))
   }, [mealPlansState.items])
 
 
 
 
   const extraItemOptions: SelectOption[] = useMemo(() => {
-    const options = financialSettings.services.map((s) => ({
+    return financialSettings.services.map((s) => ({
       value: s.name,
       label: s.name,
     }))
-    options.push({ value: 'custom', label: 'Custom' })
-    return options
   }, [financialSettings.services])
 
-  const addRoom = () => {
-    const nextId = Date.now()
+  const addMealPlan = () => {
+    const newId = value.mealPlans.length > 0 ? Math.max(...value.mealPlans.map((r) => r.id)) + 1 : 1
     onChange({
-      rooms: [...value.rooms, { id: nextId, roomType: '', roomView: '', roomCount: 1, roomNumbers: [] }],
+      mealPlans: [
+        ...value.mealPlans,
+        { id: newId, mealPlanId: '', serviceDateStart: value.checkInDate || '', serviceDateEnd: value.checkOutDate || '', price: 0 },
+      ],
+    })
+  }
+
+  const updateMealPlan = (id: number, patch: Partial<(typeof value.mealPlans)[0]>) => {
+    onChange({
+      mealPlans: value.mealPlans.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    })
+  }
+
+  const deleteMealPlan = (id: number) => {
+    onChange({
+      mealPlans: value.mealPlans.filter((r) => r.id !== id),
     })
   }
 
   const addExtraRow = () => {
-    onChange({ extras: [...value.extras, { id: Date.now(), item: '', qty: 0, price: 0 }] })
+    const newId = value.extras.length > 0 ? Math.max(...value.extras.map((r) => r.id)) + 1 : 1
+    onChange({
+      extras: [
+        ...value.extras,
+        { id: newId, item: '', qty: 1, serviceDate: value.checkInDate || '' },
+      ],
+    })
   }
 
-  const updateExtra = (id: number, patch: Partial<{ item: string; qty: number; customName?: string; price?: number }>) => {
+  const updateExtra = (id: number, patch: Partial<{ item: string; qty: number; customName?: string; price?: number; serviceDate?: string }>) => {
     const nextExtras = value.extras.map((x) => {
       if (x.id !== id) return x
 
@@ -385,6 +348,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
     }
   }
 
+
   return (
     <div className="space-y-7">
       <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
@@ -422,10 +386,9 @@ export function NewReservationStep2({ value, onChange }: Props) {
                   value={room.roomType}
                   onChange={(v) => {
                     const selectedType = roomTypesState.items.find((t) => t.name === v)
-                    const viewLabel = selectedType !== undefined ? RoomViewEnum[selectedType.viewType] : ''
                     onChange({
                       rooms: value.rooms.map((r) =>
-                        r.id === room.id ? { ...r, roomType: v, roomView: viewLabel } : r,
+                        r.id === room.id ? { ...r, roomType: v, roomTypeId: selectedType?.id || '' } : r,
                       ),
                     })
                   }}
@@ -433,112 +396,6 @@ export function NewReservationStep2({ value, onChange }: Props) {
                 />
               </Labeled>
             </div>
-            <div className="md:col-span-2">
-              <Labeled label="Room view" required>
-                <SelectControlWithOptions
-                  options={roomViewOptions}
-                  value={room.roomView}
-                  onChange={(v) =>
-                    onChange({
-                      rooms: value.rooms.map((r) => (r.id === room.id ? { ...r, roomView: v } : r)),
-                    })
-                  }
-                />
-              </Labeled>
-            </div>
-            <div className="md:col-span-2">
-              <Labeled label="Room Count" required>
-                <div className="flex h-11 items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-3">
-                  <button
-                    type="button"
-                    className="grid h-7 w-7 place-items-center rounded-full border border-[#0B4EA2] text-[#0B4EA2] hover:bg-blue-50"
-                    onClick={() => {
-                      const nextCount = room.roomCount + 1
-                      onChange({
-                        rooms: value.rooms.map((r) => (r.id === room.id ? { ...r, roomCount: nextCount } : r)),
-                      })
-                    }}
-                  >
-                    +
-                  </button>
-                  <div className="min-w-5 text-center text-sm font-semibold text-slate-800">
-                    {room.roomCount}
-                  </div>
-                  <button
-                    type="button"
-                    className="grid h-7 w-7 place-items-center rounded-full border border-rose-400 text-rose-500 hover:bg-rose-50"
-                    onClick={() => {
-                      const nextCount = Math.max(1, room.roomCount - 1)
-                      onChange({
-                        rooms: value.rooms.map((r) => {
-                          if (r.id === room.id) {
-                            const nextNumbers = r.roomNumbers.slice(0, nextCount)
-                            return { ...r, roomCount: nextCount, roomNumbers: nextNumbers }
-                          }
-                          return r
-                        }),
-                      })
-                    }}
-                  >
-                    −
-                  </button>
-                </div>
-              </Labeled>
-            </div>
-
-            <div className="md:col-span-3">
-              {value.isVip && (
-                <div className="flex items-end gap-3">
-                  <div className="w-28 shrink-0">
-                    <Labeled label="Room Num" required>
-                      <SelectControlWithOptions
-                        options={roomNumberOptions.filter((opt) => !room.roomNumbers.includes(opt.value))}
-                        value=""
-                        onChange={(v) => {
-                          if (v && room.roomNumbers.length < room.roomCount) {
-                            onChange({
-                              rooms: value.rooms.map((r) =>
-                                r.id === room.id ? { ...r, roomNumbers: [...r.roomNumbers, v] } : r,
-                              ),
-                            })
-                          }
-                        }}
-                      />
-                    </Labeled>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mb-1">
-                    {room.roomNumbers.map((num, idx) => {
-                      const colors = ['bg-[#0B4EA2]', 'bg-amber-400', 'bg-emerald-500', 'bg-rose-500']
-                      const colorClass = colors[idx % colors.length]
-                      return (
-                        <div
-                          key={num}
-                          className={`group relative flex h-8 min-w-[32px] w-fit px-2 items-center justify-center rounded-full ${colorClass} text-[10px] font-bold text-white shadow-sm transition-all`}
-                        >
-                          {num}
-                          <button
-                            type="button"
-                            className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-slate-800/80 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100"
-                            onClick={() =>
-                              onChange({
-                                rooms: value.rooms.map((r) =>
-                                  r.id === room.id
-                                    ? { ...r, roomNumbers: r.roomNumbers.filter((n) => n !== num) }
-                                    : r,
-                                ),
-                              })
-                            }
-                          >
-                            ×
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div className="md:col-span-2 h-11 flex items-center gap-2">
               <input
                 type="checkbox"
@@ -547,6 +404,32 @@ export function NewReservationStep2({ value, onChange }: Props) {
                 onChange={(e) => onChange({ isVip: e.target.checked })}
               />
               <span className="select-none text-[11px] font-semibold text-slate-700 whitespace-nowrap">VIP Guest</span>
+            </div>
+            <div className="md:col-span-12">
+              <Counter
+                label="Room Count *"
+                value={room.roomCount}
+                onIncrease={() => {
+                  const nextCount = room.roomCount + 1
+                  onChange({
+                    rooms: value.rooms.map((r) => (r.id === room.id ? { ...r, roomCount: nextCount } : r)),
+                  })
+                }}
+                onDecrease={() => {
+                  const nextCount = Math.max(1, room.roomCount - 1)
+                  onChange({
+                    rooms: value.rooms.map((r) => {
+                      if (r.id === room.id) {
+                        return { ...r, roomCount: nextCount }
+                      }
+                      return r
+                    }),
+                  })
+                }}
+              />
+            </div>
+
+            <div className="md:col-span-11">
             </div>
 
             <div className="md:col-span-1 h-11 flex items-center justify-end">
@@ -563,7 +446,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Counter
           label="Adult"
           value={value.adultCount}
@@ -572,453 +455,307 @@ export function NewReservationStep2({ value, onChange }: Props) {
           onDecrease={() => onChange({ adultCount: Math.max(0, value.adultCount - 1) })}
         />
         <Counter
-          label="child"
+          label="Child"
           value={value.childCount}
           priceText={childTotalText}
           onIncrease={() => onChange({ childCount: value.childCount + 1 })}
           onDecrease={() => onChange({ childCount: Math.max(0, value.childCount - 1) })}
         />
-        <Counter
-          label="Infant"
-          value={value.infantCount}
-          priceText={infantTotalText}
-          onIncrease={() => onChange({ infantCount: value.infantCount + 1 })}
-          onDecrease={() => onChange({ infantCount: Math.max(0, value.infantCount - 1) })}
-        />
-      </div>
-
-
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          className="h-11 rounded-xl border border-[#0B4EA2] px-10 text-sm font-semibold text-[#0B4EA2]"
-          onClick={addRoom}
-        >
-          Add Room
-        </button>
       </div>
 
       <div className="space-y-5">
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          <Labeled label="Discount Type">
-            <div className="relative">
-              <select
-                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-11 text-sm text-slate-500 outline-none focus:border-[#0B4EA2]"
-                value={value.discountId || value.discountType}
-                onChange={(e) => {
-                  const val = e.target.value
-                  if (val === 'none') {
-                    onChange({ discountType: 'none', discountId: '', discountPercentage: '', discountFixed: '' })
-                  } else if (val === 'custom') {
-                    onChange({ discountType: 'custom', discountId: '' })
-                  } else {
-                    const discount = financialSettings.discounts.find((d) => d.id === val)
-                    if (discount) {
-                      onChange({
-                        discountType: discount.type === 'Percentage' ? 'percentage' : 'fixed',
-                        discountId: discount.id,
-                        discountPercentage: discount.type === 'Percentage' ? discount.value.toString() : '',
-                        discountFixed: discount.type === 'FixedAmount' ? discount.value.toString() : '',
-                      })
-                    }
-                  }
-                }}
-              >
-                {discountTypeOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-                ▾
-              </span>
+
+        <Labeled label="Rate Code (e.g. BAR)">
+          <InputControl
+            placeholder="Enter rate code..."
+            value={value.rateCode}
+            onChange={(v) => onChange({ rateCode: v })}
+          />
+        </Labeled>
+
+
+        {/* Invalid rate code warning */}
+        {localAriState.status === 'succeeded' && localAriState.rates.length === 0 && value.rateCode.trim() !== '' && (
+          <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <svg className="h-5 w-5 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <div>
+              <p className="text-sm font-bold text-amber-800">Invalid Rate Code</p>
+              <p className="text-xs text-amber-600 mt-0.5">No rates were found for code <span className="font-mono font-bold">"{value.rateCode}"</span>. Please check and try again.</p>
             </div>
-          </Labeled>
-
-          {value.discountType === 'custom' ? (
-            <>
-              <Labeled label="Discount Name">
-                <InputControl
-                  placeholder="Enter name"
-                  value={value.customDiscountName}
-                  onChange={(v) => onChange({ customDiscountName: v })}
-                />
-              </Labeled>
-              <div className="grid grid-cols-2 gap-3">
-                <Labeled label="Value">
-                  <InputControl
-                    placeholder="0"
-                    value={value.customDiscountValue}
-                    onChange={(v) => onChange({ customDiscountValue: v })}
-                  />
-                </Labeled>
-                <Labeled label="Discount Type">
-                  <div className="relative">
-                    <select
-                      className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-8 text-sm text-slate-500 outline-none focus:border-[#0B4EA2]"
-                      value={value.customDiscountType}
-                      onChange={(e) => onChange({ customDiscountType: e.target.value as 'FixedAmount' | 'Percentage' })}
-                    >
-                      <option value="Percentage">%</option>
-                      <option value="FixedAmount">$</option>
-                    </select>
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">▾</span>
-                  </div>
-                </Labeled>
-              </div>
-            </>
-          ) : value.discountId ? (
-            <Labeled label={value.discountType === 'percentage' ? 'Percentage' : 'Fixed amount'}>
-              <InputControl
-                value={value.discountType === 'percentage' ? `${value.discountPercentage}%` : `${value.discountFixed}$`}
-                disabled
-              />
-            </Labeled>
-          ) : value.discountType === 'percentage' ? (
-            <Labeled label="Percentage">
-              <InputControl
-                placeholder="0%"
-                value={value.discountPercentage}
-                onChange={(v) => onChange({ discountPercentage: v })}
-              />
-            </Labeled>
-          ) : value.discountType === 'fixed' ? (
-            <Labeled label="Fixed amount">
-              <InputControl
-                placeholder="0$"
-                value={value.discountFixed}
-                onChange={(v) => onChange({ discountFixed: v })}
-              />
-            </Labeled>
-          ) : (
-            <div />
-          )}
-
-          {value.discountType !== 'none' && (
-            <Labeled label="Comment">
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <InputControl
-                    placeholder="Write Reason"
-                    value={value.discountComment}
-                    onChange={(v) => onChange({ discountComment: v })}
-                  />
-                </div>
-                {value.discountType === 'custom' && (
-                  <button
-                    type="button"
-                    disabled={financialSettings.status === 'loading' || !value.customDiscountName || !value.customDiscountValue}
-                    className="h-11 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2"
-                    onClick={() => {
-                      if (!value.customDiscountName || !value.customDiscountValue) return
-                      dispatch(createFinancialDiscount({
-                        name: value.customDiscountName,
-                        value: Number(value.customDiscountValue),
-                        type: value.customDiscountType || 'Percentage'
-                      })).unwrap().then((newDiscount) => {
-                        onChange({
-                          discountType: newDiscount.type === 'Percentage' ? 'percentage' : 'fixed',
-                          discountId: newDiscount.id,
-                          discountPercentage: newDiscount.type === 'Percentage' ? newDiscount.value.toString() : '',
-                          discountFixed: newDiscount.type === 'FixedAmount' ? newDiscount.value.toString() : '',
-                          customDiscountName: '',
-                          customDiscountValue: '',
-                        })
-                      })
-                    }}
-                  >
-                    {financialSettings.status === 'loading' && <RotateCcw className="w-4 h-4 animate-spin" />}
-                    {financialSettings.status === 'loading' ? 'Adding...' : 'Add Discount'}
-                  </button>
-                )}
-              </div>
-            </Labeled>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_1fr_1fr_220px]">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3 md:col-span-3">
-            <Labeled label="Rate code">
-              <SelectControlWithOptions
-                options={ariState.rates.length > 0
-                  ? Array.from(new Set(ariState.rates.map(r => r.ratePlanCode))).map(code => ({ value: code, label: code }))
-                  : rateCodeOptions
-                }
-                value={value.rateCode}
-                onChange={(v) =>
-                  onChange({
-                    rateCode: v,
-                    isGroupReservation: v === 'group-reservation',
-                  })
-                }
-              />
-            </Labeled>
-            <Labeled label="Rate Plan">
-              <SelectControlWithOptions
-                options={ratePlanOptions}
-                value={value.ratePlan}
-                onChange={(v) => {
-                  const rate = ariState.rates.find(r => r.invTypeCode === v)
-                  onChange({
-                    ratePlan: v,
-                    rateCode: rate?.ratePlanCode ?? value.rateCode
-                  })
-                }}
-              />
-            </Labeled>
-            <Labeled label="Meal Code">
-              <SelectControlWithOptions
-                options={mealPlanOptions}
-                value={value.mealPlan}
-                onChange={(v) => onChange({ mealPlan: v })}
-              />
-            </Labeled>
           </div>
-        </div>
-
+        )}
 
         {/* Nightly Rates Table */}
-        {value.checkInDate && value.checkOutDate && (
-          <div className="mt-8 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h3 className="text-lg font-bold text-[#1e293b]">Nightly Rates</h3>
-                <span className="px-3 py-1 text-[11px] font-bold text-slate-500 bg-slate-100 rounded-full uppercase tracking-wider">Editable</span>
-              </div>
-              <div className="flex items-center gap-6">
-                <button type="button" className="flex items-center gap-2 text-sm font-bold text-[#004bb4] hover:text-blue-800 transition-colors">
-                  <RefreshCw className="w-4 h-4" />
+        {localAriState.rates.length > 0 && (() => {
+          const allZero = localAriState.rates.every(r => r.amountBeforeTax === 0 && r.finalRateAfterTax === 0)
+          return (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-[15px] font-bold text-[#1e293b]">Nightly Rates</h3>
+                  {localAriState.status === 'loading' && (
+                    <span className="px-2.5 py-0.5 text-[10px] font-bold text-blue-600 bg-blue-50 rounded-full uppercase tracking-wider animate-pulse">Loading…</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#0B4EA2] hover:text-blue-800 transition-colors"
+                  onClick={() => {
+                    const roomTypeId = value.rooms[0]?.roomTypeId
+                    if (value.checkInDate && value.checkOutDate && roomTypeId && value.rateCode) {
+                      dispatch(fetchLocalARIRates({
+                        roomTypeId,
+                        ratePlanCode: value.rateCode,
+                        startDate: value.checkInDate,
+                        endDate: value.checkOutDate,
+                        roomCount: value.rooms[0]?.roomCount || 1,
+                        adults: value.adultCount || 1,
+                        children: value.childCount || 0,
+                        extraBeds: 0,
+                      }))
+                    }
+                  }}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
                   Recalculate
                 </button>
-                <button type="button" className="flex items-center gap-2 px-5 py-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
-                  <Edit3 className="w-4 h-4 text-[#004bb4]" />
-                  Edit Multiple
-                </button>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                {allZero ? (
+                  <div className="flex flex-col items-center justify-center gap-2 py-10 text-center px-6">
+                    <svg className="h-8 w-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                    <p className="text-sm font-bold text-slate-700">No rate data available for this period</p>
+                    <p className="text-xs text-slate-400 max-w-xs">The rate plan code <span className="font-mono font-semibold text-slate-600">"{value.rateCode}"</span> has not been configured for this room type and date range yet. Please verify the rate plan exists or contact your revenue manager.</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Day</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Base Rate</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">After Tax</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Final Rate</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Guests</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {localAriState.rates.map((rate) => {
+                        const dateObj = new Date(rate.date)
+                        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                        return (
+                          <tr key={rate.date} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                              {dateObj.toLocaleDateString('en-GB')}
+                            </td>
+                            <td className="px-5 py-4 text-sm text-slate-500">
+                              {dayNames[dateObj.getDay()]}
+                            </td>
+                            <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                              {rate.amountBeforeTax.toFixed(2)}
+                            </td>
+                            <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                              {rate.amountAfterTax.toFixed(2)}
+                            </td>
+                            <td className="px-5 py-4 text-sm font-bold text-emerald-600">
+                              {rate.finalRateAfterTax.toFixed(2)}
+                            </td>
+                            <td className="px-5 py-4 text-sm text-slate-500">
+                              {rate.numberOfGuests}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
-            <p className="text-sm text-slate-500 font-medium italic">Prices are per night. You can edit any night if needed.</p>
+          )
+        })()}
 
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+        {/* Meal Plans Table */}
+        <div className="mt-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[15px] font-bold text-[#1e293b]">Meal Plans</h3>
+            <button
+              type="button"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#0B4EA2] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#093d81] transition-all"
+              onClick={addMealPlan}
+            >
+              <span className="text-sm leading-none">+</span> Add Meal Plan
+            </button>
+          </div>
+
+          {value.mealPlans.length > 0 ? (
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-200">
-                    <th className="px-6 py-4 text-[12px] font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-4 text-[12px] font-bold text-slate-500 uppercase tracking-wider">Day</th>
-                    <th className="px-6 py-4 text-[12px] font-bold text-slate-500 uppercase tracking-wider">Rate (USD)</th>
-                    <th className="px-6 py-4 text-[12px] font-bold text-slate-500 uppercase tracking-wider">Tax (%)</th>
-                    <th className="px-6 py-4 text-[12px] font-bold text-slate-500 uppercase tracking-wider">Total (USD)</th>
-                    <th className="px-6 py-4 text-[12px] font-bold text-slate-500 uppercase tracking-wider text-center">Actions</th>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Start Date</th>
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">End Date</th>
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Meal Plan</th>
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right">Price / Day</th>
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider w-14"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {(() => {
-                    const rows = []
-                    const start = new Date(value.checkInDate)
-                    const end = new Date(value.checkOutDate)
-
-                    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-                    for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-                      const dateStr = d.toISOString().split('T')[0]
-                      const dayName = dayNames[d.getDay()]
-
-                      // Find rate for this specific date and selected plan/code
-                      const rateMatch = ariState.rates.find(r => {
-                        if (!r.date) return false
-                        const rDateStr = r.date.split(' ')[0]
-                        return (
-                          r.invTypeCode === value.ratePlan &&
-                          r.ratePlanCode === value.rateCode &&
-                          rDateStr === dateStr
-                        )
-                      })
-
-                      const rate = rateMatch?.additionalGuestAmounts[0]?.amount ?? 0
-                      const total = rateMatch?.baseGuestAmounts[0]?.amountAfterTax ?? 0
-                      const taxAmount = Math.max(0, total - rate)
-                      const taxPercent = rate > 0 ? ((taxAmount / rate) * 100).toFixed(0) : '0'
-
-                      rows.push(
-                        <tr key={dateStr} className="hover:bg-slate-50/30 transition-colors">
-                          <td className="px-6 py-5 text-sm font-semibold text-slate-600">
-                            {d.toLocaleDateString('en-GB')}
-                          </td>
-                          <td className="px-6 py-5 text-sm font-bold text-slate-500">
-                            {dayName}
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="relative w-32">
-                              <input
-                                type="number"
-                                value={rate.toFixed(2)}
-                                readOnly
-                                className="w-full h-10 px-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-bold text-slate-700 outline-none text-right"
-                              />
-                            </div>
-                          </td>
-                          <td className="px-6 py-5 text-sm font-bold text-slate-500">
-                            {taxAmount.toFixed(2)} ({taxPercent}%)
-                          </td>
-                          <td className="px-6 py-5 text-sm font-bold text-slate-800">
-                            {total.toFixed(2)}
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="flex items-center justify-center gap-3">
-                              <button type="button" className="p-2 border border-slate-200 rounded-full text-slate-400 hover:text-[#004bb4] hover:border-blue-200 transition-colors">
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button type="button" className="p-2 border border-slate-200 rounded-full text-slate-400 hover:text-[#004bb4] hover:border-blue-200 transition-colors">
-                                <RotateCcw className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    }
-
-                    if (rows.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={6} className="px-6 py-10 text-center text-slate-400 font-medium italic">
-                            Select stay dates and a rate plan to view nightly rates.
-                          </td>
-                        </tr>
-                      )
-                    }
-
-                    return rows
-                  })()}
+                  {value.mealPlans.map((mp) => (
+                    <tr key={mp.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-3 py-2 w-48">
+                        <InputControl
+                          type="date"
+                          value={mp.serviceDateStart ? mp.serviceDateStart.split('T')[0] : ''}
+                          onChange={(v) => updateMealPlan(mp.id, { serviceDateStart: v })}
+                          min={value.checkInDate || undefined}
+                          max={value.checkOutDate || undefined}
+                        />
+                      </td>
+                      <td className="px-3 py-2 w-48">
+                        <InputControl
+                          type="date"
+                          value={mp.serviceDateEnd ? mp.serviceDateEnd.split('T')[0] : ''}
+                          onChange={(v) => updateMealPlan(mp.id, { serviceDateEnd: v })}
+                          min={value.checkInDate || undefined}
+                          max={value.checkOutDate || undefined}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <SelectControlWithOptions
+                          options={mealPlanOptions}
+                          value={mp.mealPlanId}
+                          onChange={(v) => {
+                            const plan = mealPlansState.items.find((i) => i.id === v)
+                            updateMealPlan(mp.id, { mealPlanId: v, price: plan?.pricePerDay || 0 })
+                          }}
+                        />
+                      </td>
+                      <td className="px-5 py-4 text-sm font-semibold text-slate-700 text-right">
+                        {mp.price ? mp.price.toFixed(2) : '0.00'}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          type="button"
+                          className="grid h-8 w-8 place-items-center text-rose-500 hover:bg-rose-50 rounded-lg transition-colors ml-auto"
+                          aria-label="Delete"
+                          onClick={() => deleteMealPlan(mp.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 py-8 text-center">
+              <p className="text-sm font-medium text-slate-500">No meal plans added.</p>
+            </div>
+          )}
+        </div>
 
-        {value.extras.length > 0 ? (
-          <div className="space-y-5">
-            {value.extras.map((extra, idx) => {
-              const unitPrice = extra.price ?? 0
-              const totalPrice = extra.qty * unitPrice
-
-              return (
-                <div key={extra.id} className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/30 p-5">
-                  <div className="grid grid-cols-1 items-end gap-5 md:grid-cols-[1fr_220px_240px_44px_220px]">
-                    <Labeled label="Extra item">
-                      <SelectControlWithOptions
-                        options={extraItemOptions}
-                        value={extra.item}
-                        onChange={(value) => updateExtra(extra.id, { item: value })}
-                      />
-                    </Labeled>
-
-                    <Labeled label="Quantity">
-                      <div className="flex h-11 items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white px-4">
-                        <button
-                          type="button"
-                          className="grid h-7 w-7 place-items-center rounded-full border border-[#0B4EA2] text-[#0B4EA2] hover:bg-blue-50"
-                          onClick={() => updateExtra(extra.id, { qty: extra.qty + 1 })}
-                        >
-                          +
-                        </button>
-                        <div className="min-w-6 text-center text-sm font-semibold text-slate-800">
-                          {extra.qty}
-                        </div>
-                        <button
-                          type="button"
-                          className="grid h-7 w-7 place-items-center rounded-full border border-rose-400 text-rose-500 hover:bg-rose-50"
-                          onClick={() => updateExtra(extra.id, { qty: Math.max(0, extra.qty - 1) })}
-                        >
-                          −
-                        </button>
-                      </div>
-                    </Labeled>
-
-                    <Labeled label="Price">
-                      <InputControl value={`${totalPrice.toFixed(2)}$`} disabled />
-                    </Labeled>
-
-                    <div className="flex h-11 items-center justify-end">
-                      <button
-                        type="button"
-                        className="grid h-11 w-11 place-items-center text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
-                        aria-label="Delete"
-                        onClick={() => deleteExtra(extra.id)}
-                      >
-                        <Trash2 className="h-[18px] w-[18px]" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-end justify-end">
-                      {idx === 0 ? (
-                        <button
-                          type="button"
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0B4EA2] px-10 text-sm font-semibold text-white shadow-sm hover:bg-[#093d81] transition-all"
-                          onClick={addExtraRow}
-                        >
-                          <span className="text-lg leading-none">+</span>
-                          Extras
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {extra.item === 'custom' && (
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_220px_240px_44px_220px] items-end animate-in fade-in slide-in-from-top-2 duration-300">
-                      <Labeled label="Service Name" required>
-                        <InputControl
-                          placeholder="Enter service name"
-                          value={extra.customName}
-                          onChange={(v) => updateExtra(extra.id, { customName: v })}
-                        />
-                      </Labeled>
-                      <Labeled label="Service Price" required>
-                        <InputControl
-                          placeholder="0.00"
-                          value={extra.price?.toString()}
-                          onChange={(v) => updateExtra(extra.id, { price: parseFloat(v) || 0 })}
-                        />
-                      </Labeled>
-                      <div className="md:col-span-3">
-                        <button
-                          type="button"
-                          className="h-11 rounded-xl bg-emerald-500 px-6 text-sm font-bold text-white shadow-sm hover:bg-emerald-600 transition-colors"
-                          onClick={() => {
-                            if (!extra.customName || !extra.price) return
-                            dispatch(createFinancialService({
-                              name: extra.customName,
-                              price: extra.price
-                            })).unwrap().then((newService) => {
-                              updateExtra(extra.id, {
-                                item: newService.name,
-                                price: newService.price,
-                                customName: ''
-                              })
-                            })
-                          }}
-                        >
-                          Add service
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="flex justify-end">
+        {/* Services Table */}
+        <div className="mt-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[15px] font-bold text-[#1e293b]">Additional Services</h3>
             <button
               type="button"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0B4EA2] px-10 text-sm font-semibold text-white"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#0B4EA2] px-4 text-xs font-semibold text-white shadow-sm hover:bg-[#093d81] transition-all"
               onClick={addExtraRow}
             >
-              <span className="text-lg leading-none">+</span>
-              Extras
+              <span className="text-sm leading-none">+</span> Add Service
             </button>
           </div>
-        )}
+
+          {value.extras.length > 0 ? (
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Service</th>
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center w-32">Qty</th>
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right w-24">Price</th>
+                    <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider w-14"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {value.extras.map((extra) => {
+                    const unitPrice = extra.price ?? 0
+                    const totalPrice = extra.qty * unitPrice
+
+                    return (
+                      <tr key={extra.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-3 py-2 w-48 align-top">
+                        <InputControl
+                            type="date"
+                            value={extra.serviceDate ? extra.serviceDate.split('T')[0] : ''}
+                            onChange={(v) => updateExtra(extra.id, { serviceDate: v })}
+                            min={value.checkInDate || undefined}
+                            max={value.checkOutDate || undefined}
+                          />
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          <SelectControlWithOptions
+                            options={extraItemOptions}
+                            value={extra.item}
+                            onChange={(v) => {
+                              const svc = financialSettings.services.find((s) => s.name === v)
+                              updateExtra(extra.id, { item: v, price: svc?.price || 0 })
+                            }}
+                          />
+                        </td>
+                        <td className="px-3 py-2 align-top pt-3">
+                          <div className="flex h-9 mx-auto items-center justify-between rounded-lg border border-slate-200 bg-white px-2">
+                            <button
+                              type="button"
+                              className="grid h-6 w-6 place-items-center rounded-md text-slate-500 hover:bg-slate-100"
+                              onClick={() => updateExtra(extra.id, { qty: Math.max(1, extra.qty - 1) })}
+                            >
+                              −
+                            </button>
+                            <span className="text-sm font-semibold text-slate-800">{extra.qty}</span>
+                            <button
+                              type="button"
+                              className="grid h-6 w-6 place-items-center rounded-md text-slate-500 hover:bg-slate-100"
+                              onClick={() => updateExtra(extra.id, { qty: extra.qty + 1 })}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-sm font-semibold text-slate-700 text-right align-top pt-4">
+                          ${totalPrice.toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2 text-right align-top pt-3">
+                          <button
+                            type="button"
+                            className="grid h-8 w-8 place-items-center text-rose-500 hover:bg-rose-50 rounded-lg transition-colors ml-auto"
+                            aria-label="Delete"
+                            onClick={() => deleteExtra(extra.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 py-8 text-center">
+              <p className="text-sm font-medium text-slate-500">No services added.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <Labeled label="Special Requests">

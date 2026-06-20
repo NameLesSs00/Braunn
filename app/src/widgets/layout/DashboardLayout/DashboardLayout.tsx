@@ -9,6 +9,7 @@ import { NewReservationModalProvider } from './NewReservationModalContext'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { addNotification, removeNotification } from '../../../features/notifications/notificationsSlice'
 import { ShiftStartModal } from '../../../features/shiftStart'
+import { SelectReservationTypeModal } from '../../reservations/SelectReservationTypeModal/SelectReservationTypeModal'
 import { useEffect } from 'react'
 
 const titleByPath: Record<string, string> = {
@@ -35,6 +36,7 @@ export function DashboardLayout() {
   const dispatch = useAppDispatch()
   const location = useLocation()
   const title = titleByPath[location.pathname] ?? 'Dashboard'
+  const [selectReservationTypeOpen, setSelectReservationTypeOpen] = useState(false)
   const [newReservationOpen, setNewReservationOpen] = useState(false)
   const [shiftStartOpen, setShiftStartOpen] = useState(false)
 
@@ -86,7 +88,7 @@ export function DashboardLayout() {
                 </p>
               </div>
             )}
-            <Header title={title} onAddReservationClick={() => setNewReservationOpen(true)} />
+            <Header title={title} onAddReservationClick={() => setSelectReservationTypeOpen(true)} />
             <main className="min-w-0 flex-1 overflow-y-auto px-8 pb-10">
               <Outlet />
             </main>
@@ -94,6 +96,14 @@ export function DashboardLayout() {
         </div>
       </NewReservationModalProvider>
 
+      <SelectReservationTypeModal
+        open={selectReservationTypeOpen}
+        onClose={() => setSelectReservationTypeOpen(false)}
+        onSelectIndividual={() => {
+          setSelectReservationTypeOpen(false)
+          setNewReservationOpen(true)
+        }}
+      />
       <NewReservationModal open={newReservationOpen} onClose={() => setNewReservationOpen(false)} />
       <ShiftStartModal open={shiftStartOpen} onClose={() => setShiftStartOpen(false)} />
     </div>

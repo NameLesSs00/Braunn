@@ -3,12 +3,13 @@ import { useMemo } from 'react'
 import countries from 'i18n-iso-countries'
 import enLocale from 'i18n-iso-countries/langs/en.json'
 import { Pencil } from 'lucide-react'
-import { IoMdPerson } from "react-icons/io";
 import { IconType } from "react-icons"
 import type { ReservationDraft } from '../../../../features/reservations/draftSlice'
 import { MdEmail, MdContactPhone, MdNotes, MdMeetingRoom, MdDateRange } from "react-icons/md";
+import { IoMdPerson } from "react-icons/io";
 import { BsTelephone } from "react-icons/bs";
 import { LuIdCard } from "react-icons/lu";
+import { useAppSelector } from '../../../../store/hooks'
 
 countries.registerLocale(enLocale)
 
@@ -62,7 +63,7 @@ function Card({
   title: string
   children: React.ReactNode
   onEdit?: () => void
-  titleIconSrc?: string
+  titleIconSrc?: string | IconType
   titleIconBgClassName?: string
 }) {
   return (
@@ -107,6 +108,7 @@ function formatDateForDisplay(value: string) {
 }
 
 export function NewReservationStep3({ value }: Props) {
+  const localAriState = useAppSelector((state) => state.localAri)
   const fullName = [value.firstName, value.surName].filter(Boolean).join(' ')
 
   const nationalityLabel = useMemo(() => {
@@ -115,7 +117,7 @@ export function NewReservationStep3({ value }: Props) {
   }, [value.nationality])
 
   const mainRoom = value.rooms[0]
-  const guestsTotal = value.adultCount + value.childCount + value.infantCount
+  const guestsTotal = value.adultCount + value.childCount
 
   return (
     <div className="space-y-6">
@@ -143,24 +145,14 @@ export function NewReservationStep3({ value }: Props) {
         <Card title="Room Information" titleIconSrc={MdMeetingRoom} titleIconBgClassName="bg-violet-100">
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <InfoRow label="Room count" value={mainRoom?.roomCount.toString() ?? ''} />
-            <InfoRow label="Room view" value={mainRoom?.roomView ?? ''} />
             <InfoRow label="Room Type" value={mainRoom?.roomType ?? ''} />
-            <InfoRow label="Room Numbers" value={mainRoom?.roomNumbers.join(', ') || '—'} />
-            <InfoRow label="Rate plan" value={value.ratePlan} />
-            <InfoRow label="Floor" value="1" />
             <InfoRow label="Rate code" value={value.rateCode} />
             <InfoRow label="Maximum Guests" value={guestsTotal ? `${guestsTotal} guests` : ''} />
             <InfoRow
               label="Price per Night"
               value={(() => {
-                const type = value.rooms[0]?.roomType || 'single'
-                const rates: Record<string, number> = {
-                  single: 100,
-                  double: 150,
-                  suit: 250,
-                  doublex: 350,
-                }
-                return `$${rates[type] || rates.single}`
+                const amount = localAriState.rates[0]?.amountBeforeTax
+                return amount ? `$${amount.toFixed(2)}` : '—'
               })()}
             />
           </div>
@@ -188,13 +180,7 @@ export function NewReservationStep3({ value }: Props) {
         </div>
       </Card>
 
-      <Card title="Booking Information" titleIconSrc={LuIdCard} titleIconBgClassName="bg-slate-100">
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          <InfoRow label="Created On" value="Dec 15, 2025, 12:00 PM" />
-          <InfoRow label="Reservation ID" value="r1" />
-          <InfoRow label="Created By" value="Ana joseph" />
-        </div>
-      </Card>
+
     </div>
   )
 }

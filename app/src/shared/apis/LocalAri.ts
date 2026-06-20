@@ -1,5 +1,5 @@
 import { apiRequest, unwrapApiResponse } from './apiClient'
-import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, CreateLocalARIAvailabilityPayload, GetLocalARIAvailabilityParams, LocalARIAvailability, UpdateLocalARISingleDayRatePayload } from '../../models/LocalAri'
+import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, CreateLocalARIAvailabilityPayload, GetLocalARIAvailabilityParams, LocalARIAvailability, UpdateLocalARISingleDayRatePayload, CreateLocalARIRestrictionPayload, GetLocalARIRatesHistoryParams, LocalARIRateHistory } from '../../models/LocalAri'
 
 const basePath = '/local/ari'
 
@@ -61,3 +61,28 @@ export function updateLocalARISingleDayRate(payload: UpdateLocalARISingleDayRate
   }).then((r) => unwrapApiResponse<unknown>(r))
 }
 
+export function createLocalARIRestrictions(payload: CreateLocalARIRestrictionPayload, signal?: AbortSignal) {
+  return apiRequest<unknown>({
+    method: 'POST',
+    path: `${basePath}/restrictions`,
+    body: payload,
+    signal
+  }).then((r) => unwrapApiResponse<unknown>(r))
+}
+
+export function getLocalARIRatesHistory(params: GetLocalARIRatesHistoryParams, signal?: AbortSignal) {
+  const cleanedParams: Record<string, string> = {}
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      cleanedParams[key] = String(value)
+    }
+  })
+  
+  const qp = new URLSearchParams(cleanedParams).toString()
+  const urlParams = qp ? `?${qp}` : ''
+  return apiRequest<unknown>({
+    method: 'GET',
+    path: `${basePath}/rates/history${urlParams}`,
+    signal
+  }).then((r) => unwrapApiResponse<LocalARIRateHistory[]>(r))
+}

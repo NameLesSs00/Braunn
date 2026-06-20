@@ -2,72 +2,47 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 
 export type ReservationDraft = {
   bookingSource: string
-  otaSource: string
-
-  reservationStatus: '' | 'all_status' | 'confirmed' | 'optional_on_hold' | 'commit' | 'modify' | 'cancelled'
-  optionExpiryDate: string
-
-  isGroupReservation: boolean
-
+  reservationStatus: '' | 'all_status' | 'confirmed' | 'optional_on_hold' | 'commit' | 'modify' | 'cancelled' | 'Reserved' | 'Confirmed' | 'CheckedIn' | 'CheckedOut' | 'Completed' | 'Cancelled' | 'Tentative' | 'Definite'
+  
   firstName: string
-  middleName: string
   surName: string
-  salutation: string
-  dateOfBirth: string
-
+  
   language: string
-
   email: string
   phone: string
-
+  
   nationality: string
   idNumber: string
   creatorID: string
-
+  
   addressLine: string
-  addressType: string
-  city: string
-  postalCode: string
-  state: string
   countryCode: string
-
+  
   notes: string
-
+  
   checkInDate: string
   checkOutDate: string
   nights: string
-
+  
   adultCount: number
   childCount: number
-  infantCount: number
-
-  rooms: { id: number; roomType: string; roomView: string; roomCount: number; roomNumbers: string[] }[]
-
-  discountType: 'none' | 'percentage' | 'fixed' | 'custom' | string
-  discountPercentage: string
-  discountFixed: string
-  discountComment: string
-  discountId?: string
-  customDiscountName?: string
-  customDiscountValue?: string
-  customDiscountType?: 'FixedAmount' | 'Percentage'
-
+  
+  rooms: { id: number; roomTypeId: string; roomType: string; roomCount: number }[]
+  
   rateCode: string
-  ratePlan: string
-  mealPlan: string
-
-
-  extras: { id: number; item: string; qty: number; price?: number; customName?: string }[]
-
+  mealPlans: { id: number; mealPlanId: string; serviceDateStart: string; serviceDateEnd: string; price?: number }[]
+  
+  extras: { id: number; item: string; qty: number; price?: number; customName?: string; serviceDate?: string }[]
+  
   specialRequests: string
-
+  
   depositAmountReceived: string
   paymentMethod: string
   paidAmount: string
   coupon: string
-
+  
   otherPayments: { id: number; paymentMethod: string; paidAmount: string }[]
-
+  
   isVip: boolean
   currency: string
   guaranteeCode: string
@@ -78,76 +53,53 @@ export type ReservationDraft = {
   cardType: string
   cardExpire: string
   cardSeriesCode: string
+  
+  companions: { id: number, firstName: string, lastName: string, phoneNumber: string, email: string, address: string, nationalId: string }[]
 }
 
 const initialState: ReservationDraft = {
   bookingSource: '',
-  otaSource: '',
-
   reservationStatus: '',
-  optionExpiryDate: '',
-
-  isGroupReservation: false,
-
+  
   firstName: '',
-  middleName: '',
   surName: '',
-  salutation: '',
-  dateOfBirth: '',
-
+  
   language: '',
-
   email: '',
   phone: '',
-
+  
   nationality: '',
   idNumber: '',
   creatorID: '',
-
+  
   addressLine: '',
-  addressType: 'Home',
-  city: '',
-  postalCode: '',
-  state: '',
   countryCode: '',
-
+  
   notes: '',
-
+  
   checkInDate: '',
   checkOutDate: '',
   nights: '',
-
+  
   adultCount: 1,
   childCount: 0,
-  infantCount: 0,
-
-  rooms: [{ id: 0, roomType: '', roomView: '', roomCount: 1, roomNumbers: [] }],
-
-  discountType: 'none',
-  discountPercentage: '',
-  discountFixed: '',
-  discountComment: '',
-  discountId: '',
-  customDiscountName: '',
-  customDiscountValue: '',
-  customDiscountType: 'Percentage',
-
+  
+  rooms: [{ id: 0, roomTypeId: '', roomType: '', roomCount: 1 }],
+  
   rateCode: '',
-  ratePlan: '',
-  mealPlan: '',
-
-
+  mealPlans: [],
+  
   extras: [],
-
+  
   specialRequests: '',
-
+  
   depositAmountReceived: '',
   paymentMethod: '',
   paidAmount: '',
   coupon: '',
-
+  
   otherPayments: [],
-
+  
   isVip: false,
   currency: 'USD',
   guaranteeCode: '',
@@ -158,6 +110,8 @@ const initialState: ReservationDraft = {
   cardType: '',
   cardExpire: '',
   cardSeriesCode: '',
+  
+  companions: []
 }
 
 const draftSlice = createSlice({

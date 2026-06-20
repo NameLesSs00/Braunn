@@ -152,26 +152,54 @@ export interface RateTigerPayload {
 }
 
 export interface SelectedService {
-  serviceId?: string;
-  quantity?: number;
-  serviceDate?: string;
+  additionalServiceId: string;
+  quantity: number;
+  serviceDate: string;
 }
 
 export interface SelectedMealPlan {
-  mealPlanId?: string;
-  serviceDateStart?: string;
-  serviceDateEnd?: string;
+  mealPlanId: string;
+  price: number;
+  serviceDateStart: string;
+  serviceDateEnd: string;
 }
 
 export interface CreateLocalReservationRequest {
-  rateTigerPayload?: RateTigerPayload;
-  selectedServices?: SelectedService[];
-  selectedMealPlans?: SelectedMealPlan[];
-  specialRequestsText?: string;
-  commentsText?: string;
-  bookingSource?: string;
-  corporateAccountId?: string;
-  groupContractId?: string;
+  guest: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    nationalId: string;
+    address: string;
+    countryCode: string;
+  };
+  checkInDate: string;
+  checkOutDate: string;
+  status: string;
+  bookingSource: string;
+  reservationType: string;
+  currency: string;
+  roomRequests: Array<{
+    roomTypeId: string;
+    quantity: number;
+    adults: number;
+    children: number;
+    ratePlanCode: string;
+    pricePerNight: number;
+  }>;
+  selectedServices: SelectedService[];
+  selectedMealPlans: SelectedMealPlan[];
+  companions: Array<{
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+    email: string;
+    address: string;
+    nationalId: string;
+  }>;
+  specialRequests: string;
+  comments: string;
 }
 
 export type UpdateLocalReservationRequest = CreateLocalReservationRequest;

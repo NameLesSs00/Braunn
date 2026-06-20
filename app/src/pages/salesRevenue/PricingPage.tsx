@@ -1,20 +1,19 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'motion/react'
 import { TabNav } from './components/TabNav'
-import { Calendar, ChevronDown, Plus, Edit2, Users, Building, Users2, BarChart2, Eye, Trash2 } from 'lucide-react'
+import { Calendar, ChevronDown, Plus, Edit2, Users, Building, BarChart2, Eye, Trash2, MapPin } from 'lucide-react'
 import { AddPerPersonPricingPopup } from './popups/pricing/AddPerPersonPricingPopup'
 import { AddPerRoomPricingPopup } from './popups/pricing/AddPerRoomPricingPopup'
-import { AddGroupPricingPopup } from './popups/pricing/AddGroupPricingPopup'
 import { EditPerPersonPricingPopup } from './popups/pricing/EditPerPersonPricingPopup'
 import { EditPerRoomPricingPopup } from './popups/pricing/EditPerRoomPricingPopup'
-import { EditGroupPricingPopup } from './popups/pricing/EditGroupPricingPopup'
 import { AddInclusionPricingPopup } from './popups/pricing/AddInclusionPricingPopup'
 import { EditInclusionPricingPopup } from './popups/pricing/EditInclusionPricingPopup'
 import { InclusionDetailsPopup } from './popups/pricing/InclusionDetailsPopup'
 import { BulkEditPricingPopup } from './popups/pricing/BulkEditPricingPopup'
+import { AddLocalPricingPopup } from './popups/pricing/AddLocalPricingPopup'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { fetchPerPersonPricing, removePerPersonPricing, setSelectedPricing } from '../../features/perPersonPricing/perPersonPricingSlice'
-import { fetchGroupPricingRules, removeGroupPricingRule, setSelectedPricingRule } from '../../features/groupPricing/groupPricingSlice'
+import { fetchLocalARIRates } from '../../features/localAri/localAriSlice'
 import { fetchRoomTypes } from '../../features/roomTypes/roomTypesSlice'
 import { fetchMealPlans } from '../../features/admin/mealPlansSlice'
 import Swal from 'sweetalert2'
@@ -31,7 +30,7 @@ const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { 
     opacity: 1, y: 0, 
-    transition: { type: 'spring', stiffness: 300, damping: 24 } 
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 } 
   },
 }
 
@@ -48,6 +47,9 @@ function formatDateDisplay(dateString?: string) {
 export function PricingPage() {
   const dispatch = useAppDispatch()
   
+  const today = new Date().toISOString().split('T')[0]
+  const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
   const [activeTab, setActiveTab] = useState('per-person')
   const [roomFilter, setRoomFilter] = useState('All Room Type')
   const [isAddPopupOpen, setIsAddPopupOpen] = useState(false)
@@ -56,17 +58,39 @@ export function PricingPage() {
   const [selectedInclusion, setSelectedInclusion] = useState<any>(null)
   const [isBulkEditPopupOpen, setIsBulkEditPopupOpen] = useState(false)
 
+  // Local Pricing tab state
+  const [localStartDate, setLocalStartDate] = useState(today)
+  const [localEndDate, setLocalEndDate] = useState(nextWeek)
+  const [localRoomTypeId, setLocalRoomTypeId] = useState('')
+  const [localRatePlanCode, setLocalRatePlanCode] = useState('')
+
   const perPersonItems = useAppSelector(state => state.perPersonPricing.items)
-  const groupItems = useAppSelector(state => state.groupPricing.items)
   const roomTypesItems = useAppSelector(state => state.roomTypes.items)
   const mealPlans = useAppSelector(state => state.mealPlans.items)
+  const localAriRates = useAppSelector(state => state.localAri.rates)
+  const localAriStatus = useAppSelector(state => state.localAri.status)
 
   useEffect(() => {
     dispatch(fetchPerPersonPricing())
-    dispatch(fetchGroupPricingRules())
     dispatch(fetchRoomTypes())
     dispatch(fetchMealPlans())
   }, [dispatch])
+
+  // Fetch local ARI rates when Local Pricing tab is active and a room type is selected
+  useEffect(() => {
+    if (activeTab === 'local-pricing' && localRoomTypeId && localRatePlanCode) {
+      dispatch(fetchLocalARIRates({
+        roomTypeId: localRoomTypeId,
+        ratePlanCode: localRatePlanCode,
+        startDate: localStartDate,
+        endDate: localEndDate,
+        roomCount: 1,
+        adults: 2,
+        children: 0,
+        extraBeds: 0,
+      }))
+    }
+  }, [dispatch, activeTab, localRoomTypeId, localRatePlanCode, localStartDate, localEndDate])
 
   const dynamicPerPersonData = useMemo(() => {
     return perPersonItems.map(item => {
@@ -85,25 +109,7 @@ export function PricingPage() {
     })
   }, [perPersonItems, roomTypesItems])
 
-  const dynamicGroupData = useMemo(() => {
-    return groupItems.map(item => {
-      const roomType = roomTypesItems.find(rt => rt.id === item.roomTypeId)
-      const roomName = roomType ? roomType.name : 'Unknown Room'
-      const basePrice = roomType ? roomType.basePrice : 0
-      const pricePerRoom = basePrice * (1 - item.discountPercentage / 100)
-      const total = pricePerRoom * item.minNumberOfRooms
-      return {
-        id: item.id,
-        group: item.groupName,
-        room: roomName,
-        rooms: item.minNumberOfRooms,
-        discount: `${item.discountPercentage}%`,
-        pricePerRoom: pricePerRoom.toFixed(2),
-        total: total.toFixed(2),
-        originalItem: item
-      }
-    })
-  }, [groupItems, roomTypesItems])
+
 
   const dynamicPerRoomData = useMemo(() => {
     return roomTypesItems.map(item => {
@@ -140,7 +146,6 @@ export function PricingPage() {
 
   const filteredPerPerson = dynamicPerPersonData.filter(item => roomFilter === 'All Room Type' || item.room === roomFilter)
   const filteredPerRoom = dynamicPerRoomData.filter(item => roomFilter === 'All Room Type' || item.room === roomFilter)
-  const filteredGroup = dynamicGroupData.filter(item => roomFilter === 'All Room Type' || item.room === roomFilter)
   const filteredInclusions = dynamicInclusionsData.filter(item => roomFilter === 'All Room Type' || item.room === roomFilter)
 
   function handleDeletePerPersonPricing(id: string) {
@@ -159,21 +164,7 @@ export function PricingPage() {
     })
   }
 
-  function handleDeleteGroupPricing(id: string) {
-    Swal.fire({
-      title: 'Are you sure?',
-      text: "You won't be able to revert this!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        dispatch(removeGroupPricingRule(id))
-      }
-    })
-  }
+
 
   return (
     <motion.div 
@@ -268,15 +259,7 @@ export function PricingPage() {
               Per Room Pricing
             </button>
           </li>
-          <li>
-            <button 
-              onClick={() => setActiveTab('group')}
-              className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-[15px] transition-colors ${activeTab === 'group' ? 'border-[#004bb4] text-[#004bb4] bg-[#fbfcfd]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              <Users2 className="w-5 h-5 pointer-events-none" />
-              Group Pricing
-            </button>
-          </li>
+
           <li>
             <button 
               onClick={() => setActiveTab('inclusions')}
@@ -284,6 +267,15 @@ export function PricingPage() {
             >
               <Plus className="w-5 h-5 pointer-events-none text-[#004bb4]" />
               Inclusions Pricing
+            </button>
+          </li>
+          <li>
+            <button 
+              onClick={() => setActiveTab('local-pricing')}
+              className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-[15px] transition-colors ${activeTab === 'local-pricing' ? 'border-[#004bb4] text-[#004bb4] bg-[#fbfcfd]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              <MapPin className="w-5 h-5 pointer-events-none" />
+              Local Pricing
             </button>
           </li>
         </ul>
@@ -417,74 +409,7 @@ export function PricingPage() {
             </div>
           )}
 
-          {activeTab === 'group' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Group Name</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Room Type</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap text-center">Rooms</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap text-center">Discount %</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Price/Room</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Total Price</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase text-center">Edit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredGroup.length > 0 ? filteredGroup.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors bg-white">
-                      <td className="px-5 py-6">
-                        <div className="font-bold text-slate-800 text-[14px] leading-snug w-[130px] whitespace-normal">
-                          {item.group}
-                        </div>
-                      </td>
-                      <td className="px-5 py-6 font-medium text-slate-600 text-[14px] whitespace-nowrap">{item.room}</td>
-                      <td className="px-5 py-6 text-center whitespace-nowrap">
-                        <span className="px-3.5 py-[5px] text-[13px] font-bold text-[#2563eb] bg-[#eff6ff] rounded-full">
-                          {item.rooms} rooms
-                        </span>
-                      </td>
-                      <td className="px-5 py-6 text-center whitespace-nowrap">
-                        <span className="px-3.5 py-[5px] text-[13px] font-bold text-[#ea580c] bg-[#ffedd5] rounded-full">
-                          {item.discount}
-                        </span>
-                      </td>
-                      <td className="px-5 py-6 font-bold text-slate-700 whitespace-nowrap">${item.pricePerRoom}</td>
-                      <td className="px-5 py-6 whitespace-nowrap">
-                        <span className="font-bold text-[#004bb4] text-[16px]">${item.total}</span>
-                      </td>
-                      <td className="px-5 py-6 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => {
-                              dispatch(setSelectedPricingRule(item.originalItem))
-                              setIsEditPopupOpen(true)
-                            }}
-                            className="text-slate-400 hover:text-slate-800 transition-colors p-1.5 focus:outline-none"
-                            title="Edit Pricing"
-                          >
-                            <Edit2 className="w-[18px] h-[18px]" strokeWidth={2} />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteGroupPricing(item.id)}
-                            className="text-red-400 hover:text-red-600 transition-colors p-1.5 focus:outline-none"
-                            title="Delete Pricing"
-                          >
-                            <Trash2 className="w-[18px] h-[18px]" strokeWidth={2} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={7} className="px-5 py-10 text-center text-slate-500 font-medium">No Group configurations match the selected filters.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+
 
           {activeTab === 'inclusions' && (
             <div className="overflow-x-auto">
@@ -541,6 +466,138 @@ export function PricingPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {activeTab === 'local-pricing' && (
+            <div>
+              {/* Local Pricing Filters */}
+              <div className="flex flex-wrap items-end gap-4 px-5 py-4 border-b border-slate-100 bg-slate-50/60">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Room Type</label>
+                  <div className="relative">
+                    <select
+                      value={localRoomTypeId}
+                      onChange={(e) => setLocalRoomTypeId(e.target.value)}
+                      className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 pr-9 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors min-w-[160px] cursor-pointer"
+                    >
+                      <option value="">— Select Room Type —</option>
+                      {roomTypesItems.map((rt) => (
+                        <option key={rt.id} value={rt.id}>{rt.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" strokeWidth={2.5} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Rate Plan Code</label>
+                  <input
+                    type="text"
+                    value={localRatePlanCode}
+                    onChange={(e) => setLocalRatePlanCode(e.target.value.toUpperCase())}
+                    placeholder="Rate Plan Code"
+                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors w-[110px] uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">From</label>
+                  <input
+                    type="date"
+                    value={localStartDate}
+                    onChange={(e) => setLocalStartDate(e.target.value)}
+                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">To</label>
+                  <input
+                    type="date"
+                    value={localEndDate}
+                    min={localStartDate}
+                    onChange={(e) => setLocalEndDate(e.target.value)}
+                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Local Pricing Table */}
+              {!localRoomTypeId ? (
+                <div className="p-16 text-center flex flex-col items-center justify-center min-h-[300px]">
+                  <MapPin className="w-10 h-10 text-slate-300 mb-3" />
+                  <p className="text-sm text-slate-500">Select a Room Type and Rate Plan Code to view configured rates.</p>
+                </div>
+              ) : localAriStatus === 'loading' ? (
+                <div className="p-16 text-center flex flex-col items-center justify-center min-h-[300px]">
+                  <svg className="animate-spin h-8 w-8 text-[#004bb4] mb-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <p className="text-sm text-slate-400">Loading rates...</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Date</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Guests</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Base Rate</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Before Tax</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">After Tax</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Seasonal Adj.</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Modified By</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {localAriRates.length > 0 ? localAriRates.map((rate, idx) => {
+                        const isUnconfigured = !rate.modifiedBy && rate.originalBaseRate === 0 && rate.amountBeforeTax === 0 && rate.amountAfterTax === 0
+                        return (
+                          <tr key={idx} className={`transition-colors ${isUnconfigured ? 'bg-amber-50/50 hover:bg-amber-50' : 'bg-white hover:bg-slate-50/50'}`}>
+                            <td className="px-5 py-4 font-semibold text-slate-700 text-sm whitespace-nowrap">
+                              {rate.date ? new Date(rate.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                            </td>
+                            {isUnconfigured ? (
+                              <td colSpan={6} className="px-5 py-4">
+                                <div className="flex items-center gap-2.5">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                                    Not Configured
+                                  </span>
+                                  <span className="text-xs text-slate-400">No pricing set for this date with the selected Room Type &amp; Rate Plan Code.</span>
+                                </div>
+                              </td>
+                            ) : (
+                              <>
+                                <td className="px-5 py-4 text-slate-600 text-sm">{rate.numberOfGuests ?? '-'}</td>
+                                <td className="px-5 py-4 font-bold text-slate-800 text-sm">${rate.originalBaseRate?.toLocaleString() ?? '-'}</td>
+                                <td className="px-5 py-4 font-semibold text-[#004bb4] text-sm">${rate.amountBeforeTax?.toLocaleString() ?? '-'}</td>
+                                <td className="px-5 py-4 font-semibold text-emerald-600 text-sm">${rate.amountAfterTax?.toLocaleString() ?? '-'}</td>
+                                <td className="px-5 py-4 text-sm text-slate-500">
+                                  {rate.seasonalAdjustmentAmount !== 0
+                                    ? <span className="text-amber-600 font-medium">{rate.seasonalAdjustmentAmount > 0 ? '+' : ''}{rate.seasonalAdjustmentAmount}</span>
+                                    : <span className="text-slate-300">—</span>}
+                                </td>
+                                <td className="px-5 py-4 text-xs text-slate-400">
+                                  <div className="font-medium text-slate-500">{rate.modifiedBy ?? '-'}</div>
+                                  <div>{rate.modifiedAt ? new Date(rate.modifiedAt).toLocaleDateString() : ''}</div>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        )
+                      }) : (
+                        <tr>
+                          <td colSpan={7} className="px-5 py-14 text-center">
+                            <MapPin className="w-9 h-9 text-slate-300 mx-auto mb-3" />
+                            <p className="text-slate-500 font-medium text-sm">No rates found for the selected filters.</p>
+                            <p className="text-slate-400 text-xs mt-1">Try a different date range or rate plan code, or click "Add Pricing" to create one.</p>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -637,9 +694,7 @@ export function PricingPage() {
         <AddPerRoomPricingPopup onClose={() => setIsAddPopupOpen(false)} />
       )}
 
-      {isAddPopupOpen && activeTab === 'group' && (
-        <AddGroupPricingPopup onClose={() => setIsAddPopupOpen(false)} />
-      )}
+
 
       {isAddPopupOpen && activeTab === 'inclusions' && (
         <AddInclusionPricingPopup onClose={() => setIsAddPopupOpen(false)} />
@@ -653,9 +708,7 @@ export function PricingPage() {
         <EditPerRoomPricingPopup onClose={() => setIsEditPopupOpen(false)} />
       )}
 
-      {isEditPopupOpen && activeTab === 'group' && (
-        <EditGroupPricingPopup onClose={() => setIsEditPopupOpen(false)} />
-      )}
+
 
       {isEditPopupOpen && activeTab === 'inclusions' && (
         <EditInclusionPricingPopup onClose={() => setIsEditPopupOpen(false)} />
@@ -670,6 +723,15 @@ export function PricingPage() {
 
       {isBulkEditPopupOpen && (
         <BulkEditPricingPopup onClose={() => setIsBulkEditPopupOpen(false)} />
+      )}
+
+      {isAddPopupOpen && activeTab === 'local-pricing' && (
+        <AddLocalPricingPopup
+          onClose={() => setIsAddPopupOpen(false)}
+          startDate={localStartDate}
+          endDate={localEndDate}
+          roomTypeId={localRoomTypeId}
+        />
       )}
     </motion.div>
   )
