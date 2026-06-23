@@ -4,7 +4,7 @@ import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, C
 
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
 
-interface LocalARIState {
+export interface LocalARIState {
   rates: LocalARIRate[]
   availability: LocalARIAvailability[]
   status: AsyncStatus

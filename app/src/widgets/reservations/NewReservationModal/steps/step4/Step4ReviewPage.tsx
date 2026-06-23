@@ -14,7 +14,6 @@ import { MdMeetingRoom, MdDateRange, MdNotes } from "react-icons/md";
 
 type Props = {
   value: ReservationDraft
-  onChange: (patch: Partial<ReservationDraft>) => void
   guestsTotal: number
   pricing: Pricing
   onOpenCheckIn: () => void
@@ -30,7 +29,7 @@ function LabeledInput({ label, children }: { label: string; children: React.Reac
   )
 }
 
-export function Step4ReviewPage({ value, onChange, guestsTotal, pricing, onOpenCheckIn, onOpenExtendStay }: Props) {
+export function Step4ReviewPage({ value, guestsTotal, pricing, onOpenCheckIn, onOpenExtendStay }: Props) {
   const [actionsOpen, setActionsOpen] = useState(false)
   const actionsRef = useRef<HTMLDivElement | null>(null)
 
@@ -127,10 +126,10 @@ export function Step4ReviewPage({ value, onChange, guestsTotal, pricing, onOpenC
         <Step4Card title="Room Information" titleIconSrc={MdMeetingRoom} titleIconBgClassName="bg-violet-100">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <InfoRow label="Room count" value={value.rooms[0]?.roomCount.toString() ?? ''} />
-            <InfoRow label="Room view" value={value.rooms[0]?.roomView ?? ''} />
+            <InfoRow label="Room view" value={(value.rooms[0] as any)?.roomView ?? '—'} />
             <InfoRow label="Room Type" value={value.rooms[0]?.roomType ?? ''} />
-            <InfoRow label="Room Numbers" value={value.rooms[0]?.roomNumbers?.join(', ') || '—'} />
-            <InfoRow label="Rate plan" value={value.ratePlan} />
+            <InfoRow label="Room Numbers" value={(value.rooms[0] as any)?.roomNumbers?.join(', ') || '—'} />
+            <InfoRow label="Rate plan" value={(value as any).ratePlan || '—'} />
             <InfoRow label="Floor" value="1" />
             <InfoRow label="Rate code" value={value.rateCode} />
             <InfoRow label="Maximum Guests" value={guestsTotal ? `${guestsTotal} guests` : ''} />
@@ -148,21 +147,15 @@ export function Step4ReviewPage({ value, onChange, guestsTotal, pricing, onOpenC
       <Step4Card title="Stay Details" titleIconSrc={MdDateRange} titleIconBgClassName="bg-orange-100">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-4">
           <LabeledInput label="Check-in Date">
-            <input 
-              type="date" 
-              className="w-full bg-transparent text-[13px] font-semibold text-slate-800 outline-none focus:text-[#0B4EA2]"
-              value={value.checkInDate}
-              onChange={(e) => onChange({ checkInDate: e.target.value })}
-            />
+            <div className="text-[13px] font-semibold text-slate-800">
+              {value.checkInDate || '—'}
+            </div>
           </LabeledInput>
           
           <LabeledInput label="Check-out Date">
-            <input 
-              type="date" 
-              className="w-full bg-transparent text-[13px] font-semibold text-slate-800 outline-none focus:text-[#0B4EA2]"
-              value={value.checkOutDate}
-              onChange={(e) => onChange({ checkOutDate: e.target.value })}
-            />
+            <div className="text-[13px] font-semibold text-slate-800">
+              {value.checkOutDate || '—'}
+            </div>
           </LabeledInput>
 
           <InfoRow label="Number of Nights" value={value.nights ? `${value.nights} nights` : ''} />

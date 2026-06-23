@@ -185,6 +185,7 @@ export interface CreateLocalReservationRequest {
     quantity: number;
     adults: number;
     children: number;
+    childAges: number[];
     ratePlanCode: string;
     pricePerNight: number;
   }>;
@@ -200,6 +201,26 @@ export interface CreateLocalReservationRequest {
   }>;
   specialRequests: string;
   comments: string;
+  couponCode?: string;
+  couponDiscountAmount?: number;
+  depositAmount?: number;
+  paidAmount?: number;
+  paymentMethod?: string;
+  paymentReference?: string;
+  paymentDate?: string;
+  guarantee?: {
+    guaranteeType: string;
+    guaranteeCode: string;
+    cardType: string;
+    cardCode: string;
+    cardHolderName: string;
+    maskedCardNumber: string;
+    cardNumber: string;
+    expirationDate: string;
+    seriesCodeMasked: string;
+    cvv: string;
+    notes: string;
+  };
 }
 
 export type UpdateLocalReservationRequest = CreateLocalReservationRequest;

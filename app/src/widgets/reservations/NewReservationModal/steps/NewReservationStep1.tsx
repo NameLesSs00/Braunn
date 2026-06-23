@@ -183,36 +183,9 @@ export function NewReservationStep1({ value, onChange }: Props) {
               }}
             >
               <option value="">select</option>
-              <option value="CorporateAccount">Corporate Account</option>
-              <option value="GroupContract">Group Contract</option>
               <option value="Phone">Phone</option>
               <option value="Email">Email</option>
               <option value="WalkIn">Walk-in</option>
-            </select>
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">▾</span>
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-2 text-[12px] font-semibold text-slate-700">Reservation Status</div>
-          <div className="relative">
-            <select
-              className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-sm text-slate-500 outline-none focus:border-[#0B4EA2]"
-              value={value.reservationStatus}
-              onChange={(e) => {
-                const next = e.target.value as ReservationDraft['reservationStatus']
-                onChange({ reservationStatus: next })
-              }}
-            >
-              <option value="">select</option>
-              <option value="Reserved">Reserved</option>
-              <option value="Confirmed">Confirmed</option>
-              <option value="CheckedIn">Checked In</option>
-              <option value="CheckedOut">Checked Out</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
-              <option value="Tentative">Tentative</option>
-              <option value="Definite">Definite</option>
             </select>
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">▾</span>
           </div>

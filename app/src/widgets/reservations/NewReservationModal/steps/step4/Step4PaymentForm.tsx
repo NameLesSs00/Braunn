@@ -203,6 +203,29 @@ export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="space-y-2">
+            <div className="text-[12px] font-semibold text-slate-700">Deposit amount received</div>
+            <input
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-[#0B4EA2]"
+              placeholder="Enter deposit amount"
+              type="number"
+              value={value.depositAmountReceived}
+              onChange={(e) => onChange({ depositAmountReceived: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-[12px] font-semibold text-slate-700">Paid amount</div>
+            <input
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-[#0B4EA2]"
+              placeholder="Enter paid amount"
+              type="number"
+              value={value.paidAmount}
+              onChange={(e) => onChange({ paidAmount: e.target.value })}
+            />
+            <div className="text-[11px] text-slate-500">Remaining: {formatMoney(remainingBalance)}</div>
+          </div>
+
+          <div className="space-y-2">
             <div className="text-[12px] font-semibold text-slate-700">Payment Method (optional)</div>
             <div className="relative">
               <select
@@ -220,14 +243,23 @@ export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing
           </div>
 
           <div className="space-y-2">
-            <div className="text-[12px] font-semibold text-slate-700">Paid amount</div>
+            <div className="text-[12px] font-semibold text-slate-700">Payment Reference</div>
             <input
               className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-[#0B4EA2]"
-              placeholder="Enter amount"
-              value={value.paidAmount}
-              onChange={(e) => onChange({ paidAmount: e.target.value })}
+              placeholder="Enter reference ID"
+              value={value.paymentReference}
+              onChange={(e) => onChange({ paymentReference: e.target.value })}
             />
-            <div className="text-[11px] text-slate-500">Remaining: {formatMoney(remainingBalance)}</div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-[12px] font-semibold text-slate-700">Payment Date</div>
+            <input
+              type="date"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-[#0B4EA2]"
+              value={value.paymentDate}
+              onChange={(e) => onChange({ paymentDate: e.target.value })}
+            />
           </div>
         </div>
 

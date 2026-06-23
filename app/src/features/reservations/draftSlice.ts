@@ -26,6 +26,7 @@ export type ReservationDraft = {
   
   adultCount: number
   childCount: number
+  childAges: number[]
   
   rooms: { id: number; roomTypeId: string; roomType: string; roomCount: number }[]
   
@@ -39,6 +40,8 @@ export type ReservationDraft = {
   depositAmountReceived: string
   paymentMethod: string
   paidAmount: string
+  paymentReference: string
+  paymentDate: string
   coupon: string
   
   otherPayments: { id: number; paymentMethod: string; paidAmount: string }[]
@@ -59,7 +62,7 @@ export type ReservationDraft = {
 
 const initialState: ReservationDraft = {
   bookingSource: '',
-  reservationStatus: '',
+  reservationStatus: 'Reserved',
   
   firstName: '',
   surName: '',
@@ -83,6 +86,7 @@ const initialState: ReservationDraft = {
   
   adultCount: 1,
   childCount: 0,
+  childAges: [],
   
   rooms: [{ id: 0, roomTypeId: '', roomType: '', roomCount: 1 }],
   
@@ -96,6 +100,8 @@ const initialState: ReservationDraft = {
   depositAmountReceived: '',
   paymentMethod: '',
   paidAmount: '',
+  paymentReference: '',
+  paymentDate: '',
   coupon: '',
   
   otherPayments: [],

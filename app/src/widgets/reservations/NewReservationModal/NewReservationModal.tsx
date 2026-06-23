@@ -285,6 +285,7 @@ export function NewReservationModal({ open, onClose }: Props) {
                             quantity: Number(draft.rooms[0]?.roomCount) || 1,
                             adults: Number(draft.adultCount) || 1,
                             children: Number(draft.childCount) || 0,
+                            childAges: draft.childAges || [],
                             ratePlanCode: draft.rateCode || 'STD',
                             pricePerNight: localAriState.rates[0]?.amountBeforeTax || 0,
                           }
@@ -309,7 +310,27 @@ export function NewReservationModal({ open, onClose }: Props) {
                           nationalId: c.nationalId
                         })),
                         specialRequests: draft.specialRequests || '',
-                        comments: draft.notes || ''
+                        comments: draft.notes || '',
+                        couponCode: draft.coupon || '',
+                        couponDiscountAmount: 0,
+                        depositAmount: Number(draft.depositAmountReceived) || 0,
+                        paidAmount: Number(draft.paidAmount) || 0,
+                        paymentMethod: draft.paymentMethod || 'Card',
+                        paymentReference: draft.paymentReference || '',
+                        paymentDate: draft.paymentDate || new Date().toISOString(),
+                        guarantee: {
+                          guaranteeType: draft.guaranteeType || '',
+                          guaranteeCode: draft.guaranteeCode || '',
+                          cardType: draft.cardType || '',
+                          cardCode: draft.cardCode || '',
+                          cardHolderName: draft.cardHolderName || '',
+                          maskedCardNumber: draft.cardNo ? `****${draft.cardNo.slice(-4)}` : '',
+                          cardNumber: draft.cardNo || '',
+                          expirationDate: draft.cardExpire || '',
+                          seriesCodeMasked: draft.cardSeriesCode ? '***' : '',
+                          cvv: draft.cardSeriesCode || '',
+                          notes: ''
+                        }
                       }
 
                 dispatch(createLocalReservation(localReservationPayload)).unwrap()

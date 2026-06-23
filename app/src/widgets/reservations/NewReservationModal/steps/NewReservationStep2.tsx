@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
 import { fetchRoomTypes } from '../../../../features/roomTypes/roomTypesSlice'
 import { fetchFinancialServices, fetchFinancialDiscounts } from '../../../../features/adminFinancialSettings/financialSettingsSlice'
 import { fetchLocalARIRates } from '../../../../features/localAri/localAriSlice'
+import { fetchRoomsAvailability } from '../../../../features/rooms/roomsSlice'
 import { fetchMealPlans } from '../../../../features/admin/mealPlansSlice'
 import { MdDateRange } from "react-icons/md";
 import type { IconType } from "react-icons";
@@ -68,6 +69,7 @@ function InputControl({
       <input
         className={[
           'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-[#0B4EA2]',
+          type === 'date' ? '[&::-webkit-calendar-picker-indicator]:opacity-0' : '',
           leftIconSrc ? 'pl-11' : '',
           right !== 'none' ? 'pr-11' : '',
           disabled ? 'bg-slate-50 text-slate-500' : '',
@@ -176,6 +178,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
   const dispatch = useAppDispatch()
   const roomTypesState = useAppSelector((state) => state.roomTypes)
   const localAriState = useAppSelector((state) => state.localAri)
+  const roomsState = useAppSelector((state) => state.rooms)
   const financialSettings = useAppSelector((state) => state.financialSettings)
   const mealPlansState = useAppSelector((state) => state.mealPlans)
   const hasFetchedMealPlans = useRef(false)
@@ -210,6 +213,11 @@ export function NewReservationStep2({ value, onChange }: Props) {
         adults: value.adultCount || 1,
         children: value.childCount || 0,
         extraBeds: 0,
+      }))
+      dispatch(fetchRoomsAvailability({
+        StartDate: value.checkInDate,
+        EndDate: value.checkOutDate,
+        RoomTypeId: roomTypeId,
       }))
     }
   }, [dispatch, value.checkInDate, value.checkOutDate, value.rooms, value.rateCode, value.adultCount, value.childCount])
@@ -458,10 +466,46 @@ export function NewReservationStep2({ value, onChange }: Props) {
           label="Child"
           value={value.childCount}
           priceText={childTotalText}
-          onIncrease={() => onChange({ childCount: value.childCount + 1 })}
-          onDecrease={() => onChange({ childCount: Math.max(0, value.childCount - 1) })}
+          onIncrease={() => {
+            const newCount = value.childCount + 1;
+            onChange({ 
+              childCount: newCount,
+              childAges: [...(value.childAges || []), 0]
+            });
+          }}
+          onDecrease={() => {
+            const newCount = Math.max(0, value.childCount - 1);
+            onChange({ 
+              childCount: newCount,
+              childAges: (value.childAges || []).slice(0, newCount)
+            });
+          }}
         />
       </div>
+
+      {value.childCount > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-3 text-[12px] font-semibold text-slate-700">Children's Ages</div>
+          <div className="flex flex-wrap gap-4">
+            {Array.from({ length: value.childCount }).map((_, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-500">Child {idx + 1}</span>
+                <input
+                  type="number"
+                  min="0"
+                  className="h-9 w-16 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm outline-none focus:border-[#0B4EA2]"
+                  value={value.childAges?.[idx] ?? ''}
+                  onChange={(e) => {
+                    const newAges = [...(value.childAges || Array(value.childCount).fill(0))];
+                    newAges[idx] = parseInt(e.target.value) || 0;
+                    onChange({ childAges: newAges });
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-5">
 
@@ -514,6 +558,11 @@ export function NewReservationStep2({ value, onChange }: Props) {
                         adults: value.adultCount || 1,
                         children: value.childCount || 0,
                         extraBeds: 0,
+                      }))
+                      dispatch(fetchRoomsAvailability({
+                        StartDate: value.checkInDate,
+                        EndDate: value.checkOutDate,
+                        RoomTypeId: roomTypeId,
                       }))
                     }
                   }}
@@ -579,6 +628,57 @@ export function NewReservationStep2({ value, onChange }: Props) {
           )
         })()}
 
+        {/* Room Availability Table */}
+        {roomsState.availabilityStatus !== 'idle' && (() => {
+          const isLoading = roomsState.availabilityStatus === 'loading';
+          const hasRooms = roomsState.availability.length > 0;
+          return (
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-[15px] font-bold text-[#1e293b]">Room Availability</h3>
+                {isLoading && (
+                  <span className="px-2.5 py-0.5 text-[10px] font-bold text-blue-600 bg-blue-50 rounded-full uppercase tracking-wider animate-pulse">Loading…</span>
+                )}
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                {!isLoading && !hasRooms ? (
+                  <div className="flex flex-col items-center justify-center gap-2 py-10 text-center px-6">
+                    <svg className="h-8 w-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                    <p className="text-sm font-bold text-slate-700">No rooms available for the selected dates and room type.</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Room Number</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Room Type</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Base Price</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {roomsState.availability.map((room) => (
+                        <tr key={room.roomId} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                            {room.roomNumber}
+                          </td>
+                          <td className="px-5 py-4 text-sm text-slate-500">
+                            {room.roomTypeName}
+                          </td>
+                          <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                            {room.basePrice?.toFixed(2) ?? '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Meal Plans Table */}
         <div className="mt-8 space-y-4">

@@ -18,14 +18,7 @@ export function AddCorporateAccountPopup({ onClose }: AddCorporateAccountPopupPr
     email: '',
     phone: '',
     address: '',
-    contractStartDate: '',
-    contractEndDate: '',
-    negotiatedRate: 0,
-    discountPercentage: 0,
     creditLimit: 0,
-    paymentTerms: 'Net 30 day',
-    billingMethod: 'Monthly invoice',
-    cancellationPolicy: 'Flexible (24h free cancellation)',
     isActive: true
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,7 +37,7 @@ export function AddCorporateAccountPopup({ onClose }: AddCorporateAccountPopupPr
   };
 
   const handleSubmit = async () => {
-    if (!formData.companyName || !formData.contactPerson || !formData.email || !formData.contractStartDate || !formData.contractEndDate) {
+    if (!formData.companyName || !formData.contactPerson || !formData.email) {
         Swal.fire('Error', 'Please fill in all required fields.', 'error');
         return;
     }
@@ -69,7 +62,7 @@ export function AddCorporateAccountPopup({ onClose }: AddCorporateAccountPopupPr
         <div className="bg-[#004bb4] p-6 text-white flex items-start justify-between rounded-t-xl shrink-0">
           <div>
             <h2 className="text-xl font-bold">Add Corporate Account</h2>
-            <p className="text-blue-100 mt-1 text-sm">Create a new corporate client account with negotiated rates</p>
+            <p className="text-blue-100 mt-1 text-sm">Create a new corporate client account</p>
           </div>
           <button 
             onClick={onClose}
@@ -160,89 +153,14 @@ export function AddCorporateAccountPopup({ onClose }: AddCorporateAccountPopupPr
 
           <div className="h-px bg-slate-100" />
 
-          {/* Contract Terms */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-slate-800 font-bold mb-2">
-              <CalendarIcon className="w-5 h-5 text-[#004bb4]" />
-              <h3>Contract Terms</h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Contract Start Date *</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <CalendarIcon className="h-4 w-4 text-slate-400" />
-                  </div>
-                  <input 
-                    type="date" 
-                    name="contractStartDate"
-                    value={formData.contractStartDate}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400 cursor-pointer"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Contract End Date *</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <CalendarIcon className="h-4 w-4 text-slate-400" />
-                  </div>
-                  <input 
-                    type="date" 
-                    name="contractEndDate"
-                    value={formData.contractEndDate}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400 cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="h-px bg-slate-100" />
-
-          {/* Pricing & Payment Terms */}
+          {/* Financial & Account Status */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-slate-800 font-bold mb-2">
               <DollarSign className="w-5 h-5 text-[#004bb4]" />
-              <h3>Pricing & Payment Terms</h3>
+              <h3>Financial & Account Status</h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Negotiated Rate (per night)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">€</span>
-                  <input 
-                    type="number" 
-                    name="negotiatedRate"
-                    value={formData.negotiatedRate}
-                    onChange={handleInputChange}
-                    placeholder="150" 
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg pl-9 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col text-slate-400 cursor-pointer">
-                    <ChevronDown className="w-3 h-3 rotate-180 mb-[-2px]" />
-                    <ChevronDown className="w-3 h-3" />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Discount (%)</label>
-                <div className="relative">
-                  <input 
-                    type="number" 
-                    name="discountPercentage"
-                    value={formData.discountPercentage}
-                    onChange={handleInputChange}
-                    placeholder="15" 
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg pl-4 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">%</span>
-                </div>
-              </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Credit Limit</label>
                 <div className="relative">
@@ -261,57 +179,10 @@ export function AddCorporateAccountPopup({ onClose }: AddCorporateAccountPopupPr
                   </div>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Payment Terms</label>
-                <div className="relative">
-                  <select 
-                    name="paymentTerms"
-                    value={formData.paymentTerms}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-4 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-                  >
-                    <option>Net 15 day</option>
-                    <option>Net 30 day</option>
-                    <option>Net 60 day</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Billing Method</label>
-                <div className="relative">
-                  <select 
-                    name="billingMethod"
-                    value={formData.billingMethod}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-4 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-                  >
-                    <option>Monthly invoice</option>
-                    <option>Per reservation</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Cancellation Policy</label>
-                <div className="relative">
-                  <select 
-                    name="cancellationPolicy"
-                    value={formData.cancellationPolicy}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-4 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-                  >
-                    <option>Flexible (24h free cancellation)</option>
-                    <option>Strict (No refund)</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-              </div>
               
-              <div className="col-span-1 md:col-span-2 mt-4">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Account Status</label>
-                <div className="flex items-center gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Account Status</label>
+                <div className="flex items-center gap-6 mt-3">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input 
                       type="radio" 
@@ -333,6 +204,7 @@ export function AddCorporateAccountPopup({ onClose }: AddCorporateAccountPopupPr
                     <span className="text-sm font-medium text-slate-700">Inactive</span>
                   </label>
                 </div>
+              </div>
             </div>
           </div>
 

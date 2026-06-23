@@ -8,7 +8,16 @@ export function getCorporateAccounts(signal?: AbortSignal) {
 }
 
 export function createCorporateAccount(payload: CreateCorporateAccountRequest, signal?: AbortSignal) {
-  return apiRequest<unknown>({ method: 'POST', path: basePath, body: payload, signal }).then((r) => unwrapApiResponse<CorporateAccount>(r))
+  const apiPayload = {
+    companyName: payload.companyName,
+    contactPerson: payload.contactPerson,
+    email: payload.email,
+    phone: payload.phone,
+    address: payload.address,
+    creditLimit: payload.creditLimit,
+    isActive: payload.isActive
+  }
+  return apiRequest<unknown>({ method: 'POST', path: basePath, body: apiPayload, signal }).then((r) => unwrapApiResponse<CorporateAccount>(r))
 }
 
 export function getCorporateAccountById(id: string, signal?: AbortSignal) {
@@ -16,7 +25,16 @@ export function getCorporateAccountById(id: string, signal?: AbortSignal) {
 }
 
 export function updateCorporateAccount(id: string, payload: UpdateCorporateAccountRequest, signal?: AbortSignal) {
-  return apiRequest<void>({ method: 'PUT', path: `${basePath}/${id}`, body: payload, signal })
+  const apiPayload = {
+    companyName: payload.companyName,
+    contactPerson: payload.contactPerson,
+    email: payload.email,
+    phone: payload.phone,
+    address: payload.address,
+    creditLimit: payload.creditLimit,
+    isActive: payload.isActive
+  }
+  return apiRequest<void>({ method: 'PUT', path: `${basePath}/${id}`, body: apiPayload, signal })
 }
 
 export function deleteCorporateAccount(id: string, signal?: AbortSignal) {

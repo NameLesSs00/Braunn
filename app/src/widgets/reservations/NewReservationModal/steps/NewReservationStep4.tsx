@@ -24,13 +24,12 @@ export const NewReservationStep4: any = ({ value, onChange, page, onOpenCheckIn,
 
   const localAriState = useAppSelector((state) => state.localAri)
 
-  const guestsTotal = value.adultCount + value.childCount + (value.infantCount || 0)
+  const guestsTotal = value.adultCount + value.childCount
   const pricing = useMemo(() => computePricing(value, nights, localAriState), [value, nights, localAriState])
 
   return page === 2 ? (
     <Step4ReviewPage
       value={value}
-      onChange={onChange}
       guestsTotal={guestsTotal}
       pricing={pricing}
       onOpenCheckIn={onOpenCheckIn}

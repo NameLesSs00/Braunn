@@ -1,5 +1,4 @@
 import type { ReservationDraft } from '../../../../../features/reservations/draftSlice'
-import { parseNumberOrZero } from '../../../CheckInProcessModal/utils'
 import type { Pricing } from '../../../CheckInProcessModal/types'
 import type { LocalARIState } from '../../../../../features/localAri/localAriSlice'
 

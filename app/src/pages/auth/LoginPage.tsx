@@ -6,7 +6,7 @@ import { adminLogin, clearAuthError } from '../../features/auth/authSlice'
 
 export function LoginPage() {
   const [email, setEmail] = useState('admin@gear.com')
-  const [password, setPassword] = useState('Gear@321')
+  const [password, setPassword] = useState('gear@321')
   const { status, error } = useAppSelector((state) => state.auth)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
