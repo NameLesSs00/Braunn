@@ -17,6 +17,7 @@ import { PricingPage } from './pages/salesRevenue/PricingPage'
 import { CorporateAccountPage } from './pages/salesRevenue/CorporateAccountPage'
 import { GroupContractsPage } from './pages/salesRevenue/GroupContractsPage'
 import { ProductionReportPage } from './pages/salesRevenue/ProductionReportPage'
+import { DiscountsPage } from './pages/salesRevenue/DiscountsPage'
 import { routes } from './shared/lib/routes'
 import { DashboardLayout } from './widgets/layout/DashboardLayout/DashboardLayout'
 import { LaundryLayout } from './widgets/layout/LaundryLayout/LaundryLayout'
@@ -75,6 +76,7 @@ export default function App() {
             <Route path={routes.salesRevenue.corporateAccount} element={<CorporateAccountPage />} />
             <Route path={routes.salesRevenue.groupContracts} element={<GroupContractsPage />} />
             <Route path={routes.salesRevenue.productionReport} element={<ProductionReportPage />} />
+            <Route path={routes.salesRevenue.discounts} element={<DiscountsPage />} />
           </Route>
 
           <Route element={<LaundryLayout />}>

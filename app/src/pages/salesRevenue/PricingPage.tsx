@@ -15,6 +15,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { fetchPerPersonPricing, removePerPersonPricing, setSelectedPricing } from '../../features/perPersonPricing/perPersonPricingSlice'
 import { fetchLocalARIRates } from '../../features/localAri/localAriSlice'
 import { fetchRoomTypes } from '../../features/roomTypes/roomTypesSlice'
+import { fetchRatePlans } from '../../features/ratePlans/ratePlansSlice'
 import { fetchMealPlans } from '../../features/admin/mealPlansSlice'
 import Swal from 'sweetalert2'
 
@@ -67,6 +68,7 @@ export function PricingPage() {
   const perPersonItems = useAppSelector(state => state.perPersonPricing.items)
   const roomTypesItems = useAppSelector(state => state.roomTypes.items)
   const mealPlans = useAppSelector(state => state.mealPlans.items)
+  const ratePlans = useAppSelector(state => state.ratePlans.items)
   const localAriRates = useAppSelector(state => state.localAri.rates)
   const localAriStatus = useAppSelector(state => state.localAri.status)
 
@@ -74,6 +76,7 @@ export function PricingPage() {
     dispatch(fetchPerPersonPricing())
     dispatch(fetchRoomTypes())
     dispatch(fetchMealPlans())
+    dispatch(fetchRatePlans())
   }, [dispatch])
 
   // Fetch local ARI rates when Local Pricing tab is active and a room type is selected
@@ -491,13 +494,19 @@ export function PricingPage() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Rate Plan Code</label>
-                  <input
-                    type="text"
-                    value={localRatePlanCode}
-                    onChange={(e) => setLocalRatePlanCode(e.target.value.toUpperCase())}
-                    placeholder="Rate Plan Code"
-                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors w-[110px] uppercase"
-                  />
+                  <div className="relative">
+                    <select
+                      value={localRatePlanCode}
+                      onChange={(e) => setLocalRatePlanCode(e.target.value)}
+                      className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 pr-9 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors min-w-[140px] cursor-pointer"
+                    >
+                      <option value="">— Select Code —</option>
+                      {ratePlans.filter(rp => rp.isActive).map((rp) => (
+                        <option key={rp.id} value={rp.code}>{rp.code}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" strokeWidth={2.5} />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">From</label>

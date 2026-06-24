@@ -16,6 +16,7 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'SAR', 'AED', 'EGP']
 export function AddLocalPricingPopup({ onClose, startDate, endDate, roomTypeId }: Props) {
   const dispatch = useAppDispatch()
   const roomTypes = useAppSelector((state) => state.roomTypes.items)
+  const ratePlans = useAppSelector((state) => state.ratePlans.items)
 
   const [form, setForm] = useState({
     roomTypeId: roomTypeId || '',
@@ -141,15 +142,20 @@ export function AddLocalPricingPopup({ onClose, startDate, endDate, roomTypeId }
             {/* Rate Plan Code */}
             <div>
               <label className="block text-[13px] font-bold text-slate-600 mb-2">Rate Plan Code <span className="text-red-500">*</span></label>
-              <div className="relative flex items-center">
-                <Tag className="w-[17px] h-[17px] text-slate-400 absolute left-3.5 pointer-events-none" />
-                <input
-                  type="text"
+              <div className="relative">
+                <select
                   value={form.ratePlanCode}
-                  onChange={(e) => set('ratePlanCode', e.target.value.toUpperCase())}
-                  placeholder="Rate Plan Code"
-                  className="w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:border-[#004bb4] transition-colors text-slate-700 font-medium uppercase"
-                />
+                  onChange={(e) => set('ratePlanCode', e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-[#004bb4] transition-colors text-slate-700 font-medium appearance-none bg-white pr-10"
+                >
+                  <option value="">— Select Code —</option>
+                  {ratePlans.filter(rp => rp.isActive).map((rp) => (
+                    <option key={rp.id} value={rp.code}>{rp.code}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                  <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                </div>
               </div>
             </div>
 

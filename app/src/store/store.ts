@@ -8,6 +8,7 @@ import { notificationsReducer } from '../features/notifications/notificationsSli
 import { draftReducer } from '../features/reservations/draftSlice'
 import { shiftReducer } from '../features/shift/shiftSlice'
 import { additionalServicesReducer } from '../features/admin/additionalServicesSlice'
+import { ratePlansReducer } from '../features/ratePlans/ratePlansSlice'
 
 import { authReducer } from '../features/auth/authSlice'
 
@@ -59,6 +60,7 @@ export const store = configureStore({
     reservationDraft: draftReducer,
     shift: shiftReducer,
     additionalServices: additionalServicesReducer,
+    ratePlans: ratePlansReducer,
 
     auth: authReducer,
 

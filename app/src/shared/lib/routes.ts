@@ -17,6 +17,7 @@ export const routes = {
     corporateAccount: '/sales-revenue/corporate-account',
     groupContracts: '/sales-revenue/group-contracts',
     productionReport: '/sales-revenue/production-report',
+    discounts: '/sales-revenue/discounts',
   },
   laundry: {
     overview: '/laundry/overview',

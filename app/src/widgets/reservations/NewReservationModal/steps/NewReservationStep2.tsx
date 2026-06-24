@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
 import { fetchRoomTypes } from '../../../../features/roomTypes/roomTypesSlice'
 import { fetchFinancialServices, fetchFinancialDiscounts } from '../../../../features/adminFinancialSettings/financialSettingsSlice'
 import { fetchLocalARIRates } from '../../../../features/localAri/localAriSlice'
+import { fetchRatePlans } from '../../../../features/ratePlans/ratePlansSlice'
 import { fetchRoomsAvailability } from '../../../../features/rooms/roomsSlice'
 import { fetchMealPlans } from '../../../../features/admin/mealPlansSlice'
 import { MdDateRange } from "react-icons/md";
@@ -179,6 +180,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
   const roomTypesState = useAppSelector((state) => state.roomTypes)
   const localAriState = useAppSelector((state) => state.localAri)
   const roomsState = useAppSelector((state) => state.rooms)
+  const ratePlansState = useAppSelector((state) => state.ratePlans)
   const financialSettings = useAppSelector((state) => state.financialSettings)
   const mealPlansState = useAppSelector((state) => state.mealPlans)
   const hasFetchedMealPlans = useRef(false)
@@ -188,7 +190,10 @@ export function NewReservationStep2({ value, onChange }: Props) {
     if (roomTypesState.status === 'idle') {
       dispatch(fetchRoomTypes())
     }
-  }, [dispatch, roomTypesState.status])
+    if (ratePlansState.status === 'idle') {
+      dispatch(fetchRatePlans())
+    }
+  }, [dispatch, roomTypesState.status, ratePlansState.status])
 
   useEffect(() => {
     if (financialSettings.status === 'idle') {
@@ -248,6 +253,15 @@ export function NewReservationStep2({ value, onChange }: Props) {
   }, [roomTypesState.items])
 
 
+
+  const ratePlanOptions: SelectOption[] = useMemo(() => {
+    return ratePlansState.items
+      .filter((rp) => rp.isActive)
+      .map((rp) => ({
+        value: rp.code,
+        label: rp.code,
+      }))
+  }, [ratePlansState.items])
 
   const mealPlanOptions: SelectOption[] = useMemo(() => {
     return mealPlansState.items.map((item) => ({
@@ -510,8 +524,8 @@ export function NewReservationStep2({ value, onChange }: Props) {
       <div className="space-y-5">
 
         <Labeled label="Rate Code (e.g. BAR)">
-          <InputControl
-            placeholder="Enter rate code..."
+          <SelectControlWithOptions
+            options={ratePlanOptions}
             value={value.rateCode}
             onChange={(v) => onChange({ rateCode: v })}
           />
@@ -653,22 +667,23 @@ export function NewReservationStep2({ value, onChange }: Props) {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Room Number</th>
                         <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Room Type</th>
-                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Base Price</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right">Available Rooms</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {roomsState.availability.map((room) => (
-                        <tr key={room.roomId} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                            {room.roomNumber}
-                          </td>
-                          <td className="px-5 py-4 text-sm text-slate-500">
-                            {room.roomTypeName}
-                          </td>
-                          <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                            {room.basePrice?.toFixed(2) ?? '—'}
+                      {Object.entries(
+                        roomsState.availability.reduce<Record<string, number>>((acc, room) => {
+                          acc[room.roomTypeName] = (acc[room.roomTypeName] || 0) + 1
+                          return acc
+                        }, {})
+                      ).map(([roomType, count]) => (
+                        <tr key={roomType} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-5 py-4 text-sm font-semibold text-slate-700">{roomType}</td>
+                          <td className="px-5 py-4 text-sm text-right">
+                            <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2.5 rounded-full text-[12px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                              {count}
+                            </span>
                           </td>
                         </tr>
                       ))}

@@ -1,5 +1,5 @@
 import { apiRequest, unwrapApiResponse } from './apiClient'
-import type { FinancialDiscount, FinancialService } from '../../models/FinancialSettings'
+import type { FinancialDiscount, FinancialService, CreateDiscountPayload, UpdateDiscountPayload } from '../../models/FinancialSettings'
 
 const basePath = '/admin/financial-settings'
 
@@ -18,17 +18,34 @@ export function getFinancialDiscounts(signal?: AbortSignal) {
     signal,
   }).then((r) => unwrapApiResponse<FinancialDiscount[]>(r))
 }
-export function createFinancialDiscount(data: { name: string; value: number; type: 'FixedAmount' | 'Percentage' }) {
+
+export function createFinancialDiscount(data: CreateDiscountPayload) {
   return apiRequest<unknown>({
     method: 'POST',
     path: `${basePath}/discounts`,
-    body: JSON.stringify(data),
-  }).then((r) => unwrapApiResponse<FinancialDiscount>(r))
+    body: data,
+  }).then((r) => unwrapApiResponse<string>(r))
 }
+
+export function updateFinancialDiscount(id: string, data: UpdateDiscountPayload) {
+  return apiRequest<unknown>({
+    method: 'PUT',
+    path: `${basePath}/discounts/${id}`,
+    body: data,
+  }).then((r) => unwrapApiResponse<boolean>(r))
+}
+
+export function toggleFinancialDiscount(id: string) {
+  return apiRequest<unknown>({
+    method: 'PATCH',
+    path: `${basePath}/discounts/${id}/toggle`,
+  }).then((r) => unwrapApiResponse<boolean>(r))
+}
+
 export function createFinancialService(data: { name: string; price: number }) {
   return apiRequest<unknown>({
     method: 'POST',
     path: `${basePath}/services`,
-    body: JSON.stringify(data),
+    body: data,
   }).then((r) => unwrapApiResponse<FinancialService>(r))
 }

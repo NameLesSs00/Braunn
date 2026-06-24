@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import type { FinancialDiscount, FinancialService } from '../../models/FinancialSettings'
+import type { FinancialDiscount, FinancialService, CreateDiscountPayload, UpdateDiscountPayload } from '../../models/FinancialSettings'
 import * as api from '../../shared/apis/AdminFinancialSettings'
 
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
@@ -8,14 +8,18 @@ interface FinancialSettingsState {
   services: FinancialService[]
   discounts: FinancialDiscount[]
   status: AsyncStatus
+  discountStatus: AsyncStatus
   error: string | null
+  discountError: string | null
 }
 
 const initialState: FinancialSettingsState = {
   services: [],
   discounts: [],
   status: 'idle',
+  discountStatus: 'idle',
   error: null,
+  discountError: null,
 }
 
 export const fetchFinancialServices = createAsyncThunk(
@@ -44,11 +48,37 @@ export const fetchFinancialDiscounts = createAsyncThunk(
 
 export const createFinancialDiscount = createAsyncThunk(
   'financialSettings/createDiscount',
-  async (data: { name: string; value: number; type: 'FixedAmount' | 'Percentage' }, { rejectWithValue }) => {
+  async (data: CreateDiscountPayload, { rejectWithValue }) => {
     try {
       return await api.createFinancialDiscount(data)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create financial discount'
+      return rejectWithValue(message)
+    }
+  },
+)
+
+export const updateFinancialDiscount = createAsyncThunk(
+  'financialSettings/updateDiscount',
+  async ({ id, data }: { id: string; data: UpdateDiscountPayload }, { rejectWithValue }) => {
+    try {
+      await api.updateFinancialDiscount(id, data)
+      return { id, data }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update financial discount'
+      return rejectWithValue(message)
+    }
+  },
+)
+
+export const toggleFinancialDiscount = createAsyncThunk(
+  'financialSettings/toggleDiscount',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await api.toggleFinancialDiscount(id)
+      return id
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to toggle financial discount'
       return rejectWithValue(message)
     }
   },
@@ -73,6 +103,9 @@ const financialSettingsSlice = createSlice({
     clearFinancialSettingsError(state) {
       state.error = null
     },
+    clearDiscountError(state) {
+      state.discountError = null
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -88,26 +121,45 @@ const financialSettingsSlice = createSlice({
         state.status = 'failed'
         state.error = (action.payload as string) || 'Something went wrong'
       })
+
       .addCase(fetchFinancialDiscounts.pending, (state) => {
-        state.status = 'loading'
-        state.error = null
+        state.discountStatus = 'loading'
+        state.discountError = null
       })
       .addCase(fetchFinancialDiscounts.fulfilled, (state, action) => {
-        state.status = 'succeeded'
+        state.discountStatus = 'succeeded'
         state.discounts = action.payload
       })
       .addCase(fetchFinancialDiscounts.rejected, (state, action) => {
-        state.status = 'failed'
-        state.error = (action.payload as string) || 'Something went wrong'
+        state.discountStatus = 'failed'
+        state.discountError = (action.payload as string) || 'Something went wrong'
       })
-      .addCase(createFinancialDiscount.fulfilled, (state, action) => {
-        state.discounts.push(action.payload)
+
+      .addCase(createFinancialDiscount.fulfilled, (state) => {
+        state.discountStatus = 'succeeded'
       })
+
+      .addCase(updateFinancialDiscount.fulfilled, (state, action) => {
+        const { id, data } = action.payload
+        const idx = state.discounts.findIndex((d) => d.id === id)
+        if (idx !== -1) {
+          state.discounts[idx] = { ...state.discounts[idx], ...data }
+        }
+      })
+
+      .addCase(toggleFinancialDiscount.fulfilled, (state, action) => {
+        const id = action.payload
+        const idx = state.discounts.findIndex((d) => d.id === id)
+        if (idx !== -1) {
+          state.discounts[idx].isActive = !state.discounts[idx].isActive
+        }
+      })
+
       .addCase(createFinancialService.fulfilled, (state, action) => {
         state.services.push(action.payload)
       })
   },
 })
 
-export const { clearFinancialSettingsError } = financialSettingsSlice.actions
+export const { clearFinancialSettingsError, clearDiscountError } = financialSettingsSlice.actions
 export const financialSettingsReducer = financialSettingsSlice.reducer
