@@ -43,6 +43,7 @@ export function DiscountsPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [showDisabled, setShowDisabled] = useState(false)
 
   useEffect(() => {
     if (discountStatus === 'idle') {
@@ -78,10 +79,10 @@ export function DiscountsPage() {
     setFormError(null)
     try {
       if (panelMode === 'add') {
-        await dispatch(createFinancialDiscount({ name: form.name.trim(), value: Number(form.value), type: 'Percentage' })).unwrap()
+        await dispatch(createFinancialDiscount({ name: form.name.trim(), value: Number(form.value) })).unwrap()
         await dispatch(fetchFinancialDiscounts())
       } else if (panelMode === 'edit' && editTarget) {
-        await dispatch(updateFinancialDiscount({ id: editTarget.id, data: { name: form.name.trim(), value: Number(form.value), type: 'Percentage' } })).unwrap()
+        await dispatch(updateFinancialDiscount({ id: editTarget.id, data: { name: form.name.trim(), value: Number(form.value) } })).unwrap()
       }
       closePanel()
     } catch (e) {
@@ -92,18 +93,6 @@ export function DiscountsPage() {
   }
 
   const handleToggle = async (discount: FinancialDiscount) => {
-    const action = discount.isActive ? 'deactivate' : 'activate'
-    const result = await Swal.fire({
-      title: `${discount.isActive ? 'Deactivate' : 'Activate'} discount?`,
-      text: `"${discount.name}" will be ${action}d.`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: discount.isActive ? '#dc2626' : '#0B4EA2',
-      cancelButtonColor: '#94a3b8',
-      confirmButtonText: `Yes, ${action}`,
-      scrollbarPadding: false,
-    })
-    if (!result.isConfirmed) return
     setTogglingId(discount.id)
     try {
       await dispatch(toggleFinancialDiscount(discount.id)).unwrap()
@@ -113,6 +102,8 @@ export function DiscountsPage() {
   }
 
   const isLoading = discountStatus === 'loading'
+  
+  const filteredDiscounts = discounts.filter(d => showDisabled || d.isActive)
 
   return (
     <motion.div className="space-y-0 pb-12" initial="hidden" animate="visible" variants={containerVariants}>
@@ -136,10 +127,21 @@ export function DiscountsPage() {
 
       <motion.div variants={itemVariants} className="px-6">
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
-            <Percent className="w-5 h-5 text-[#0B4EA2]" />
-            <span className="text-[15px] font-bold text-slate-800">All Discounts</span>
-            <span className="ml-auto text-xs text-slate-400 font-medium">{discounts.length} total</span>
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Percent className="w-5 h-5 text-[#0B4EA2]" />
+              <span className="text-[15px] font-bold text-slate-800">All Discounts</span>
+              <span className="text-xs text-slate-400 font-medium">{filteredDiscounts.length} total</span>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showDisabled}
+                onChange={(e) => setShowDisabled(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-[#0B4EA2] focus:ring-[#0B4EA2]"
+              />
+              <span className="text-sm font-medium text-slate-600">Show disabled</span>
+            </label>
           </div>
 
           {isLoading ? (
@@ -153,7 +155,7 @@ export function DiscountsPage() {
                 </div>
               ))}
             </div>
-          ) : discounts.length === 0 ? (
+          ) : filteredDiscounts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
               <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center">
                 <Percent className="w-7 h-7 text-slate-400" />
@@ -172,7 +174,7 @@ export function DiscountsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {discounts.map((discount) => (
+                {filteredDiscounts.map((discount) => (
                   <tr key={discount.id} className="hover:bg-slate-50/50 transition-colors bg-white">
                     <td className="px-5 py-4 font-semibold text-slate-800 text-[15px]">{discount.name}</td>
                     <td className="px-5 py-4">
@@ -182,17 +184,22 @@ export function DiscountsPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-center">
-                      {discount.isActive ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                          Inactive
-                        </span>
-                      )}
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={discount.isActive}
+                          onChange={() => handleToggle(discount)}
+                          disabled={togglingId === discount.id}
+                        />
+                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#0B4EA2]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0B4EA2]"></div>
+                        {togglingId === discount.id && (
+                          <svg className="animate-spin w-4 h-4 text-[#0B4EA2] absolute -right-6" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        )}
+                      </label>
                     </td>
                     <td className="px-5 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
@@ -202,27 +209,6 @@ export function DiscountsPage() {
                           className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#0B4EA2] hover:bg-blue-50 transition-colors"
                         >
                           <Edit2 className="w-4 h-4" strokeWidth={2} />
-                        </button>
-                        <button
-                          onClick={() => handleToggle(discount)}
-                          disabled={togglingId === discount.id}
-                          title={discount.isActive ? 'Deactivate' : 'Activate'}
-                          className={[
-                            'h-8 w-8 flex items-center justify-center rounded-lg transition-colors',
-                            discount.isActive
-                              ? 'text-rose-400 hover:text-rose-600 hover:bg-rose-50'
-                              : 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50',
-                            togglingId === discount.id ? 'opacity-50 cursor-not-allowed' : '',
-                          ].join(' ')}
-                        >
-                          {togglingId === discount.id ? (
-                            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                            </svg>
-                          ) : (
-                            <Power className="w-4 h-4" strokeWidth={2} />
-                          )}
                         </button>
                       </div>
                     </td>
