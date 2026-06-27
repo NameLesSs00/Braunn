@@ -18,6 +18,7 @@ export const routes = {
     groupContracts: '/sales-revenue/group-contracts',
     productionReport: '/sales-revenue/production-report',
     discounts: '/sales-revenue/discounts',
+    packages: '/sales-revenue/packages',
   },
   laundry: {
     overview: '/laundry/overview',

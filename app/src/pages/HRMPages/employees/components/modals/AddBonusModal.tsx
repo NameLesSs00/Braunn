@@ -97,7 +97,8 @@ export function AddBonusModal({ open, onClose, employee, onSubmit }: Props) {
           </button>
           <button 
             onClick={handleSubmit}
-            className="py-3.5 rounded-xl bg-[#0B4EA2] text-white font-semibold text-[15px] hover:bg-[#0a428a] transition-colors shadow-sm"
+            disabled={!amount || !effectiveDate}
+            className="py-3.5 rounded-xl bg-[#0B4EA2] text-white font-semibold text-[15px] hover:bg-[#0a428a] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save Bonus
           </button>

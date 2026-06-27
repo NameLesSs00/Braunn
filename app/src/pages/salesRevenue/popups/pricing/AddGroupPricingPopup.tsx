@@ -25,6 +25,7 @@ export function AddGroupPricingPopup({ onClose }: AddGroupPricingPopupProps) {
   const [depositRequired, setDepositRequired] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [isManualRate, setIsManualRate] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     dispatch(fetchRoomTypes())
@@ -51,7 +52,14 @@ export function AddGroupPricingPopup({ onClose }: AddGroupPricingPopupProps) {
   const total = finalRate * roomBlockQuantity
 
   const handleSubmit = async () => {
-    if (!roomTypeId || !groupName || !contactPerson) return
+    setError(null)
+    if (!roomTypeId) { setError('Please select a Room Type.'); return }
+    if (!groupName.trim()) { setError('Group Name is required.'); return }
+    if (!contactPerson.trim()) { setError('Contact Person is required.'); return }
+    if (!arrivalDate || !departureDate) { setError('Please enter both Arrival and Departure dates.'); return }
+    if (new Date(departureDate) <= new Date(arrivalDate)) { setError('Departure Date must be after Arrival Date.'); return }
+    if (roomBlockQuantity <= 0) { setError('Number of Rooms must be greater than 0.'); return }
+    if (discountPercentage < 0 || discountPercentage > 100) { setError('Discount must be between 0 and 100%.'); return }
     setIsLoading(true)
     try {
       const payload = {
@@ -98,6 +106,11 @@ export function AddGroupPricingPopup({ onClose }: AddGroupPricingPopupProps) {
 
         {/* Form Body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-medium rounded-lg px-4 py-3">
+              {error}
+            </div>
+          )}
           {/* Row 1: Room Type & Group Name */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>

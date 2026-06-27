@@ -18,6 +18,7 @@ export function AddPositionPopup({ open, onClose, onSubmit, mode = 'add', initia
     name: '',
     description: '',
   });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -33,6 +34,9 @@ export function AddPositionPopup({ open, onClose, onSubmit, mode = 'add', initia
   };
 
   const handleSubmit = () => {
+    setError(null)
+    if (!form.name.trim()) { setError('Position Name is required.'); return }
+    if (!form.description.trim()) { setError('Description is required.'); return }
     onSubmit(form);
   };
 
@@ -55,6 +59,11 @@ export function AddPositionPopup({ open, onClose, onSubmit, mode = 'add', initia
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4 bg-white">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-medium rounded-lg px-4 py-2">
+              {error}
+            </div>
+          )}
           {/* Position Name */}
           <div>
             <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">
@@ -96,7 +105,7 @@ export function AddPositionPopup({ open, onClose, onSubmit, mode = 'add', initia
           <button
             type="button"
             onClick={handleSubmit}
-            className="flex-1 h-11 rounded-lg bg-[#0B4EA2] text-[14px] font-semibold text-white hover:bg-[#093c80] transition-colors"
+            className="flex-1 h-11 rounded-lg bg-[#0B4EA2] text-[14px] font-semibold text-white hover:bg-[#093c80] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {mode === 'edit' ? 'Save' : 'Add'}
           </button>

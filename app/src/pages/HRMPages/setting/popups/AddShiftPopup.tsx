@@ -30,6 +30,7 @@ export function AddShiftPopup({ open, onClose, onSubmit, mode = 'add', initialDa
     startTime: formatTimeForInput(initialData?.startTime, '08:00'),
     endTime: formatTimeForInput(initialData?.endTime, '16:00'),
   });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -46,6 +47,11 @@ export function AddShiftPopup({ open, onClose, onSubmit, mode = 'add', initialDa
   };
 
   const handleSubmit = () => {
+    setError(null)
+    if (!form.name.trim()) { setError('Shift Name is required.'); return }
+    if (!form.startTime) { setError('Start Time is required.'); return }
+    if (!form.endTime) { setError('End Time is required.'); return }
+    if (form.endTime <= form.startTime) { setError('End Time must be after Start Time.'); return }
     onSubmit({
       ...form,
       startTime: formatTimeWithSeconds(form.startTime),
@@ -72,6 +78,11 @@ export function AddShiftPopup({ open, onClose, onSubmit, mode = 'add', initialDa
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4 bg-white">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-medium rounded-lg px-4 py-2">
+              {error}
+            </div>
+          )}
           {/* Shift Name */}
           <div>
             <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">
@@ -129,7 +140,7 @@ export function AddShiftPopup({ open, onClose, onSubmit, mode = 'add', initialDa
           <button
             type="button"
             onClick={handleSubmit}
-            className="flex-1 h-11 rounded-lg bg-[#0B4EA2] text-[14px] font-semibold text-white hover:bg-[#093c80] transition-colors"
+            className="flex-1 h-11 rounded-lg bg-[#0B4EA2] text-[14px] font-semibold text-white hover:bg-[#093c80] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {mode === 'edit' ? 'Save' : 'Add'}
           </button>

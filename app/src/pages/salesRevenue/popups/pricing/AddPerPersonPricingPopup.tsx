@@ -21,6 +21,7 @@ export function AddPerPersonPricingPopup({ onClose }: AddPerPersonPricingPopupPr
   const [validFrom, setValidFrom] = useState('2025-01-12')
   const [validTo, setValidTo] = useState('2025-01-30')
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     dispatch(fetchRoomTypes())
@@ -33,7 +34,11 @@ export function AddPerPersonPricingPopup({ onClose }: AddPerPersonPricingPopupPr
   }, [roomTypes, roomTypeId])
 
   const handleSubmit = async () => {
-    if (!roomTypeId) return
+    setError(null)
+    if (!roomTypeId) { setError('Please select a Room Type.'); return }
+    if (!validFrom || !validTo) { setError('Please select both Valid From and Valid To dates.'); return }
+    if (new Date(validTo) <= new Date(validFrom)) { setError('Valid To date must be after Valid From date.'); return }
+    if (adultPrice <= 0) { setError('Adult Price must be greater than 0.'); return }
     setIsLoading(true)
     try {
       const payload = {
@@ -73,6 +78,11 @@ export function AddPerPersonPricingPopup({ onClose }: AddPerPersonPricingPopupPr
 
         {/* Form Body */}
         <div className="p-6 space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-medium rounded-lg px-4 py-3">
+              {error}
+            </div>
+          )}
           {/* Room Type */}
           <div>
             <label className="block text-[13px] font-bold text-slate-600 mb-2">Room Type</label>

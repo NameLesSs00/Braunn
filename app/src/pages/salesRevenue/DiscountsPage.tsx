@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import { TabNav } from './components/TabNav'
-import { Plus, Edit2, Power, Percent, X } from 'lucide-react'
+import { Plus, Edit2, Percent, X } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   fetchFinancialDiscounts,
@@ -10,7 +10,6 @@ import {
   toggleFinancialDiscount,
 } from '../../features/adminFinancialSettings/financialSettingsSlice'
 import type { FinancialDiscount } from '../../models/FinancialSettings'
-import Swal from 'sweetalert2'
 
 const containerVariants = {
   hidden: { opacity: 0 },
