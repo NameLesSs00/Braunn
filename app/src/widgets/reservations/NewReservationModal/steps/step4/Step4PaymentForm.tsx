@@ -63,9 +63,39 @@ export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing
           </div>
 
           <div className="space-y-2 text-[12px] text-slate-600">
+            {pricing.baseTotal > 0 && (
+              <div className="flex items-center justify-between">
+                <span>Base Rate:</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.baseTotal)}</span>
+              </div>
+            )}
+            {pricing.extraAdultTotal > 0 && (
+              <div className="flex items-center justify-between">
+                <span>Extra Adults:</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.extraAdultTotal)}</span>
+              </div>
+            )}
+            {pricing.childTotal > 0 && (
+              <div className="flex items-center justify-between">
+                <span>Children:</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.childTotal)}</span>
+              </div>
+            )}
+            {pricing.mealPlansTotal > 0 && (
+              <div className="flex items-center justify-between">
+                <span>Meal Plans:</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.mealPlansTotal)}</span>
+              </div>
+            )}
+            {pricing.extrasTotal > 0 && (
+              <div className="flex items-center justify-between">
+                <span>Additional Services:</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.extrasTotal)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
-              <span>Adult :</span>
-              <span className="font-semibold text-slate-800">{formatMoney(pricing.adultTotal)}</span>
+              <span>Taxes & Fees:</span>
+              <span className="font-semibold text-slate-800">{formatMoney(pricing.taxesAmount)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Discount:</span>

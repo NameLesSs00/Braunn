@@ -712,15 +712,49 @@ export function CheckInProcessModal({
                 <div className="rounded-2xl border border-slate-200 bg-white p-6">
                   <div className="text-sm font-semibold text-slate-800">Payment Summary</div>
                   <div className="mt-4 grid grid-cols-1 gap-3 text-[12px] text-slate-600 md:grid-cols-2">
+                    {pricing.baseTotal > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>Base Rate</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.baseTotal)}</span>
+                      </div>
+                    )}
+                    {pricing.extraAdultTotal > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>Extra Adults</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.extraAdultTotal)}</span>
+                      </div>
+                    )}
+                    {pricing.childTotal > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>Children</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.childTotal)}</span>
+                      </div>
+                    )}
+                    {pricing.mealPlansTotal > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>Meal Plans</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.mealPlansTotal)}</span>
+                      </div>
+                    )}
+                    {pricing.extrasTotal > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>Additional Services</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.extrasTotal)}</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
-                      <span>Total Amount</span>
-                      <span className="font-semibold text-slate-800">{formatMoney(pricing.totalAmount)}</span>
+                      <span>Taxes & Fees</span>
+                      <span className="font-semibold text-slate-800">{formatMoney(pricing.taxesAmount)}</span>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between md:col-span-2 mt-2 pt-3 border-t border-slate-100">
+                      <span className="font-semibold text-slate-700">Total Amount</span>
+                      <span className="font-bold text-slate-900">{formatMoney(pricing.totalAmount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between md:col-span-2">
                       <span>Deposit Paid</span>
                       <span className="font-semibold text-emerald-600">{formatMoney(pricing.requiredDeposit)}</span>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between md:col-span-2">
                       <span>Remaining Balance</span>
                       <span className="font-semibold text-orange-600">
                         {formatMoney(Math.max(0, pricing.totalAmount - pricing.requiredDeposit))}

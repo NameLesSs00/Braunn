@@ -10,7 +10,7 @@ const tabs = [
   { label: 'Corporate Account', to: routes.salesRevenue.corporateAccount },
   { label: 'Group contracts', to: routes.salesRevenue.groupContracts },
   { label: 'production Report', to: routes.salesRevenue.productionReport },
-  { label: 'Packages', to: routes.salesRevenue.packages },
+  { label: 'Rates & Packages', to: routes.salesRevenue.packages },
 ]
 
 export function TabNav() {

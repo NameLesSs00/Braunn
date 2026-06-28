@@ -69,10 +69,12 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
     void getPmsReservationById(reservationId, controller.signal)
       .then((res) => {
         setReservation(res)
-        return getRoomTypeById(res.roomTypeId, controller.signal)
+        const roomTypeId = res.reservationRooms?.[0]?.roomTypeId
+        if (!roomTypeId) return null
+        return getRoomTypeById(roomTypeId, controller.signal)
       })
       .then((rt) => {
-        setRoomType(rt)
+        if (rt) setRoomType(rt)
       })
       .catch((e: unknown) => {
         if (controller.signal.aborted) return
@@ -99,11 +101,6 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
   const nights = useMemo(() => {
     if (!reservation) return 1
     return calcNights(reservation.checkInDate, reservation.checkOutDate)
-  }, [reservation])
-
-  const depositRequired = useMemo(() => {
-    if (!reservation) return 0
-    return (reservation.finance.grandTotal || 0) * 0.25
   }, [reservation])
 
   return (
@@ -155,14 +152,11 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
 
                 <Step4Card title="Room Information" titleIconSrc={MdMeetingRoom} titleIconBgClassName="bg-violet-100">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <InfoRow label="Room count" value={roomType ? '1' : '-----'} />
+                    <InfoRow label="Room count" value={reservation.reservationRooms?.length.toString() || '-----'} />
                     <InfoRow label="Room view" value={viewTypeLabel(roomType?.viewType)} />
                     <InfoRow label="Room Type" value={reservation.roomTypeName ?? '-----'} />
-                    <InfoRow label="Rate plan" value="-----" />
-                    <InfoRow label="Floor" value="-----" />
-                    <InfoRow label="Rate code" value="-----" />
                     <InfoRow label="Maximum Guests" value={roomType ? `${roomType.maxGuests} guests` : '-----'} />
-                    <InfoRow label="Price per Night" value={reservation.baseRateAtBooking ? formatMoney(reservation.baseRateAtBooking) : '-----'} />
+                    <InfoRow label="Price per Night" value={reservation.reservationRooms?.[0]?.pricePerNight ? formatMoney(reservation.reservationRooms[0].pricePerNight) : '-----'} />
                   </div>
                 </Step4Card>
               </div>
@@ -182,7 +176,7 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                     <div className="space-y-1">
                       <div className="text-[12px] text-slate-500">Payment Method</div>
                       <div className="text-[13px] font-semibold text-slate-800">
-                        {reservation.finance.payments && reservation.finance.payments.length > 0 ? reservation.finance.payments[0].method : '-----'}
+                        {reservation.finance.lastPaymentMethod || '-----'}
                       </div>
                     </div>
 
@@ -196,13 +190,43 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
 
                   <div className="rounded-xl bg-slate-50 p-4">
                     <div className="grid grid-cols-1 gap-2 text-[12px] text-slate-600 md:grid-cols-2">
-                      <div className="flex items-center justify-between">
-                        <span>Total Amount</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.grandTotal)}</span>
+                      {reservation.finance.baseRoomAmount > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span>Base Room Amount</span>
+                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.baseRoomAmount)}</span>
+                        </div>
+                      )}
+                      {reservation.finance.totalMealPlanCost > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span>Meal Plans</span>
+                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.totalMealPlanCost)}</span>
+                        </div>
+                      )}
+                      {reservation.finance.totalAdditionalServices > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span>Additional Services</span>
+                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.totalAdditionalServices)}</span>
+                        </div>
+                      )}
+                      {reservation.finance.taxAmount > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span>Taxes</span>
+                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.taxAmount)}</span>
+                        </div>
+                      )}
+                      {reservation.finance.discountAmount > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span>Discount</span>
+                          <span className="font-semibold text-emerald-600">-{formatMoney(reservation.finance.discountAmount)}</span>
+                        </div>
+                      )}
+                      <div className="col-span-2 mt-2 flex items-center justify-between border-t border-slate-200 pt-3">
+                        <span className="font-semibold text-slate-700">Grand Total</span>
+                        <span className="font-bold text-slate-900">{formatMoney(reservation.finance.grandTotal)}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span>Deposit Required (25%)</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(depositRequired)}</span>
+                        <span>Deposit Required</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.depositAmount)}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Amount Paid</span>
@@ -217,15 +241,58 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                 </div>
               </Step4Card>
 
-              <Step4Card title="Special Requests" titleIconSrc={MdNotes} titleIconBgClassName="bg-violet-100">
-                <div className="rounded-xl bg-[#F7F4FF] p-4 text-sm text-slate-700">-----</div>
-              </Step4Card>
+              {reservation.mealPlans && reservation.mealPlans.length > 0 && (
+                <Step4Card title="Meal Plans" titleIconBgClassName="bg-teal-100">
+                  <div className="space-y-3">
+                    {reservation.mealPlans.map((mp: any, i: number) => (
+                      <div key={i} className="flex items-start justify-between rounded-xl bg-slate-50 px-4 py-3 text-[12px] text-slate-700">
+                        <div>
+                          <div className="font-semibold text-slate-800">{mp.mealPlanName || mp.mealPlanCode}</div>
+                          <div className="mt-1 text-slate-500">
+                            {formatDisplayDate(mp.serviceDateStart)} → {formatDisplayDate(mp.serviceDateEnd)}
+                            {mp.numberOfNights ? ` · ${mp.numberOfNights} night(s)` : ''}
+                          </div>
+                        </div>
+                        <span className="font-bold text-slate-800">{formatMoney(mp.totalCost)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Step4Card>
+              )}
+
+              {reservation.additionalServices && reservation.additionalServices.length > 0 && (
+                <Step4Card title="Additional Services" titleIconBgClassName="bg-purple-100">
+                  <div className="space-y-3">
+                    {reservation.additionalServices.map((svc: any, i: number) => (
+                      <div key={i} className="flex items-start justify-between rounded-xl bg-slate-50 px-4 py-3 text-[12px] text-slate-700">
+                        <div>
+                          <div className="font-semibold text-slate-800">{svc.serviceName}</div>
+                          <div className="mt-1 text-slate-500">
+                            Qty: {svc.quantity} · {formatDisplayDate(svc.serviceDate)}
+                          </div>
+                        </div>
+                        <span className="font-bold text-slate-800">{formatMoney(svc.totalPrice)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Step4Card>
+              )}
+
+              {(reservation.specialRequests || reservation.comments) && (
+                <Step4Card title="Special Requests" titleIconSrc={MdNotes} titleIconBgClassName="bg-violet-100">
+                  <div className="rounded-xl bg-[#F7F4FF] p-4 text-sm text-slate-700">
+                    {reservation.specialRequests}
+                    {reservation.specialRequests && reservation.comments && <br />}
+                    {reservation.comments}
+                  </div>
+                </Step4Card>
+              )}
 
               <Step4Card title="Booking Information" titleIconSrc={LuIdCard} titleIconBgClassName="bg-slate-100">
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                  <InfoRow label="Created On" value={formatDisplayDate(reservation.createdAt)} />
-                  <InfoRow label="Reservation ID" value={reservation.id} />
-                  <InfoRow label="Created By" value="Ana joseph" />
+                  <InfoRow label="Created On" value={formatDisplayDate(reservation.guest.createdAt || reservation.createdAt)} />
+                  <InfoRow label="Reservation ID" value={reservation.bookingReference || reservation.id} />
+                  <InfoRow label="Created By" value="System" />
                 </div>
               </Step4Card>
 

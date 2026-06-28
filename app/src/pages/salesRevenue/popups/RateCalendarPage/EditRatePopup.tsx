@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAppDispatch } from '../../../../store/hooks';
 import { updateLocalARISingleDayRate } from '../../../../features/localAri/localAriSlice';
 import Swal from 'sweetalert2';
+import { X } from 'lucide-react';
 
 interface EditRatePopupProps {
   isOpen: boolean;
@@ -93,8 +94,14 @@ export function EditRatePopup({ isOpen, onClose, singleDayData, onSaveSuccess }:
             </h2>
 
             {errorMsg && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-semibold">
-                {errorMsg}
+              <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-semibold flex items-start justify-between">
+                <span>{errorMsg}</span>
+                <button 
+                  onClick={() => setErrorMsg('')} 
+                  className="text-red-500 hover:text-red-700 ml-3"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             )}
             

@@ -165,10 +165,15 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
   const pricing = useMemo<Pricing>(() => {
     const totalAmount = pmsSelected?.totalAmount ?? 0
     return {
+      baseTotal: totalAmount,
+      extraAdultTotal: 0,
       adultTotal: totalAmount,
       childTotal: 0,
       infantTotal: 0,
+      extrasTotal: 0,
+      mealPlansTotal: 0,
       subtotal: totalAmount,
+      taxesAmount: 0,
       discountValue: 0,
       totalAmount,
       requiredDeposit: 0,

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Calendar, DollarSign, Users, Tag } from 'lucide-react'
+import { X, Calendar, DollarSign, Users, Trash2, Plus, Tag } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
 import { saveLocalARIRates, fetchLocalARIRates } from '../../../../features/localAri/localAriSlice'
 
@@ -18,15 +18,30 @@ export function AddLocalPricingPopup({ onClose, startDate, endDate, roomTypeId }
   const roomTypes = useAppSelector((state) => state.roomTypes.items)
   const ratePlans = useAppSelector((state) => state.ratePlans.items)
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    roomTypeId: string
+    dateFrom: string
+    dateTo: string
+    ratePlanCode: string
+    currency: string
+    basePrice: number
+    numberOfGuests: number
+    extraAdultPrice: number
+    childrenPrice: number
+    taxPercentage: number
+    childPolicies: Array<{ id: number, ageFrom: number, ageTo: number, amount: number }>
+  }>({
     roomTypeId: roomTypeId || '',
     dateFrom: startDate || new Date().toISOString().split('T')[0],
     dateTo: endDate || new Date().toISOString().split('T')[0],
-    amount: 0,
     ratePlanCode: '',
     currency: 'USD',
+    basePrice: 0,
     numberOfGuests: 1,
-    ageQualifyingCode: '',
+    extraAdultPrice: 0,
+    childrenPrice: 0,
+    taxPercentage: 0,
+    childPolicies: [],
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,18 +49,50 @@ export function AddLocalPricingPopup({ onClose, startDate, endDate, roomTypeId }
   const set = (field: string, value: string | number) =>
     setForm((prev) => ({ ...prev, [field]: value }))
 
+  const addChildPolicy = () => {
+    const newId = form.childPolicies.length > 0 ? Math.max(...form.childPolicies.map((p) => p.id)) + 1 : 1
+    setForm((prev) => ({ ...prev, childPolicies: [...prev.childPolicies, { id: newId, ageFrom: 0, ageTo: 0, amount: 0 }] }))
+  }
+
+  const updateChildPolicy = (id: number, patch: Partial<{ ageFrom: number, ageTo: number, amount: number }>) => {
+    setForm((prev) => ({
+      ...prev,
+      childPolicies: prev.childPolicies.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    }))
+  }
+
+  const removeChildPolicy = (id: number) => {
+    setForm((prev) => ({
+      ...prev,
+      childPolicies: prev.childPolicies.filter((p) => p.id !== id),
+    }))
+  }
+
   const handleSubmit = async () => {
     if (!form.roomTypeId) { setError('Please select a Room Type.'); return }
     if (!form.dateFrom || !form.dateTo) { setError('Please enter a date range.'); return }
-    if (form.amount <= 0) { setError('Amount must be greater than 0.'); return }
+    if (form.basePrice <= 0) { setError('Base Price must be greater than 0.'); return }
     setError(null)
     setIsLoading(true)
     try {
-      await dispatch(saveLocalARIRates({
-        ...form,
-        dateFrom: new Date(form.dateFrom).toISOString(),
-        dateTo: new Date(form.dateTo).toISOString(),
-      })).unwrap()
+      const payload = {
+        roomTypeId: form.roomTypeId,
+        dateFrom: form.dateFrom,
+        dateTo: form.dateTo,
+        ratePlanCode: form.ratePlanCode,
+        currency: form.currency,
+        basePrice: form.basePrice,
+        numberOfGuests: form.numberOfGuests,
+        extraAdultPrice: form.extraAdultPrice,
+        childrenPrice: form.childrenPrice,
+        taxPercentage: form.taxPercentage,
+        childPolicies: form.childPolicies.map(p => ({
+          ageFrom: p.ageFrom,
+          ageTo: p.ageTo,
+          amount: p.amount
+        }))
+      }
+      await dispatch(saveLocalARIRates(payload)).unwrap()
       // Refresh rates table
       if (form.roomTypeId && form.ratePlanCode) {
         await dispatch(fetchLocalARIRates({
@@ -54,8 +101,8 @@ export function AddLocalPricingPopup({ onClose, startDate, endDate, roomTypeId }
           startDate: form.dateFrom,
           endDate: form.dateTo,
           roomCount: 1,
-          adults: form.ageQualifyingCode === '10' ? form.numberOfGuests : 1,
-          children: form.ageQualifyingCode === '8' ? form.numberOfGuests : 0,
+          adults: form.numberOfGuests,
+          children: 0,
           extraBeds: 0,
         }))
       }
@@ -84,8 +131,14 @@ export function AddLocalPricingPopup({ onClose, startDate, endDate, roomTypeId }
         {/* Form Body */}
         <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-medium rounded-lg px-4 py-3">
-              {error}
+            <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-medium rounded-lg px-4 py-3 flex items-start justify-between">
+              <span>{error}</span>
+              <button 
+                onClick={() => setError(null)} 
+                className="text-red-500 hover:text-red-700 ml-3"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
 
@@ -159,16 +212,16 @@ export function AddLocalPricingPopup({ onClose, startDate, endDate, roomTypeId }
               </div>
             </div>
 
-            {/* Amount */}
+            {/* Base Price */}
             <div>
-              <label className="block text-[13px] font-bold text-slate-600 mb-2">Amount <span className="text-red-500">*</span></label>
+              <label className="block text-[13px] font-bold text-slate-600 mb-2">Base Price <span className="text-red-500">*</span></label>
               <div className="relative flex items-center">
                 <DollarSign className="w-[17px] h-[17px] text-slate-400 absolute left-3.5 pointer-events-none" />
                 <input
                   type="number"
                   min={0}
-                  value={form.amount}
-                  onChange={(e) => set('amount', Number(e.target.value))}
+                  value={form.basePrice}
+                  onChange={(e) => set('basePrice', Number(e.target.value))}
                   className="w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:border-[#004bb4] transition-colors text-slate-700 font-medium"
                 />
               </div>
@@ -206,17 +259,135 @@ export function AddLocalPricingPopup({ onClose, startDate, endDate, roomTypeId }
               </div>
             </div>
 
-            {/* Age Qualifying Code */}
+            {/* Extra Adult Price */}
             <div>
-              <label className="block text-[13px] font-bold text-slate-600 mb-2">Age Qualifying Code</label>
-              <input
-                type="text"
-                value={form.ageQualifyingCode}
-                onChange={(e) => set('ageQualifyingCode', e.target.value)}
-                placeholder="Age Qualifying Code"
-                className="w-full border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-[#004bb4] transition-colors text-slate-700 font-medium"
-              />
+              <label className="block text-[13px] font-bold text-slate-600 mb-2">Extra Adult Price</label>
+              <div className="relative flex items-center">
+                <DollarSign className="w-[17px] h-[17px] text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  type="number"
+                  min={0}
+                  value={form.extraAdultPrice}
+                  onChange={(e) => set('extraAdultPrice', Number(e.target.value))}
+                  className="w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:border-[#004bb4] transition-colors text-slate-700 font-medium"
+                />
+              </div>
             </div>
+
+            {/* Children Price */}
+            <div>
+              <label className="block text-[13px] font-bold text-slate-600 mb-2">Base Children Price</label>
+              <div className="relative flex items-center">
+                <DollarSign className="w-[17px] h-[17px] text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  type="number"
+                  min={0}
+                  value={form.childrenPrice}
+                  onChange={(e) => set('childrenPrice', Number(e.target.value))}
+                  className="w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:border-[#004bb4] transition-colors text-slate-700 font-medium"
+                />
+              </div>
+            </div>
+
+            {/* Tax Percentage */}
+            <div>
+              <label className="block text-[13px] font-bold text-slate-600 mb-2">Tax Percentage (%)</label>
+              <div className="relative flex items-center">
+                <span className="text-slate-400 absolute left-3.5 pointer-events-none font-bold text-[14px]">%</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={form.taxPercentage}
+                  onChange={(e) => set('taxPercentage', Number(e.target.value))}
+                  className="w-full border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 outline-none focus:border-[#004bb4] transition-colors text-slate-700 font-medium"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Child Policies Section */}
+          <div className="pt-2 border-t border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-[14px] font-bold text-slate-800">Child Policies</h3>
+                <p className="text-[12px] text-slate-500">Configure special pricing based on child age. Set amount to 0 for free.</p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#0B4EA2] px-3 text-xs font-semibold text-white shadow-sm hover:bg-[#093d81] transition-all"
+                onClick={addChildPolicy}
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Policy
+              </button>
+            </div>
+
+            {form.childPolicies.length > 0 ? (
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Age From</th>
+                      <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Age To</th>
+                      <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-4 py-2.5 w-12"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {form.childPolicies.map((policy) => (
+                      <tr key={policy.id}>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={policy.ageFrom}
+                            onChange={(e) => updateChildPolicy(policy.id, { ageFrom: Number(e.target.value) })}
+                            className="w-full border border-slate-200 rounded-lg px-3 py-1.5 outline-none focus:border-[#004bb4] text-sm text-center"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            min={policy.ageFrom}
+                            value={policy.ageTo}
+                            onChange={(e) => updateChildPolicy(policy.id, { ageTo: Number(e.target.value) })}
+                            className="w-full border border-slate-200 rounded-lg px-3 py-1.5 outline-none focus:border-[#004bb4] text-sm text-center"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="relative flex items-center">
+                            <DollarSign className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+                            <input
+                              type="number"
+                              min={0}
+                              value={policy.amount}
+                              onChange={(e) => updateChildPolicy(policy.id, { amount: Number(e.target.value) })}
+                              className="w-full border border-slate-200 rounded-lg pl-7 pr-3 py-1.5 outline-none focus:border-[#004bb4] text-sm"
+                            />
+                            {policy.amount === 0 && (
+                              <span className="absolute right-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 pointer-events-none">Free</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            type="button"
+                            className="grid h-7 w-7 place-items-center text-rose-500 hover:bg-rose-50 rounded transition-colors ml-auto"
+                            onClick={() => removeChildPolicy(policy.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 py-5 text-center">
+                <p className="text-sm font-medium text-slate-500">No child policies added.</p>
+              </div>
+            )}
           </div>
         </div>
 

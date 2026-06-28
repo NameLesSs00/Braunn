@@ -228,12 +228,38 @@ export function NewReservationStep2({ value, onChange }: Props) {
   }, [dispatch, value.checkInDate, value.checkOutDate, value.rooms, value.rateCode, value.adultCount, value.childCount])
 
   const roomRates = useMemo(() => {
-    const baseRate = localAriState.rates[0]?.amountBeforeTax || 0
-    return { adult: baseRate, child: baseRate }
+    const rate = localAriState.rates[0]
+    return rate || null
   }, [localAriState.rates])
 
-  const adultTotalText = useMemo(() => `$ ${(value.adultCount * roomRates.adult).toFixed(2)}`, [value.adultCount, roomRates])
-  const childTotalText = useMemo(() => `$ ${(value.childCount * roomRates.child).toFixed(2)}`, [value.childCount, roomRates])
+  const adultTotalText = useMemo(() => {
+    if (!roomRates) return '$ 0.00'
+    const baseGuests = roomRates.numberOfGuests || 1
+    const baseRate = roomRates.basePriceBeforeTax || 0
+    let total = baseRate
+    if (value.adultCount > baseGuests) {
+      total += (value.adultCount - baseGuests) * (roomRates.extraAdultPriceAfterTax || 0)
+    }
+    return `$ ${total.toFixed(2)}`
+  }, [value.adultCount, roomRates])
+
+  const childTotalText = useMemo(() => {
+    if (!roomRates) return '$ 0.00'
+    let total = 0
+    const policies = roomRates.childPolicies || []
+    const fallbackChildrenPrice = roomRates.childrenPriceAfterTax || 0
+    
+    for (let i = 0; i < value.childCount; i++) {
+      const age = value.childAges?.[i] || 0
+      const policy = policies.find(p => age >= p.ageFrom && age <= p.ageTo)
+      if (policy) {
+        total += policy.amountAfterTax
+      } else {
+        total += fallbackChildrenPrice
+      }
+    }
+    return `$ ${total.toFixed(2)}`
+  }, [value.childCount, value.childAges, roomRates])
 
   const roomTypeOptions: SelectOption[] = useMemo(() => {
     const options = roomTypesState.items.map((item) => ({
@@ -547,7 +573,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
 
         {/* Nightly Rates Table */}
         {localAriState.rates.length > 0 && (() => {
-          const allZero = localAriState.rates.every(r => r.amountBeforeTax === 0 && r.finalRateAfterTax === 0)
+          const allZero = localAriState.rates.every(r => r.basePriceBeforeTax === 0 && r.finalRateAfterTax === 0)
           return (
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -601,8 +627,10 @@ export function NewReservationStep2({ value, onChange }: Props) {
                       <tr className="bg-slate-50 border-b border-slate-200">
                         <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
                         <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Day</th>
-                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Base Rate</th>
-                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">After Tax</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Base Before Tax</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Base After Tax</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Extra Adult</th>
+                        <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Children Base</th>
                         <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Final Rate</th>
                         <th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Guests</th>
                       </tr>
@@ -620,13 +648,19 @@ export function NewReservationStep2({ value, onChange }: Props) {
                               {dayNames[dateObj.getDay()]}
                             </td>
                             <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                              {rate.amountBeforeTax.toFixed(2)}
+                              {rate.basePriceBeforeTax?.toFixed(2) ?? '0.00'}
                             </td>
                             <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                              {rate.amountAfterTax.toFixed(2)}
+                              {rate.basePriceAfterTax?.toFixed(2) ?? '0.00'}
+                            </td>
+                            <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                              {rate.extraAdultPriceAfterTax?.toFixed(2) ?? '0.00'}
+                            </td>
+                            <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                              {rate.childrenPriceAfterTax?.toFixed(2) ?? '0.00'}
                             </td>
                             <td className="px-5 py-4 text-sm font-bold text-emerald-600">
-                              {rate.finalRateAfterTax.toFixed(2)}
+                              {rate.finalRateAfterTax?.toFixed(2) ?? '0.00'}
                             </td>
                             <td className="px-5 py-4 text-sm text-slate-500">
                               {rate.numberOfGuests}

@@ -28,6 +28,54 @@ export const fetchRatePlans = createAsyncThunk(
   }
 )
 
+export const createRatePlan = createAsyncThunk(
+  'ratePlans/createRatePlan',
+  async (payload: Parameters<typeof api.createRatePlan>[0], thunkApi) => {
+    try {
+      return await api.createRatePlan(payload, thunkApi.signal)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to create rate plan'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
+export const updateRatePlan = createAsyncThunk(
+  'ratePlans/updateRatePlan',
+  async ({ id, payload }: { id: string; payload: Parameters<typeof api.updateRatePlan>[1] }, thunkApi) => {
+    try {
+      return await api.updateRatePlan(id, payload, thunkApi.signal)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to update rate plan'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
+export const activateRatePlan = createAsyncThunk(
+  'ratePlans/activateRatePlan',
+  async (id: string, thunkApi) => {
+    try {
+      return await api.activateRatePlan(id, thunkApi.signal)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to activate rate plan'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
+export const deactivateRatePlan = createAsyncThunk(
+  'ratePlans/deactivateRatePlan',
+  async (id: string, thunkApi) => {
+    try {
+      return await api.deactivateRatePlan(id, thunkApi.signal)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to deactivate rate plan'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
 const ratePlansSlice = createSlice({
   name: 'ratePlans',
   initialState,
@@ -53,6 +101,29 @@ const ratePlansSlice = createSlice({
       .addCase(fetchRatePlans.rejected, (state, action) => {
         state.status = 'failed'
         state.error = (action.payload as string | null) ?? (action.error.message || 'Unknown error')
+      })
+      .addCase(createRatePlan.fulfilled, (state, action) => {
+        state.items.push(action.payload)
+      })
+      .addCase(updateRatePlan.fulfilled, (state, action) => {
+        const index = state.items.findIndex(rp => rp.id === action.payload.id)
+        if (index !== -1) {
+          state.items[index] = action.payload
+        }
+      })
+      .addCase(activateRatePlan.fulfilled, (state, action) => {
+        const id = action.meta.arg
+        const index = state.items.findIndex(rp => rp.id === id)
+        if (index !== -1) {
+          state.items[index].isActive = true
+        }
+      })
+      .addCase(deactivateRatePlan.fulfilled, (state, action) => {
+        const id = action.meta.arg
+        const index = state.items.findIndex(rp => rp.id === id)
+        if (index !== -1) {
+          state.items[index].isActive = false
+        }
       })
   },
 })

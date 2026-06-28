@@ -5,6 +5,7 @@ import { Modal } from '../../../shared/ui/Modal'
 import type { ReservationDraft } from '../../../features/reservations/draftSlice'
 import { Step4ReviewPage } from '../../../widgets/reservations/NewReservationModal/steps/step4/Step4ReviewPage'
 import { computePricing } from '../../../widgets/reservations/NewReservationModal/steps/step4/pricing'
+import { useAppSelector } from '../../../store/hooks'
 
 import type { RoomPlanBlock, RoomPlanRoom } from '../roomPlanMock'
 
@@ -122,7 +123,8 @@ export function RoomPlanReservationReviewPopup({ open, onClose, room, block }: P
     return Number.isFinite(n) && n > 0 ? n : 1
   }, [draft.nights])
 
-  const pricing = useMemo(() => computePricing(draft, nights), [draft, nights])
+  const localAriState = useAppSelector((state) => state.localAri)
+  const pricing = useMemo(() => computePricing(draft, nights, localAriState), [draft, nights, localAriState])
 
   const guestsTotal = draft.adultCount + draft.childCount + draft.infantCount
 
@@ -144,9 +146,9 @@ export function RoomPlanReservationReviewPopup({ open, onClose, room, block }: P
         <div className="flex-1 px-8 pb-8 pt-7">
           <Step4ReviewPage
             value={draft}
-            onChange={() => {}}
             guestsTotal={guestsTotal}
             pricing={pricing}
+            nights={nights}
             onOpenCheckIn={() => {}}
             onOpenExtendStay={() => {}}
           />

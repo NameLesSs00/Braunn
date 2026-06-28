@@ -16,6 +16,7 @@ type Props = {
   value: ReservationDraft
   guestsTotal: number
   pricing: Pricing
+  nights: number
   onOpenCheckIn: () => void
   onOpenExtendStay: () => void
 }
@@ -29,9 +30,20 @@ function LabeledInput({ label, children }: { label: string; children: React.Reac
   )
 }
 
-export function Step4ReviewPage({ value, guestsTotal, pricing, onOpenCheckIn, onOpenExtendStay }: Props) {
+export function Step4ReviewPage({ value, guestsTotal, pricing, nights, onOpenCheckIn, onOpenExtendStay }: Props) {
   const [actionsOpen, setActionsOpen] = useState(false)
   const actionsRef = useRef<HTMLDivElement | null>(null)
+
+  const pricePerNight = useMemo(() => {
+    if (!nights || nights < 1) return pricing.baseTotal
+    return pricing.baseTotal / nights
+  }, [pricing.baseTotal, nights])
+
+  const todayFormatted = useMemo(() => new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }), [])
+
+  const fullName = useMemo(() => [value.firstName, value.surName].filter(Boolean).join(' '), [value.firstName, value.surName])
+
+  const summaryRemainingBalance = Math.max(0, pricing.totalAmount - pricing.requiredDeposit)
 
   useEffect(() => {
     if (!actionsOpen) return
@@ -48,10 +60,6 @@ export function Step4ReviewPage({ value, guestsTotal, pricing, onOpenCheckIn, on
       document.removeEventListener('mousedown', onMouseDown)
     }
   }, [actionsOpen])
-
-  const fullName = useMemo(() => [value.firstName, value.surName].filter(Boolean).join(' '), [value.firstName, value.surName])
-
-  const summaryRemainingBalance = Math.max(0, pricing.totalAmount - pricing.requiredDeposit)
 
   return (
     <div className="space-y-6">
@@ -125,20 +133,19 @@ export function Step4ReviewPage({ value, guestsTotal, pricing, onOpenCheckIn, on
 
         <Step4Card title="Room Information" titleIconSrc={MdMeetingRoom} titleIconBgClassName="bg-violet-100">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <InfoRow label="Room count" value={value.rooms[0]?.roomCount.toString() ?? ''} />
-            <InfoRow label="Room view" value={(value.rooms[0] as any)?.roomView ?? '—'} />
-            <InfoRow label="Room Type" value={value.rooms[0]?.roomType ?? ''} />
-            <InfoRow label="Room Numbers" value={(value.rooms[0] as any)?.roomNumbers?.join(', ') || '—'} />
-            <InfoRow label="Rate plan" value={(value as any).ratePlan || '—'} />
-            <InfoRow label="Floor" value="1" />
-            <InfoRow label="Rate code" value={value.rateCode} />
+            <InfoRow label="Room count" value={value.rooms[0]?.roomCount.toString() ?? '—'} />
+            <InfoRow label="Room Type" value={value.rooms[0]?.roomType ?? '—'} />
+            {(value.rooms[0] as any)?.roomNumbers?.length > 0 && (
+              <InfoRow label="Room Numbers" value={(value.rooms[0] as any).roomNumbers.join(', ')} />
+            )}
+            {value.rateCode && <InfoRow label="Rate code" value={value.rateCode} />}
             <InfoRow label="Maximum Guests" value={guestsTotal ? `${guestsTotal} guests` : ''} />
-            <InfoRow label="Price per Night" value={formatMoney(180)} />
+            <InfoRow label="Price per Night" value={formatMoney(pricePerNight)} />
           </div>
 
           <div className="mt-4">
-            <div className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[12px] font-semibold text-emerald-700">
-              Occupied
+            <div className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-[12px] font-semibold text-[#0B4EA2]">
+              {value.reservationStatus || 'Reserved'}
             </div>
           </div>
         </Step4Card>
@@ -208,9 +215,9 @@ export function Step4ReviewPage({ value, guestsTotal, pricing, onOpenCheckIn, on
 
       <Step4Card title="Booking Information" titleIconSrc={LuIdCard} titleIconBgClassName="bg-slate-100">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          <InfoRow label="Created On" value="Dec 15, 2025, 12:00 PM" />
-          <InfoRow label="Reservation ID" value="r1" />
-          <InfoRow label="Created By" value="Ana joseph" />
+          <InfoRow label="Created On" value={todayFormatted} />
+          <InfoRow label="Reservation ID" value="Pending" />
+          <InfoRow label="Booking Source" value={value.bookingSource || '—'} />
         </div>
       </Step4Card>
 

@@ -149,12 +149,34 @@ export function NewReservationStep3({ value }: Props) {
             <InfoRow label="Rate code" value={value.rateCode} />
             <InfoRow label="Maximum Guests" value={guestsTotal ? `${guestsTotal} guests` : ''} />
             <InfoRow
-              label="Price per Night"
+              label="Price per Night (Base)"
               value={(() => {
-                const amount = localAriState.rates[0]?.amountBeforeTax
-                return amount ? `$${amount.toFixed(2)}` : '—'
+                const rate = localAriState.rates[0]
+                return rate?.basePriceAfterTax ? `$${rate.basePriceAfterTax.toFixed(2)}` : '—'
               })()}
             />
+            {localAriState.rates[0]?.extraAdultPriceAfterTax > 0 && value.adultCount > (localAriState.rates[0]?.numberOfGuests || 1) && (
+              <InfoRow 
+                label="Extra Adults / Night" 
+                value={`$${((value.adultCount - (localAriState.rates[0]?.numberOfGuests || 1)) * localAriState.rates[0].extraAdultPriceAfterTax).toFixed(2)}`} 
+              />
+            )}
+            {value.childCount > 0 && (
+              <InfoRow 
+                label="Children / Night" 
+                value={(() => {
+                  const rate = localAriState.rates[0]
+                  if (!rate) return '—'
+                  let total = 0
+                  for (let i = 0; i < value.childCount; i++) {
+                    const age = value.childAges?.[i] || 0
+                    const policy = (rate.childPolicies || []).find(p => age >= p.ageFrom && age <= p.ageTo)
+                    total += policy ? policy.amountAfterTax : (rate.childrenPriceAfterTax || 0)
+                  }
+                  return `$${total.toFixed(2)}`
+                })()} 
+              />
+            )}
           </div>
 
           <div className="mt-4">

@@ -1,8 +1,31 @@
-export interface LocalARIRate {
-  date: string
+export interface ChildPolicy {
+  ageFrom: number
+  ageTo: number
   amountBeforeTax: number
   amountAfterTax: number
-  ageQualifyingCode: string
+}
+
+export interface ChildPolicyPayload {
+  ageFrom: number
+  ageTo: number
+  amount: number
+}
+
+export interface LocalARIRate {
+  date: string
+  roomTypeId: string
+  ratePlanCode: string
+  currency: string
+  taxPercentage: number
+  basePriceBeforeTax: number
+  basePriceAfterTax: number
+  extraAdultPriceBeforeTax: number
+  extraAdultPriceAfterTax: number
+  childrenPriceBeforeTax: number
+  childrenPriceAfterTax: number
+  childPolicies: ChildPolicy[]
+  amountBeforeTax: number
+  amountAfterTax: number
   numberOfGuests: number
   originalBaseRate: number
   appliedRuleName: string | null
@@ -32,11 +55,14 @@ export interface CreateLocalARIRatePayload {
   roomTypeId: string
   dateFrom: string
   dateTo: string
-  amount: number
   ratePlanCode: string
   currency: string
+  basePrice: number
   numberOfGuests: number
-  ageQualifyingCode: string
+  extraAdultPrice: number
+  childrenPrice: number
+  taxPercentage: number
+  childPolicies: ChildPolicyPayload[]
 }
 export interface CreateLocalARIAvailabilityPayload {
   roomTypeId: string

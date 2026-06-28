@@ -94,12 +94,30 @@ export function RequestServiceModal({ open, onClose, service, onSubmit }: Props)
     setSearchQuery('')
   }
 
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (statusModal) {
+          if (statusModal.type === 'success') handleClose()
+          else setStatusModal(null)
+        } else {
+          handleClose()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [statusModal, open])
+
   if (!open || !service) return null
 
   if (statusModal) {
     const isSuccess = statusModal.type === 'success'
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onMouseDown={handleClose}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onMouseDown={() => {
+        if (isSuccess) handleClose()
+        else setStatusModal(null)
+      }}>
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative z-10" onMouseDown={(e) => e.stopPropagation()}>
           <div className="w-[400px] max-w-full overflow-hidden rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200">
@@ -116,7 +134,13 @@ export function RequestServiceModal({ open, onClose, service, onSubmit }: Props)
               </div>
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={() => {
+                  if (isSuccess) {
+                    handleClose()
+                  } else {
+                    setStatusModal(null)
+                  }
+                }}
                 className="grid h-8 w-8 place-items-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               >
                 <X className="h-4 w-4" />

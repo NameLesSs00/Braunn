@@ -9,8 +9,9 @@ import { IconImage } from '../../shared/ui/IconImage'
 import { Modal } from '../../shared/ui/Modal'
 import { formatMoney } from '../../widgets/reservations/CheckInProcessModal/utils'
 import { MdDateRange } from "react-icons/md";
-
-
+import { useEffect, useState } from 'react'
+import { getPmsReservationById } from '../../shared/apis/PmsReservation'
+import type { PmsReservationDetails } from '../../models/PmsReservation'
 
 type InHouseRowData = {
   resId: string
@@ -49,15 +50,43 @@ function formatDisplayDate(value?: string) {
 }
 
 export function InHouseReservationDetailsPopup({ open, onClose, data }: Props) {
+  const [reservation, setReservation] = useState<PmsReservationDetails | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open || !data?.resId) return
+
+    const controller = new AbortController()
+
+    setLoading(true)
+    setError(null)
+    setReservation(null)
+
+    getPmsReservationById(data.resId, controller.signal)
+      .then((res) => setReservation(res))
+      .catch((e: unknown) => {
+        if (controller.signal.aborted) return
+        setError(e instanceof Error ? e.message : 'Failed to load reservation')
+      })
+      .finally(() => {
+        if (controller.signal.aborted) return
+        setLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [open, data?.resId])
+
   const nights = useMemo(() => {
     if (!data) return 1
     return calcNights(data.checkIn, data.checkOut)
   }, [data])
 
   const paymentStatusLabel = useMemo(() => {
+    if (reservation?.finance?.paymentStatus) return reservation.finance.paymentStatus
     if (!data) return '-----'
     return data.payment === 'deposit paid' ? 'DEPOSIT PAID' : data.payment
-  }, [data])
+  }, [data, reservation])
 
   return (
     <Modal open={open} onClose={onClose} lockScroll>
@@ -93,23 +122,21 @@ export function InHouseReservationDetailsPopup({ open, onClose, data }: Props) {
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Step4Card title="Guest Information" titleIconBgClassName="bg-blue-100">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <InfoRow label="Full Name" value={data.guestName || '-----'} />
-                    <InfoRow label="Phone Number" value="-----" />
-                    <InfoRow label="Email Address" value="-----" />
-                    <InfoRow label="ID Number" value="-----" />
-                    <InfoRow label="Nationality" value="-----" />
-                    <InfoRow label="Booking source" value={data.source || '-----'} />
+                    <InfoRow label="Full Name" value={reservation?.guest?.fullName || data.guestName || '-----'} />
+                    <InfoRow label="Phone Number" value={reservation?.guest?.phone || '-----'} />
+                    <InfoRow label="Email Address" value={reservation?.guest?.email || '-----'} />
+                    <InfoRow label="ID Number" value={reservation?.guest?.idNumber || '-----'} />
+                    <InfoRow label="Nationality" value={reservation?.guest?.nationality || '-----'} />
+                    <InfoRow label="Booking source" value={reservation?.bookingSource || data.source || '-----'} />
                   </div>
                 </Step4Card>
 
                 <Step4Card title="Room Information" titleIconSrc={MdMeetingRoom} titleIconBgClassName="bg-violet-100">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <InfoRow label="Room Number" value={data.roomNo || '-----'} />
-                    <InfoRow label="Room Type" value={data.roomType || '-----'} />
+                    <InfoRow label="Room Type" value={reservation?.roomTypeName || data.roomType || '-----'} />
                     <InfoRow label="Floor" value={data.floor || '-----'} />
                     <InfoRow label="Maximum Guests" value={`${data.guests} guests`} />
-                    <InfoRow label="Rate plan" value="-----" />
-                    <InfoRow label="Rate code" value="-----" />
                   </div>
                 </Step4Card>
               </div>
@@ -125,39 +152,51 @@ export function InHouseReservationDetailsPopup({ open, onClose, data }: Props) {
 
               <Step4Card title="Payment Information" titleIconBgClassName="bg-emerald-100">
                 <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <div className="text-[12px] text-slate-500">Payment Method</div>
-                      <div className="text-[13px] font-semibold text-slate-800">-----</div>
-                    </div>
+                  {loading && <div className="text-sm text-slate-500">Loading payment details...</div>}
+                  {error && <div className="text-sm text-rose-500">{error}</div>}
+                  {reservation && (
+                    <>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <div className="text-[12px] text-slate-500">Payment Method</div>
+                          <div className="text-[13px] font-semibold text-slate-800">
+                            {reservation.finance.lastPaymentMethod || '-----'}
+                          </div>
+                        </div>
 
-                    <div className="space-y-1 md:text-right">
-                      <div className="text-[12px] text-slate-500">Payment Status</div>
-                      <span className="inline-flex items-center rounded-full bg-orange-50 px-4 py-2 text-xs font-semibold text-orange-600">
-                        {paymentStatusLabel}
-                      </span>
-                    </div>
-                  </div>
+                        <div className="space-y-1 md:text-right">
+                          <div className="text-[12px] text-slate-500">Payment Status</div>
+                          <span className="inline-flex items-center rounded-full bg-orange-50 px-4 py-2 text-xs font-semibold text-orange-600">
+                            {paymentStatusLabel}
+                          </span>
+                        </div>
+                      </div>
 
-                  <div className="rounded-xl bg-slate-50 p-4">
-                    <div className="grid grid-cols-1 gap-2 text-[12px] text-slate-600 md:grid-cols-2">
-                      <div className="flex items-center justify-between">
-                        <span>Total Amount</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(0)}</span>
+                      <div className="rounded-xl bg-slate-50 p-4">
+                        <div className="grid grid-cols-1 gap-2 text-[12px] text-slate-600 md:grid-cols-2">
+                          <div className="flex items-center justify-between">
+                            <span>Total Amount</span>
+                            <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.grandTotal)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Deposit Required</span>
+                            <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.depositAmount)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Amount Paid</span>
+                            <span className="font-semibold text-emerald-600">{formatMoney(reservation.finance.paidAmount)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Remaining Balance</span>
+                            <span className="font-semibold text-orange-600">{formatMoney(reservation.finance.remainingBalance)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span>Deposit Required (25%)</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(0)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Amount Paid</span>
-                        <span className="font-semibold text-emerald-600">{formatMoney(0)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Remaining Balance</span>
-                        <span className="font-semibold text-orange-600">{formatMoney(0)}</span>
-                      </div>
-                    </div>
+                    </>
+                  )}
+                  {!loading && !error && !reservation && (
+                    <div className="text-sm text-slate-500">No payment details available</div>
+                  )}
                   </div>
                 </div>
               </Step4Card>

@@ -32,37 +32,53 @@ export interface PmsGuest {
 }
 
 export interface PmsFinance {
-  reservationId: string
-  currency: string
-  totalBeforeTax: number
-  totalTax: number
-  totalAfterTax: number
+  baseRoomAmount: number
+  mealPlansTotal: number
+  servicesTotal: number
+  taxAmount: number
+  grossTotalPrice: number
+  depositAmount: number
   discountAmount: number
-  finalAmount: number
-  totalAdditionalServices: number
-  totalDiscount: number
+  discountPercentage: number
+  couponDiscountAmount: number
+  netRemainingBalance: number
   grandTotal: number
-  remainingBalance: number
   paidAmount: number
-  dueAmount: number
+  remainingBalance: number
+  totalAdditionalServices: number
+  totalMealPlanCost: number
+  currency: string
   paymentStatus: string
-  payments: any[]
-  discounts: any[]
+  lastPaymentMethod: string | null
+  lastPaymentReference: string | null
+  lastPaymentDate: string | null
+}
+
+export interface PmsReservationRoom {
+  reservationRoomId: string
+  roomTypeId: string
+  roomId: string | null
+  checkInDate: string
+  checkOutDate: string
+  status: string
+  pricePerNight: number
+  totalPrice: number
 }
 
 export interface PmsReservationDetails extends PmsReservation {
+  bookingReference: string | null
+  reservationType: string
+  bookingSource: string
   guest: PmsGuest
-  roomTypeId: string
-  roomId: string | null
-  baseRateAtBooking: number
-  currency: string
-  externalReservationId: string | null
-  channelConfirmedId: string | null
-  rateTigerConfirmedId: string | null
+  reservationRooms: PmsReservationRoom[]
   createdAt: string
   companions: any[]
   guarantee: any | null
   finance: PmsFinance
+  additionalServices: any[]
+  mealPlans: any[]
+  specialRequests: string | null
+  comments: string | null
 }
 export interface PmsCheckInByDate {
   reservationId: string

@@ -32,6 +32,7 @@ export const NewReservationStep4: any = ({ value, onChange, page, onOpenCheckIn,
       value={value}
       guestsTotal={guestsTotal}
       pricing={pricing}
+      nights={nights}
       onOpenCheckIn={onOpenCheckIn}
       onOpenExtendStay={onOpenExtendStay}
     />

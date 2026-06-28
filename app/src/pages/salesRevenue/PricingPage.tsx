@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { motion } from 'motion/react'
 import { TabNav } from './components/TabNav'
 import { Calendar, ChevronDown, Plus, Edit2, Users, Building, BarChart2, Eye, Trash2, MapPin } from 'lucide-react'
@@ -550,53 +550,73 @@ export function PricingPage() {
                       <tr className="border-b border-slate-200">
                         <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Date</th>
                         <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Guests</th>
-                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Base Rate</th>
-                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Before Tax</th>
-                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">After Tax</th>
-                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Seasonal Adj.</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Base Before Tax</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Base After Tax</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Extra Adult</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Children Base</th>
+                        <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Final Rate</th>
                         <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Modified By</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {localAriRates.length > 0 ? localAriRates.map((rate, idx) => {
-                        const isUnconfigured = !rate.modifiedBy && rate.originalBaseRate === 0 && rate.amountBeforeTax === 0 && rate.amountAfterTax === 0
+                        const isUnconfigured = !rate.modifiedBy && rate.originalBaseRate === 0 && rate.basePriceBeforeTax === 0 && rate.basePriceAfterTax === 0
                         return (
-                          <tr key={idx} className={`transition-colors ${isUnconfigured ? 'bg-amber-50/50 hover:bg-amber-50' : 'bg-white hover:bg-slate-50/50'}`}>
-                            <td className="px-5 py-4 font-semibold text-slate-700 text-sm whitespace-nowrap">
-                              {rate.date ? new Date(rate.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
-                            </td>
-                            {isUnconfigured ? (
-                              <td colSpan={6} className="px-5 py-4">
-                                <div className="flex items-center gap-2.5">
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
-                                    Not Configured
-                                  </span>
-                                  <span className="text-xs text-slate-400">No pricing set for this date with the selected Room Type &amp; Rate Plan Code.</span>
-                                </div>
+                          <React.Fragment key={idx}>
+                            <tr className={`transition-colors ${isUnconfigured ? 'bg-amber-50/50 hover:bg-amber-50' : 'bg-white hover:bg-slate-50/50'}`}>
+                              <td className="px-5 py-4 font-semibold text-slate-700 text-sm whitespace-nowrap">
+                                {rate.date ? new Date(rate.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                               </td>
-                            ) : (
-                              <>
-                                <td className="px-5 py-4 text-slate-600 text-sm">{rate.numberOfGuests ?? '-'}</td>
-                                <td className="px-5 py-4 font-bold text-slate-800 text-sm">${rate.originalBaseRate?.toLocaleString() ?? '-'}</td>
-                                <td className="px-5 py-4 font-semibold text-[#004bb4] text-sm">${rate.amountBeforeTax?.toLocaleString() ?? '-'}</td>
-                                <td className="px-5 py-4 font-semibold text-emerald-600 text-sm">${rate.amountAfterTax?.toLocaleString() ?? '-'}</td>
-                                <td className="px-5 py-4 text-sm text-slate-500">
-                                  {rate.seasonalAdjustmentAmount !== 0
-                                    ? <span className="text-amber-600 font-medium">{rate.seasonalAdjustmentAmount > 0 ? '+' : ''}{rate.seasonalAdjustmentAmount}</span>
-                                    : <span className="text-slate-300">—</span>}
+                              {isUnconfigured ? (
+                                <td colSpan={7} className="px-5 py-4">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                                      Not Configured
+                                    </span>
+                                    <span className="text-xs text-slate-400">No pricing set for this date with the selected Room Type &amp; Rate Plan Code.</span>
+                                  </div>
                                 </td>
-                                <td className="px-5 py-4 text-xs text-slate-400">
-                                  <div className="font-medium text-slate-500">{rate.modifiedBy ?? '-'}</div>
-                                  <div>{rate.modifiedAt ? new Date(rate.modifiedAt).toLocaleDateString() : ''}</div>
+                              ) : (
+                                <>
+                                  <td className="px-5 py-4 text-slate-600 text-sm">{rate.numberOfGuests ?? '-'}</td>
+                                  <td className="px-5 py-4 font-bold text-slate-800 text-sm">${rate.basePriceBeforeTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 font-semibold text-[#004bb4] text-sm">${rate.basePriceAfterTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 font-semibold text-slate-600 text-sm">${rate.extraAdultPriceAfterTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 font-semibold text-slate-600 text-sm">${rate.childrenPriceAfterTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 font-bold text-emerald-600 text-sm">${rate.finalRateAfterTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 text-xs text-slate-400">
+                                    <div className="font-medium text-slate-500">{rate.modifiedBy ?? '-'}</div>
+                                    <div>{rate.modifiedAt ? new Date(rate.modifiedAt).toLocaleDateString() : ''}</div>
+                                  </td>
+                                </>
+                              )}
+                            </tr>
+                            {!isUnconfigured && rate.childPolicies && rate.childPolicies.length > 0 && (
+                              <tr className="bg-slate-50/30">
+                                <td className="px-5 py-3 border-t border-slate-100"></td>
+                                <td colSpan={7} className="px-5 py-3 border-t border-slate-100">
+                                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Child Policies</div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {rate.childPolicies.map((p, i) => (
+                                      <div key={i} className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm shadow-sm">
+                                        <span className="font-semibold text-slate-600">{p.ageFrom} - {p.ageTo} yrs:</span>
+                                        {p.amountAfterTax === 0 ? (
+                                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Free</span>
+                                        ) : (
+                                          <span className="font-bold text-[#004bb4]">${p.amountAfterTax}</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
                                 </td>
-                              </>
+                              </tr>
                             )}
-                          </tr>
+                          </React.Fragment>
                         )
                       }) : (
                         <tr>
-                          <td colSpan={7} className="px-5 py-14 text-center">
+                          <td colSpan={8} className="px-5 py-14 text-center">
                             <MapPin className="w-9 h-9 text-slate-300 mx-auto mb-3" />
                             <p className="text-slate-500 font-medium text-sm">No rates found for the selected filters.</p>
                             <p className="text-slate-400 text-xs mt-1">Try a different date range or rate plan code, or click "Add Pricing" to create one.</p>
