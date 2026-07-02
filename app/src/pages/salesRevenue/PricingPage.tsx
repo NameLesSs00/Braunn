@@ -11,6 +11,7 @@ import { EditInclusionPricingPopup } from './popups/pricing/EditInclusionPricing
 import { InclusionDetailsPopup } from './popups/pricing/InclusionDetailsPopup'
 import { BulkEditPricingPopup } from './popups/pricing/BulkEditPricingPopup'
 import { AddLocalPricingPopup } from './popups/pricing/AddLocalPricingPopup'
+import { AddOtaPricingPopup } from './popups/pricing/AddOtaPricingPopup'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { fetchPerPersonPricing, removePerPersonPricing, setSelectedPricing } from '../../features/perPersonPricing/perPersonPricingSlice'
 import { fetchLocalARIRates } from '../../features/localAri/localAriSlice'
@@ -279,6 +280,17 @@ export function PricingPage() {
             >
               <MapPin className="w-5 h-5 pointer-events-none" />
               Local Pricing
+            </button>
+          </li>
+          <li>
+            <button 
+              onClick={() => setActiveTab('ota-pricing')}
+              className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-[15px] transition-colors ${activeTab === 'ota-pricing' ? 'border-[#004bb4] text-[#004bb4] bg-[#fbfcfd]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              <svg className="w-5 h-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+              </svg>
+              OTA Pricing
             </button>
           </li>
         </ul>
@@ -629,6 +641,18 @@ export function PricingPage() {
               )}
             </div>
           )}
+
+          {activeTab === 'ota-pricing' && (
+            <div className="flex-1 w-full bg-white p-12 flex flex-col items-center justify-center min-h-[400px]">
+              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-[#004bb4]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">OTA Pricing Updates</h2>
+              <p className="text-slate-500 text-center max-w-md mb-6">Click the "Add Pricing" button above to open the rate builder and send pricing updates to connected OTAs.</p>
+            </div>
+          )}
         </div>
 
         {/* Pricing Logic Details (Fixed width Right Panel) decreased width */}
@@ -760,6 +784,12 @@ export function PricingPage() {
           startDate={localStartDate}
           endDate={localEndDate}
           roomTypeId={localRoomTypeId}
+        />
+      )}
+
+      {isAddPopupOpen && activeTab === 'ota-pricing' && (
+        <AddOtaPricingPopup
+          onClose={() => setIsAddPopupOpen(false)}
         />
       )}
     </motion.div>

@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Euro, Calendar, TrendingUp, Users } from 'lucide-react'
+import { ArrowLeft, Euro, Calendar, TrendingUp, Users, Plus, FileText, CalendarDays, BadgePercent, Coins, UserCircle2 } from 'lucide-react'
 import { EditContractPopup } from './popups/corporateAccount/EditContractPopup'
+import { AddCorporateContractPopup } from './popups/corporateAccount/AddCorporateContractPopup'
+import { CorporateContractDetailsPopup } from './popups/corporateAccount/CorporateContractDetailsPopup'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { fetchCorporateAccountById } from '../../features/corporateAccounts/corporateAccountsSlice'
+import { fetchCorporateContractsByAccount } from '../../features/corporateContracts/corporateContractSlice'
+import type { CorporateContract } from '../../models/CorporateContract'
 
 interface CorporateAccountDetailsProps {
   onBack: () => void;
@@ -12,19 +16,23 @@ interface CorporateAccountDetailsProps {
 export function CorporateAccountDetails({ onBack, accountId }: CorporateAccountDetailsProps) {
   const dispatch = useAppDispatch();
   const { selected, status, error } = useAppSelector((state) => state.corporateAccounts);
+  const { items: contracts } = useAppSelector((state) => state.corporateContract);
 
   const tabs = [
-    "Contract Details",
-    "Contracted Rates",
+    "Company Details",
+    "Corporate Contracts",
     "Active Reservations",
     "Production Report",
     "Billing & Payment"
   ];
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
+  const [isAddContractPopupOpen, setIsAddContractPopupOpen] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<CorporateContract | null>(null);
 
   useEffect(() => {
     dispatch(fetchCorporateAccountById(accountId));
+    dispatch(fetchCorporateContractsByAccount(accountId));
   }, [dispatch, accountId]);
 
   if (status === 'loading' && (!selected || selected.id !== accountId)) {
@@ -206,7 +214,7 @@ export function CorporateAccountDetails({ onBack, accountId }: CorporateAccountD
 
       {/* Tab Content */}
       <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm mt-6">
-        {activeTab === "Contract Details" && (
+        {activeTab === "Company Details" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             
             {/* Company Information */}
@@ -262,52 +270,54 @@ export function CorporateAccountDetails({ onBack, accountId }: CorporateAccountD
           </div>
         )}
 
-        {activeTab === "Contracted Rates" && (
+        {activeTab === "Corporate Contracts" && (
           <div className="space-y-6">
-            <h2 className="text-base font-bold text-slate-800">Room Type Rates</h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-800">Corporate Contracts</h2>
+                <p className="text-sm text-slate-500">Manage all contracts created for this corporate account.</p>
+              </div>
+              <button
+                onClick={() => setIsAddContractPopupOpen(true)}
+                className="flex items-center gap-2 rounded-xl bg-[#004bb4] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800"
+              >
+                <Plus className="h-4 w-4" />
+                Add Contract
+              </button>
+            </div>
+
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#f8fafc] border-b border-slate-200">
-                    <th className="px-6 py-4 font-semibold text-slate-600 text-sm">Room Type</th>
-                    <th className="px-6 py-4 font-semibold text-slate-600 text-sm">BAR Rate</th>
-                    <th className="px-6 py-4 font-semibold text-slate-600 text-sm">Corporate Rate</th>
-                    <th className="px-6 py-4 font-semibold text-slate-600 text-sm">Discount</th>
-                    <th className="px-6 py-4 font-semibold text-slate-600 text-sm">Max Rooms/Night</th>
-                    <th className="px-6 py-4 font-semibold text-slate-600 text-sm text-right">Actions</th>
+                  <tr className="border-b border-slate-200 bg-[#f8fafc]">
+                    <th className="px-6 py-4 text-sm font-semibold text-slate-600">Contract Number</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-slate-600">Contract Type</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-slate-600">Contract Status</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-slate-600">Deposit</th>
+                    <th className="px-6 py-4 text-sm font-semibold text-slate-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  <tr className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-slate-800 text-sm">Standard</td>
-                    <td className="px-6 py-4 text-slate-500 text-sm">€120</td>
-                    <td className="px-6 py-4 font-semibold text-[#004bb4] text-sm">€102</td>
-                    <td className="px-6 py-4 font-medium text-emerald-500 text-sm">15%</td>
-                    <td className="px-6 py-4 text-slate-500 text-sm">10</td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-slate-800 text-sm">Deluxe</td>
-                    <td className="px-6 py-4 text-slate-500 text-sm">€160</td>
-                    <td className="px-6 py-4 font-semibold text-[#004bb4] text-sm">€136</td>
-                    <td className="px-6 py-4 font-medium text-emerald-500 text-sm">15%</td>
-                    <td className="px-6 py-4 text-slate-500 text-sm">8</td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-slate-800 text-sm">Suite</td>
-                    <td className="px-6 py-4 text-slate-500 text-sm">€240</td>
-                    <td className="px-6 py-4 font-semibold text-[#004bb4] text-sm">€204</td>
-                    <td className="px-6 py-4 font-medium text-emerald-500 text-sm">15%</td>
-                    <td className="px-6 py-4 text-slate-500 text-sm">3</td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">Edit</button>
-                    </td>
-                  </tr>
+                  {contracts.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500">No contracts found for this account.</td>
+                    </tr>
+                  ) : (
+                    contracts.map((contract) => (
+                      <tr key={contract.id} className="cursor-pointer transition-colors hover:bg-slate-50" onClick={() => setSelectedContract(contract)}>
+                        <td className="px-6 py-4 text-sm font-semibold text-[#004bb4]">{contract.contractNumber}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{contract.contractType}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{contract.contractStatus}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{contract.depositAmount} {contract.currency}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">
+                          <button className="flex items-center gap-2 font-medium text-blue-600 transition-colors hover:text-blue-800" onClick={(e) => { e.stopPropagation(); setSelectedContract(contract) }}>
+                            <FileText className="h-4 w-4" />
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -416,7 +426,7 @@ export function CorporateAccountDetails({ onBack, accountId }: CorporateAccountD
           </div>
         )}
 
-        {activeTab !== "Contract Details" && activeTab !== "Contracted Rates" && activeTab !== "Active Reservations" && activeTab !== "Production Report" && activeTab !== "Billing & Payment" && (
+        {activeTab !== "Company Details" && activeTab !== "Corporate Contracts" && activeTab !== "Active Reservations" && activeTab !== "Production Report" && activeTab !== "Billing & Payment" && (
           <div className="py-20 text-center">
             <h3 className="text-lg font-medium text-slate-800 mb-2">{activeTab}</h3>
             <p className="text-slate-500">This section is under construction.</p>
@@ -428,6 +438,18 @@ export function CorporateAccountDetails({ onBack, accountId }: CorporateAccountD
         <EditContractPopup 
           companyName={account.name}
           onClose={() => setIsEditPopupOpen(false)} 
+        />
+      )}
+      {isAddContractPopupOpen && (
+        <AddCorporateContractPopup
+          accountId={accountId}
+          onClose={() => setIsAddContractPopupOpen(false)}
+        />
+      )}
+      {selectedContract && (
+        <CorporateContractDetailsPopup
+          contract={selectedContract}
+          onClose={() => setSelectedContract(null)}
         />
       )}
     </div>

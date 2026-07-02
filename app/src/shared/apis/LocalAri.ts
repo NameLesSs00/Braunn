@@ -1,5 +1,5 @@
 import { apiRequest, unwrapApiResponse } from './apiClient'
-import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, CreateLocalARIAvailabilityPayload, GetLocalARIAvailabilityParams, LocalARIAvailability, UpdateLocalARISingleDayRatePayload, CreateLocalARIRestrictionPayload, GetLocalARIRatesHistoryParams, LocalARIRateHistory } from '../../models/LocalAri'
+import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, CreateLocalARIAvailabilityPayload, GetLocalARIAvailabilityParams, LocalARIAvailability, UpdateLocalARISingleDayRatePayload, CreateLocalARIRestrictionPayload, GetLocalARIRatesHistoryParams, LocalARIRateHistory, ARIRequestIdResponse, ARIRatePlan, ARIUpdateRatesPayload, ARIUpdateRatesResponse } from '../../models/LocalAri'
 
 const basePath = '/local/ari'
 
@@ -85,4 +85,31 @@ export function getLocalARIRatesHistory(params: GetLocalARIRatesHistoryParams, s
     path: `${basePath}/rates/history${urlParams}`,
     signal
   }).then((r) => unwrapApiResponse<LocalARIRateHistory[]>(r))
+}
+
+// ============ OTA ARI (RateTiger) Endpoints ============
+
+export function generateARIRequestId(signal?: AbortSignal) {
+  return apiRequest<unknown>({
+    method: 'GET',
+    path: '/rt/ari/generate-request-id',
+    signal,
+  }).then((r) => unwrapApiResponse<ARIRequestIdResponse>(r))
+}
+
+export function getARIRatePlans(signal?: AbortSignal) {
+  return apiRequest<unknown>({
+    method: 'GET',
+    path: '/local/ari/rate-plans',
+    signal,
+  }).then((r) => unwrapApiResponse<ARIRatePlan[]>(r))
+}
+
+export function updateARIRates(payload: ARIUpdateRatesPayload, signal?: AbortSignal) {
+  return apiRequest<unknown>({
+    method: 'POST',
+    path: '/rt/ari/update-rates',
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<ARIUpdateRatesResponse>(r))
 }

@@ -98,6 +98,7 @@ export type CreateCorporateContractRequest = {
   corporateAccountId: string
   contractNumber: string
   contractType: ContractType
+  contractStatus?: ContractStatus
   startDate: string
   endDate: string
   cancellationPolicy: string

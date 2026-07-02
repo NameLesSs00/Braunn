@@ -78,3 +78,15 @@ export async function addPackageToCorporateContract(
   })
   return unwrapApiResponse<CorporateContractPackage>(response)
 }
+
+export async function removePackageFromCorporateContract(
+  contractId: string,
+  contractPackageId: string,
+  signal?: AbortSignal
+): Promise<void> {
+  await apiRequest<void>({
+    method: 'DELETE',
+    path: `${basePath}/${contractId}/packages/${contractPackageId}`,
+    signal,
+  })
+}

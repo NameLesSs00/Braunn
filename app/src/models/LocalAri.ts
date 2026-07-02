@@ -126,3 +126,77 @@ export interface LocalARIRateHistory {
   changedAt: string
 }
 
+// ============ OTA ARI (RateTiger) Types ============
+
+export interface ARIRequestIdResponse {
+  requestId: string
+  generatedAtUtc: string
+}
+
+export interface ARIRatePlan {
+  id: string
+  code: string
+  name: string
+  description: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type AgeQualifyingCode = '10' | '8' // '10' = Adult, '8' = Child
+
+export interface ARIBaseByGuestAmt {
+  amountAfterTax: number
+  currencyCode: string
+  numberOfGuests: number
+  ageQualifyingCode: AgeQualifyingCode
+}
+
+export interface ARIAdditionalGuestAmt {
+  amount: number
+  ageQualifyingCode: AgeQualifyingCode
+}
+
+export interface ARIRateAmountMessage {
+  rates: {
+    baseByGuestAmts: ARIBaseByGuestAmt[]
+    additionalGuestAmts: ARIAdditionalGuestAmt[]
+  }[]
+  statusApplicationControl: {
+    start: string
+    end: string
+    invTypeCode: string   // room type code
+    ratePlanCode: string  // rate plan code
+  }
+}
+
+export interface ARIUpdateRatesPayload {
+  rateAmountMessages: {
+    requestId: string
+    timeStamp: string
+    notifType: string
+    hotelCode: string
+    partnerId: string
+    rateAmountMessage: ARIRateAmountMessage[]
+  }
+}
+
+export interface ARIUpdateRatesResponse {
+  rateTigerSuccess: boolean
+  requestId: string
+  correlationId: string
+  hotelCode: string
+  storedCurrentRates: number
+  historyRowsCreated: number
+  rateTigerResponse: {
+    otaRateAmountNotifRS: {
+      requestId: string
+      timeStamp: string
+      hotelCode: string
+      correlationId: string
+      success: string
+      error: string | null
+    }
+  }
+  errors: string[]
+}

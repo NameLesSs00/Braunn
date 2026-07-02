@@ -6,6 +6,7 @@ import {
   createCorporateContract,
   updateCorporateContract,
   addPackageToCorporateContract,
+  removePackageFromCorporateContract,
 } from '../../shared/apis/CorporateContract'
 
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
@@ -84,6 +85,19 @@ export const addPackageToContract = createAsyncThunk(
       return { contractId, packageData }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to add package to contract'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
+export const removePackageFromContract = createAsyncThunk(
+  'corporateContract/removePackage',
+  async ({ contractId, contractPackageId }: { contractId: string; contractPackageId: string }, thunkApi) => {
+    try {
+      await removePackageFromCorporateContract(contractId, contractPackageId, thunkApi.signal)
+      return { contractId, contractPackageId }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to remove package from contract'
       return thunkApi.rejectWithValue(message)
     }
   }
@@ -188,6 +202,27 @@ const corporateContractSlice = createSlice({
         }
       })
       .addCase(addPackageToContract.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = (action.payload as string | undefined) ?? action.error.message
+      })
+
+      // removePackageFromContract
+      .addCase(removePackageFromContract.pending, (state) => {
+        state.status = 'loading'
+        state.error = undefined
+      })
+      .addCase(removePackageFromContract.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        const { contractId, contractPackageId } = action.payload
+        const contract = state.items.find((item) => item.id === contractId)
+        if (contract) {
+          contract.packages = contract.packages.filter((p) => p.id !== contractPackageId)
+        }
+        if (state.selected?.id === contractId) {
+          state.selected.packages = state.selected.packages.filter((p) => p.id !== contractPackageId)
+        }
+      })
+      .addCase(removePackageFromContract.rejected, (state, action) => {
         state.status = 'failed'
         state.error = (action.payload as string | undefined) ?? action.error.message
       })
