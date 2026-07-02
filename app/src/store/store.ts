@@ -49,6 +49,7 @@ import { laundryInventoryUnitsReducer } from '../features/Laundryfeatures/laundr
 import { laundryTypesReducer } from '../features/Laundryfeatures/laundryTypes/laundryTypesSlice';
 import { laundryIssuesReducer } from '../features/Laundryfeatures/laundryIssues/laundryIssuesSlice';
 import { laundryPurchasesReducer } from '../features/Laundryfeatures/laundryPurchases/laundryPurchasesSlice';
+import corporateContractReducer from '../features/corporateContracts/corporateContractSlice';
 
 export const store = configureStore({
   reducer: {
@@ -102,6 +103,7 @@ export const store = configureStore({
     laundryTypes: laundryTypesReducer,
     laundryIssues: laundryIssuesReducer,
     laundryPurchases: laundryPurchasesReducer,
+    corporateContract: corporateContractReducer,
   },
 })
 

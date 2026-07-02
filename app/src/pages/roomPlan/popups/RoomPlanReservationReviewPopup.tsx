@@ -126,7 +126,7 @@ export function RoomPlanReservationReviewPopup({ open, onClose, room, block }: P
   const localAriState = useAppSelector((state) => state.localAri)
   const pricing = useMemo(() => computePricing(draft, nights, localAriState), [draft, nights, localAriState])
 
-  const guestsTotal = draft.adultCount + draft.childCount + draft.infantCount
+  const guestsTotal = draft.adultCount + draft.childCount
 
   return (
     <Modal open={open} onClose={onClose} lockScroll>

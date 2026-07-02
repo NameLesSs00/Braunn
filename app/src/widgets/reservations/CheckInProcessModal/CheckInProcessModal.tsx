@@ -14,8 +14,6 @@ import { FaCheck } from 'react-icons/fa'
 import { LuKey } from 'react-icons/lu'
 import { MdOutlineWarningAmber } from 'react-icons/md'
 
-import { validateRoomAssignment } from './checkInValidation'
-
 import { InfoRow } from './InfoRow'
 import type { Pricing } from './types'
 import { formatDateForDisplay, formatMoney, parseNumberOrZero } from './utils'
@@ -27,7 +25,6 @@ type Props = {
   value: ReservationDraft
   onChange: (patch: Partial<ReservationDraft>) => void
   pricing: Pricing
-  requireRoomAssignment?: boolean
   selectedRoomId?: string
   onChangeSelectedRoomId?: (roomId: string) => void
   onSubmitCheckIn?: (params: PmsCheckInParams) => Promise<void>
@@ -53,7 +50,6 @@ export function CheckInProcessModal({
   onChange,
   pricing,
   reservationDetails,
-  requireRoomAssignment = false,
   selectedRoomId,
   onChangeSelectedRoomId,
   onSubmitCheckIn,
@@ -75,8 +71,6 @@ export function CheckInProcessModal({
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState('')
   const [selectedServiceId, setSelectedServiceId] = useState('')
   const [selectedDiscountId, setSelectedDiscountId] = useState('')
-  const [roomAssignmentError, setRoomAssignmentError] = useState('')
-  const [validationError, setValidationError] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -87,8 +81,6 @@ export function CheckInProcessModal({
     setSelectedRoomTypeId('')
     setSelectedServiceId('')
     setSelectedDiscountId('')
-    setRoomAssignmentError('')
-    setValidationError('')
 
     // Set default dates: today and end of current month
     const now = new Date()
@@ -142,7 +134,6 @@ export function CheckInProcessModal({
 
   const roomNumber = value.rooms[0]?.roomNumber || '104'
   const roomType = reservationDetails?.roomTypeName || value.rooms[0]?.roomType || 'double'
-  const roomView = reservationDetails?.roomView || value.rooms[0]?.roomView || 'Garden view'
   const extrasText = value.extras.length ? value.extras.map((e) => `${e.qty} ${e.item}`).join(', ') : 'No extras'
 
   const reservationExtrasText = reservationDetails?.extras || '-----'
@@ -180,17 +171,10 @@ export function CheckInProcessModal({
     if (!assignRoomOpen) return
     const count = filteredRooms.length
     onChange({
-      rooms: value.rooms.map((r, idx) => (idx === 0 ? { ...r, roomCount: String(count) } : r)),
+      rooms: value.rooms.map((r, idx) => (idx === 0 ? { ...r, roomCount: count } : r)),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignRoomOpen, filteredRooms.length])
-
-  const canProceedFromStep1 = useMemo(() => {
-    if (!requireRoomAssignment) return true
-    return Boolean(selectedRoomId)
-  }, [requireRoomAssignment, selectedRoomId])
-
-  const canContinueToPayment = idVerified && guestInfoConfirmed
 
   const remainingBalance = useMemo(() => {
     const paid = parseNumberOrZero(value.paidAmount)
@@ -478,7 +462,6 @@ export function CheckInProcessModal({
                           onChange({
                             rooms: value.rooms.map((r, idx) => (idx === 0 ? { ...r, roomNumber: nextRoomNumber } : r)),
                           })
-                          setRoomAssignmentError('')
                         }}
                         required
                       >
@@ -487,7 +470,7 @@ export function CheckInProcessModal({
                         </option>
                         {filteredRooms.map((r) => (
                           <option key={r.id} value={r.id}>
-                            {r.roomNumber} {r.basePrice ? `($${r.basePrice})` : ''}
+                            {r.roomNumber} {'basePrice' in r && r.basePrice ? `($${r.basePrice})` : ''}
                           </option>
                         ))}
                       </select>
@@ -564,7 +547,7 @@ export function CheckInProcessModal({
                         <div className="space-y-1">
                           <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Value</div>
                           <div className="flex h-10 items-center rounded-lg border border-slate-100 bg-slate-50 px-4 text-sm font-bold text-[#0B4EA2]">
-                            {selectedDiscount.type === 'Percentage' ? `${selectedDiscount.value}%` : formatMoney(selectedDiscount.value)}
+                            {`${selectedDiscount.value}%`}
                           </div>
                         </div>
 

@@ -11,16 +11,6 @@ type Props = {
   onSubmit: (data: { roomNumber: string; notes: string; service: Service }) => void
 }
 
-function formatDateTime(): string {
-  return new Date().toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
-
 function getCurrentDateTimeString(): string {
   const d = new Date()
   const year = d.getFullYear()
@@ -33,7 +23,6 @@ function getCurrentDateTimeString(): string {
 
 export function RequestServiceModal({ open, onClose, service, onSubmit }: Props) {
   const [roomNumber, setRoomNumber] = useState('')
-  const [notes, setNotes] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [serviceDate, setServiceDate] = useState(getCurrentDateTimeString())
   const [submitting, setSubmitting] = useState(false)
@@ -269,16 +258,11 @@ export function RequestServiceModal({ open, onClose, service, onSubmit }: Props)
   function handleClose() {
     onClose()
     setRoomNumber('')
-    setNotes('')
     setQuantity(1)
     setErrors({})
     setStatusModal(null)
     setServiceDate(getCurrentDateTimeString())
   }
-
-  const inputClass = errors.roomNumber
-    ? 'h-11 w-full rounded-xl border border-red-400 bg-white px-4 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:ring-2 focus:ring-red-200'
-    : 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onMouseDown={handleClose}>

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import type { Reservation } from '../../../models/Reservation'
-import type { ReservationDraft } from '../../../widgets/reservations/NewReservationModal/NewReservationModal'
+import type { ReservationDraft } from '../../../features/reservations/draftSlice'
 
 import { CheckInProcessModal } from '../../../widgets/reservations/CheckInProcessModal/CheckInProcessModal'
 import type { Pricing } from '../../../widgets/reservations/CheckInProcessModal/types'
@@ -50,9 +49,10 @@ function reservationToDraft(res: PmsReservationDetails): ReservationDraft {
     rooms: [
       {
         id: 0,
+        roomTypeId: '',
         roomType: res.roomTypeName ?? '',
         roomView: '',
-        roomCount: '1',
+        roomCount: 1,
         roomNumber: res.roomNumber ?? '',
       },
     ],
@@ -69,7 +69,7 @@ function reservationToDraft(res: PmsReservationDetails): ReservationDraft {
     paidAmount: String(res.finance?.paidAmount ?? 0),
     coupon: '',
     otherPayments: [],
-  }
+  } as ReservationDraft
 }
 
 function viewTypeLabel(viewType?: number) {
@@ -102,7 +102,7 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
       adultCount: 1,
       childCount: 0,
       infantCount: 0,
-      rooms: [{ id: 0, roomType: 'double', roomView: 'Garden view', roomCount: '1', roomNumber: '104' }],
+      rooms: [{ id: 0, roomTypeId: '', roomType: 'double', roomView: 'Garden view', roomCount: 1, roomNumber: '104' }],
       discountType: 'none',
       discountPercentage: '',
       discountFixed: '',
@@ -116,11 +116,11 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
       paidAmount: '0',
       coupon: '',
       otherPayments: [],
-    }),
+    } as ReservationDraft),
     [],
   )
 
-  const [reservation, setReservation] = useState<Reservation | null>(null)
+
   const [roomView, setRoomView] = useState('-----')
   const [selectedRoomId, setSelectedRoomId] = useState('')
 
@@ -147,10 +147,11 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
     if (!pmsSelected) return
 
     setDraft((prev) => ({ ...prev, ...reservationToDraft(pmsSelected as any) }))
-    setSelectedRoomId(pmsSelected.roomId ?? '')
+    const firstRoom = pmsSelected.reservationRooms?.[0]
+    setSelectedRoomId(firstRoom?.roomId ?? '')
     
-    if (pmsSelected.roomTypeId) {
-      void getRoomTypeById(pmsSelected.roomTypeId)
+    if (firstRoom?.roomTypeId) {
+      void getRoomTypeById(firstRoom.roomTypeId)
         .then((rt) => {
           setRoomView(viewTypeLabel(rt.viewType))
           setDraft((prev) => ({
@@ -235,7 +236,6 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
         onChange={onChangeDraft}
         pricing={pricing}
         reservationDetails={reservationDetails}
-        requireRoomAssignment
         selectedRoomId={selectedRoomId}
         onChangeSelectedRoomId={setSelectedRoomId}
         onSubmitCheckIn={onSubmitCheckIn}

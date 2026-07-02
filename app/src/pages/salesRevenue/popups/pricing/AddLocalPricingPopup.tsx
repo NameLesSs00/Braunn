@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Calendar, DollarSign, Users, Trash2, Plus, Tag } from 'lucide-react'
+import { X, Calendar, DollarSign, Users, Trash2, Plus } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
 import { saveLocalARIRates, fetchLocalARIRates } from '../../../../features/localAri/localAriSlice'
 

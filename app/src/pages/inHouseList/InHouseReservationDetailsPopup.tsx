@@ -197,7 +197,6 @@ export function InHouseReservationDetailsPopup({ open, onClose, data }: Props) {
                   {!loading && !error && !reservation && (
                     <div className="text-sm text-slate-500">No payment details available</div>
                   )}
-                  </div>
                 </div>
               </Step4Card>
 
@@ -208,7 +207,7 @@ export function InHouseReservationDetailsPopup({ open, onClose, data }: Props) {
               <Step4Card title="Booking Information" titleIconSrc={LuIdCard} titleIconBgClassName="bg-slate-100">
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
                   <InfoRow label="Created On" value="-----" />
-                  <InfoRow label="Reservation ID" value={data.resId} />
+                  <InfoRow label="Reservation ID" value={data?.resId || ''} />
                   <InfoRow label="Created By" value="-----" />
                 </div>
               </Step4Card>

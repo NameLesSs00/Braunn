@@ -28,9 +28,10 @@ export type ReservationDraft = {
   childCount: number
   childAges: number[]
   
-  rooms: { id: number; roomTypeId: string; roomType: string; roomCount: number }[]
+  rooms: { id: number; roomTypeId: string; roomType: string; roomCount: number; roomNumber?: string; roomView?: string }[]
   
   rateCode: string
+  ratePlan: string
   mealPlans: { id: number; mealPlanId: string; serviceDateStart: string; serviceDateEnd: string; price?: number }[]
   
   extras: { id: number; item: string; qty: number; price?: number; customName?: string; serviceDate?: string }[]
@@ -88,9 +89,10 @@ const initialState: ReservationDraft = {
   childCount: 0,
   childAges: [],
   
-  rooms: [{ id: 0, roomTypeId: '', roomType: '', roomCount: 1 }],
+  rooms: [{ id: 0, roomTypeId: '', roomType: '', roomCount: 1, roomNumber: '', roomView: '' }],
   
   rateCode: '',
+  ratePlan: '',
   mealPlans: [],
   
   extras: [],
