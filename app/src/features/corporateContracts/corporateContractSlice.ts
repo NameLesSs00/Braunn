@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { CorporateContract, CreateCorporateContractRequest, UpdateCorporateContractRequest, CreateCorporateContractPackageRequest, CorporateContractPackage } from '../../models/CorporateContract'
+import { CorporateContract, CreateCorporateContractRequest, UpdateCorporateContractRequest, CreateCorporateContractPackageRequest } from '../../models/CorporateContract'
 import {
   getCorporateContractById,
   getCorporateContractsByAccountId,

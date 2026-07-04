@@ -69,7 +69,7 @@ function reservationToDraft(res: PmsReservationDetails): ReservationDraft {
     paidAmount: String(res.finance?.paidAmount ?? 0),
     coupon: '',
     otherPayments: [],
-  } as ReservationDraft
+  } as unknown as ReservationDraft
 }
 
 function viewTypeLabel(viewType?: number) {
@@ -116,7 +116,7 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
       paidAmount: '0',
       coupon: '',
       otherPayments: [],
-    } as ReservationDraft),
+    } as unknown as ReservationDraft),
     [],
   )
 

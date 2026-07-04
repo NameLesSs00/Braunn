@@ -1,5 +1,5 @@
 import { apiRequest, unwrapApiResponse } from './apiClient'
-import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, CreateLocalARIAvailabilityPayload, GetLocalARIAvailabilityParams, LocalARIAvailability, UpdateLocalARISingleDayRatePayload, CreateLocalARIRestrictionPayload, GetLocalARIRatesHistoryParams, LocalARIRateHistory, ARIRequestIdResponse, ARIRatePlan, ARIUpdateRatesPayload, ARIUpdateRatesResponse } from '../../models/LocalAri'
+import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, CreateLocalARIAvailabilityPayload, GetLocalARIAvailabilityParams, LocalARIAvailability, UpdateLocalARISingleDayRatePayload, CreateLocalARIRestrictionPayload, GetLocalARIRatesHistoryParams, LocalARIRateHistory, ARIRequestIdResponse, ARIRatePlan, ARIUpdateRatesPayload, ARIUpdateRatesResponse, ARIRateRecord, GetARIRatesParams } from '../../models/LocalAri'
 
 const basePath = '/local/ari'
 
@@ -113,3 +113,19 @@ export function updateARIRates(payload: ARIUpdateRatesPayload, signal?: AbortSig
     signal,
   }).then((r) => unwrapApiResponse<ARIUpdateRatesResponse>(r))
 }
+
+export function getARIRates(params: GetARIRatesParams, signal?: AbortSignal) {
+  const qp = new URLSearchParams({
+    hotelCode: params.hotelCode,
+    invTypeCode: params.invTypeCode,
+    ratePlanCode: params.ratePlanCode,
+    startDate: params.startDate,
+    endDate: params.endDate,
+  }).toString()
+  return apiRequest<unknown>({
+    method: 'GET',
+    path: `/rt/ari/rates?${qp}`,
+    signal,
+  }).then((r) => unwrapApiResponse<ARIRateRecord[]>(r))
+}
+

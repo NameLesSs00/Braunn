@@ -14,7 +14,7 @@ import { AddLocalPricingPopup } from './popups/pricing/AddLocalPricingPopup'
 import { AddOtaPricingPopup } from './popups/pricing/AddOtaPricingPopup'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { fetchPerPersonPricing, removePerPersonPricing, setSelectedPricing } from '../../features/perPersonPricing/perPersonPricingSlice'
-import { fetchLocalARIRates } from '../../features/localAri/localAriSlice'
+import { fetchLocalARIRates, fetchARIRates, fetchARIRatePlans } from '../../features/localAri/localAriSlice'
 import { fetchRoomTypes } from '../../features/roomTypes/roomTypesSlice'
 import { fetchRatePlans } from '../../features/ratePlans/ratePlansSlice'
 import { fetchMealPlans } from '../../features/admin/mealPlansSlice'
@@ -66,12 +66,22 @@ export function PricingPage() {
   const [localRoomTypeId, setLocalRoomTypeId] = useState('')
   const [localRatePlanCode, setLocalRatePlanCode] = useState('')
 
+  // OTA Pricing tab filter state
+  const [otaRoomTypeCode, setOtaRoomTypeCode] = useState('')
+  const [otaRatePlanCode, setOtaRatePlanCode] = useState('')
+  const [otaStartDate, setOtaStartDate] = useState(today)
+  const [otaEndDate, setOtaEndDate] = useState(nextWeek)
+  const [otaHasSearched, setOtaHasSearched] = useState(false)
+
   const perPersonItems = useAppSelector(state => state.perPersonPricing.items)
   const roomTypesItems = useAppSelector(state => state.roomTypes.items)
   const mealPlans = useAppSelector(state => state.mealPlans.items)
   const ratePlans = useAppSelector(state => state.ratePlans.items)
   const localAriRates = useAppSelector(state => state.localAri.rates)
   const localAriStatus = useAppSelector(state => state.localAri.status)
+  const ariRates = useAppSelector(state => state.localAri.ariRates)
+  const ariRatesStatus = useAppSelector(state => state.localAri.ariRatesStatus)
+  const ariRatePlans = useAppSelector(state => state.localAri.ariRatePlans)
 
   useEffect(() => {
     dispatch(fetchPerPersonPricing())
@@ -95,6 +105,13 @@ export function PricingPage() {
       }))
     }
   }, [dispatch, activeTab, localRoomTypeId, localRatePlanCode, localStartDate, localEndDate])
+
+  // Fetch OTA Rate Plans when OTA Pricing tab is opened (populates the Rate Plan dropdown)
+  useEffect(() => {
+    if (activeTab === 'ota-pricing') {
+      dispatch(fetchARIRatePlans())
+    }
+  }, [dispatch, activeTab])
 
   const dynamicPerPersonData = useMemo(() => {
     return perPersonItems.map(item => {
@@ -167,6 +184,33 @@ export function PricingPage() {
       }
     })
   }
+
+  function handleOtaSearch() {
+    if (!otaRoomTypeCode || !otaRatePlanCode || !otaStartDate || !otaEndDate) return
+    setOtaHasSearched(true)
+    dispatch(fetchARIRates({
+      hotelCode: '57928',
+      invTypeCode: otaRoomTypeCode,
+      ratePlanCode: otaRatePlanCode,
+      startDate: otaStartDate,
+      endDate: otaEndDate,
+    }))
+  }
+
+  // Sort OTA rates: stayDate → rateKind (BaseByGuest first) → numberOfGuests → ageQualifyingCode (10=Adult first)
+  const sortedAriRates = useMemo(() => {
+    return [...ariRates].sort((a, b) => {
+      if (a.stayDate < b.stayDate) return -1
+      if (a.stayDate > b.stayDate) return 1
+      const kindOrder = (k: string) => k === 'BaseByGuest' ? 0 : 1
+      if (kindOrder(a.rateKind) !== kindOrder(b.rateKind)) return kindOrder(a.rateKind) - kindOrder(b.rateKind)
+      const gA = a.numberOfGuests ?? 999
+      const gB = b.numberOfGuests ?? 999
+      if (gA !== gB) return gA - gB
+      const ageOrder = (c: string) => c === '10' ? 0 : 1
+      return ageOrder(a.ageQualifyingCode) - ageOrder(b.ageQualifyingCode)
+    })
+  }, [ariRates])
 
 
 
@@ -643,14 +687,127 @@ export function PricingPage() {
           )}
 
           {activeTab === 'ota-pricing' && (
-            <div className="flex-1 w-full bg-white p-12 flex flex-col items-center justify-center min-h-[400px]">
-              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-[#004bb4]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-                </svg>
+            <div className="w-full">
+              {/* Filter Bar */}
+              <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex flex-wrap gap-4 items-end">
+                <div className="flex-1 min-w-[160px]">
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Room Type</label>
+                  <select
+                    value={otaRoomTypeCode}
+                    onChange={e => setOtaRoomTypeCode(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#004bb4] focus:ring-1 focus:ring-[#004bb4] cursor-pointer"
+                  >
+                    <option value="">Select Room Type</option>
+                    {roomTypesItems.map(rt => (
+                      <option key={rt.id} value={rt.code}>{rt.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Rate Plan</label>
+                  <select
+                    value={otaRatePlanCode}
+                    onChange={e => setOtaRatePlanCode(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#004bb4] focus:ring-1 focus:ring-[#004bb4] cursor-pointer"
+                  >
+                    <option value="">Select Rate Plan</option>
+                    {ariRatePlans.map(rp => (
+                      <option key={rp.id} value={rp.code}>{rp.name} ({rp.code})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Start Date</label>
+                  <input
+                    type="date"
+                    value={otaStartDate}
+                    onChange={e => setOtaStartDate(e.target.value)}
+                    className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#004bb4] focus:ring-1 focus:ring-[#004bb4]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">End Date</label>
+                  <input
+                    type="date"
+                    value={otaEndDate}
+                    onChange={e => setOtaEndDate(e.target.value)}
+                    className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#004bb4] focus:ring-1 focus:ring-[#004bb4]"
+                  />
+                </div>
+                <button
+                  onClick={handleOtaSearch}
+                  disabled={!otaRoomTypeCode || !otaRatePlanCode || !otaStartDate || !otaEndDate}
+                  className="h-10 px-6 bg-[#004bb4] text-white text-sm font-semibold rounded-lg hover:bg-blue-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                  </svg>
+                  Search
+                </button>
               </div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">OTA Pricing Updates</h2>
-              <p className="text-slate-500 text-center max-w-md mb-6">Click the "Add Pricing" button above to open the rate builder and send pricing updates to connected OTAs.</p>
+
+              {/* Table / States */}
+              {!otaHasSearched ? (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                  <svg className="w-12 h-12 mb-4 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                  </svg>
+                  <p className="font-semibold text-slate-500">Select filters and click Search to view OTA rates</p>
+                </div>
+              ) : ariRatesStatus === 'loading' ? (
+                <div className="flex items-center justify-center py-20">
+                  <svg className="animate-spin w-8 h-8 text-[#004bb4]" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                </div>
+              ) : sortedAriRates.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <svg className="w-10 h-10 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="font-semibold text-slate-500">No rates found for the selected filters</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50">
+                        {['Stay Date', 'Rate Kind', 'Age Group', 'Guests Allowed', 'Price'].map(h => (
+                          <th key={h} className="px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {sortedAriRates.map(row => (
+                        <tr key={row.id} className="hover:bg-slate-50/60 transition-colors group">
+                          <td className="px-5 py-3.5 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.stayDate}</td>
+                          <td className="px-5 py-3.5 text-sm whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              row.rateKind === 'BaseByGuest'
+                                ? 'bg-blue-50 text-[#004bb4]'
+                                : 'bg-purple-50 text-purple-700'
+                            }`}>
+                              {row.rateKind}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 text-sm text-slate-600">
+                            {row.ageQualifyingCode === '10' ? 'Adults' : 'Children'}
+                          </td>
+                          <td className="px-5 py-3.5 text-sm text-slate-600">
+                            {row.rateKind === 'BaseByGuest' && row.numberOfGuests !== null
+                              ? `${row.numberOfGuests} ${row.numberOfGuests === 1 ? 'Guest' : 'Guests'}`
+                              : '—'}
+                          </td>
+                          <td className="px-5 py-3.5 text-sm font-bold text-slate-800">
+                            {row.amountAfterTax.toLocaleString()}{row.currencyCode ? ` ${row.currencyCode}` : ''}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>

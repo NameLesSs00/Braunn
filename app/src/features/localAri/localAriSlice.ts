@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import * as api from '../../shared/apis/LocalAri'
-import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, CreateLocalARIAvailabilityPayload, GetLocalARIAvailabilityParams, LocalARIAvailability, UpdateLocalARISingleDayRatePayload, ARIRatePlan, ARIUpdateRatesPayload, ARIUpdateRatesResponse } from '../../models/LocalAri'
+import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, CreateLocalARIAvailabilityPayload, GetLocalARIAvailabilityParams, LocalARIAvailability, UpdateLocalARISingleDayRatePayload, ARIRatePlan, ARIUpdateRatesPayload, ARIUpdateRatesResponse, ARIRateRecord, GetARIRatesParams } from '../../models/LocalAri'
 
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
 
@@ -14,6 +14,8 @@ export interface LocalARIState {
   ariRatePlansStatus: AsyncStatus
   ariSubmitStatus: AsyncStatus
   ariLastResponse: ARIUpdateRatesResponse | null
+  ariRates: ARIRateRecord[]
+  ariRatesStatus: AsyncStatus
 }
 
 const initialState: LocalARIState = {
@@ -26,6 +28,8 @@ const initialState: LocalARIState = {
   ariRatePlansStatus: 'idle',
   ariSubmitStatus: 'idle',
   ariLastResponse: null,
+  ariRates: [],
+  ariRatesStatus: 'idle',
 }
 
 export const fetchLocalARIRates = createAsyncThunk(
@@ -106,6 +110,18 @@ export const submitARIUpdateRates = createAsyncThunk(
       return await api.updateARIRates(payload, thunkApi.signal)
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to submit OTA rate update'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
+export const fetchARIRates = createAsyncThunk(
+  'localAri/fetchARIRates',
+  async (params: GetARIRatesParams, thunkApi) => {
+    try {
+      return await api.getARIRates(params, thunkApi.signal)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to fetch OTA rates'
       return thunkApi.rejectWithValue(message)
     }
   }
@@ -216,6 +232,20 @@ const localAriSlice = createSlice({
       })
       .addCase(submitARIUpdateRates.rejected, (state, action) => {
         state.ariSubmitStatus = 'failed'
+        state.error = (action.payload as string | null) ?? (action.error.message || 'Unknown error')
+      })
+
+      // fetchARIRates
+      .addCase(fetchARIRates.pending, (state) => {
+        state.ariRatesStatus = 'loading'
+        state.error = null
+      })
+      .addCase(fetchARIRates.fulfilled, (state, action) => {
+        state.ariRatesStatus = 'succeeded'
+        state.ariRates = action.payload
+      })
+      .addCase(fetchARIRates.rejected, (state, action) => {
+        state.ariRatesStatus = 'failed'
         state.error = (action.payload as string | null) ?? (action.error.message || 'Unknown error')
       })
   },

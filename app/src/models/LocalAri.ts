@@ -64,6 +64,7 @@ export interface CreateLocalARIRatePayload {
   taxPercentage: number
   childPolicies: ChildPolicyPayload[]
 }
+
 export interface CreateLocalARIAvailabilityPayload {
   roomTypeId: string
   dateFrom: string
@@ -199,4 +200,32 @@ export interface ARIUpdateRatesResponse {
     }
   }
   errors: string[]
+}
+
+// ============ OTA ARI — Rates View Types ============
+
+export interface ARIRateRecord {
+  id: string
+  hotelCode: string
+  partnerId: string
+  invTypeCode: string
+  ratePlanCode: string
+  stayDate: string
+  rateKind: 'BaseByGuest' | 'AdditionalGuest'
+  ageQualifyingCode: string   // '10' = Adult, '8' = Child
+  numberOfGuests: number | null
+  amountAfterTax: number
+  currencyCode: string | null
+  requestId: string
+  correlationId: string
+  lastSyncedAtUtc: string
+  lastSyncSuccess: boolean
+}
+
+export interface GetARIRatesParams {
+  hotelCode: string
+  invTypeCode: string
+  ratePlanCode: string
+  startDate: string
+  endDate: string
 }
