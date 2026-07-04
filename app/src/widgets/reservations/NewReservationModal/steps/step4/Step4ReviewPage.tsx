@@ -140,7 +140,7 @@ export function Step4ReviewPage({ value, guestsTotal, pricing, nights, onOpenChe
             )}
             {value.rateCode && <InfoRow label="Rate code" value={value.rateCode} />}
             <InfoRow label="Maximum Guests" value={guestsTotal ? `${guestsTotal} guests` : ''} />
-            <InfoRow label="Price per Night" value={formatMoney(pricePerNight)} />
+            <InfoRow label="Price per Night" value={formatMoney(pricePerNight, pricing.currency)} />
           </div>
 
           <div className="mt-4">
@@ -190,19 +190,19 @@ export function Step4ReviewPage({ value, guestsTotal, pricing, nights, onOpenChe
             <div className="grid grid-cols-1 gap-2 text-[12px] text-slate-600 md:grid-cols-2">
               <div className="flex items-center justify-between">
                 <span>Total Amount</span>
-                <span className="font-semibold text-slate-800">{formatMoney(pricing.totalAmount)}</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.totalAmount, pricing.currency)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Deposit Required (25%)</span>
-                <span className="font-semibold text-slate-800">{formatMoney(pricing.requiredDeposit)}</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.requiredDeposit, pricing.currency)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Amount Paid</span>
-                <span className="font-semibold text-emerald-600">{formatMoney(pricing.requiredDeposit)}</span>
+                <span className="font-semibold text-emerald-600">{formatMoney(pricing.requiredDeposit, pricing.currency)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Remaining Balance</span>
-                <span className="font-semibold text-orange-600">{formatMoney(summaryRemainingBalance)}</span>
+                <span className="font-semibold text-orange-600">{formatMoney(summaryRemainingBalance, pricing.currency)}</span>
               </div>
             </div>
           </div>

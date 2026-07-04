@@ -141,7 +141,8 @@ export function CheckInProcessModal({
   const guestsCount = reservationDetails?.guestsCount ?? (value.adultCount || 0)
   const checkInDateText = reservationDetails?.checkInDate ? formatDateForDisplay(reservationDetails.checkInDate) : formatDateForDisplay(value.checkInDate)
   const checkOutDateText = reservationDetails?.checkOutDate ? formatDateForDisplay(reservationDetails.checkOutDate) : formatDateForDisplay(value.checkOutDate)
-  const totalAmountText = reservationDetails ? formatMoney(reservationDetails.totalAmount) : formatMoney(pricing.totalAmount)
+  const currency = pricing.currency || '$'
+  const totalAmountText = reservationDetails ? formatMoney(reservationDetails.totalAmount, currency) : formatMoney(pricing.totalAmount, currency)
 
   const selectedService = useMemo(() => {
     return financialServices.find((s) => s.id === selectedServiceId)
@@ -698,49 +699,49 @@ export function CheckInProcessModal({
                     {pricing.baseTotal > 0 && (
                       <div className="flex items-center justify-between">
                         <span>Base Rate</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(pricing.baseTotal)}</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.baseTotal, currency)}</span>
                       </div>
                     )}
                     {pricing.extraAdultTotal > 0 && (
                       <div className="flex items-center justify-between">
                         <span>Extra Adults</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(pricing.extraAdultTotal)}</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.extraAdultTotal, currency)}</span>
                       </div>
                     )}
                     {pricing.childTotal > 0 && (
                       <div className="flex items-center justify-between">
                         <span>Children</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(pricing.childTotal)}</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.childTotal, currency)}</span>
                       </div>
                     )}
                     {pricing.mealPlansTotal > 0 && (
                       <div className="flex items-center justify-between">
                         <span>Meal Plans</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(pricing.mealPlansTotal)}</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.mealPlansTotal, currency)}</span>
                       </div>
                     )}
                     {pricing.extrasTotal > 0 && (
                       <div className="flex items-center justify-between">
                         <span>Additional Services</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(pricing.extrasTotal)}</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(pricing.extrasTotal, currency)}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between">
                       <span>Taxes & Fees</span>
-                      <span className="font-semibold text-slate-800">{formatMoney(pricing.taxesAmount)}</span>
+                      <span className="font-semibold text-slate-800">{formatMoney(pricing.taxesAmount, currency)}</span>
                     </div>
                     <div className="flex items-center justify-between md:col-span-2 mt-2 pt-3 border-t border-slate-100">
                       <span className="font-semibold text-slate-700">Total Amount</span>
-                      <span className="font-bold text-slate-900">{formatMoney(pricing.totalAmount)}</span>
+                      <span className="font-bold text-slate-900">{formatMoney(pricing.totalAmount, currency)}</span>
                     </div>
                     <div className="flex items-center justify-between md:col-span-2">
                       <span>Deposit Paid</span>
-                      <span className="font-semibold text-emerald-600">{formatMoney(pricing.requiredDeposit)}</span>
+                      <span className="font-semibold text-emerald-600">{formatMoney(pricing.requiredDeposit, currency)}</span>
                     </div>
                     <div className="flex items-center justify-between md:col-span-2">
                       <span>Remaining Balance</span>
                       <span className="font-semibold text-orange-600">
-                        {formatMoney(Math.max(0, pricing.totalAmount - pricing.requiredDeposit))}
+                        {formatMoney(Math.max(0, pricing.totalAmount - pricing.requiredDeposit), currency)}
                       </span>
                     </div>
                   </div>
@@ -794,7 +795,7 @@ export function CheckInProcessModal({
                           value={value.paidAmount}
                           onChange={(e) => onChange({ paidAmount: e.target.value })}
                         />
-                        <div className="text-[11px] text-slate-500">Remaining {formatMoney(remainingBalance)}</div>
+                        <div className="text-[11px] text-slate-500">Remaining {formatMoney(remainingBalance, currency)}</div>
                       </div>
                     </div>
 
@@ -928,7 +929,7 @@ export function CheckInProcessModal({
                   </div>
                   <div className="flex items-center gap-3 text-slate-700">
                     <div className="grid h-5 w-5 place-items-center rounded-full border border-slate-300 text-slate-400">✓</div>
-                    Payment processed: {formatMoney(paymentProcessed)}
+                    Payment processed: {formatMoney(paymentProcessed, currency)}
                   </div>
                   <div className="flex items-center gap-3 text-slate-700">
                     <div className="grid h-5 w-5 place-items-center rounded-full border border-slate-300 text-slate-400">✓</div>
@@ -936,7 +937,7 @@ export function CheckInProcessModal({
                   </div>
                   <div className="flex items-center gap-3 text-[#0B4EA2]">
                     <div className="grid h-5 w-5 place-items-center rounded-full border border-slate-300 text-slate-500">!</div>
-                    Outstanding balance: {formatMoney(outstandingBalance)}
+                    Outstanding balance: {formatMoney(outstandingBalance, currency)}
                   </div>
                 </div>
               </div>

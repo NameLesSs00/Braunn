@@ -66,50 +66,50 @@ export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing
             {pricing.baseTotal > 0 && (
               <div className="flex items-center justify-between">
                 <span>Base Rate:</span>
-                <span className="font-semibold text-slate-800">{formatMoney(pricing.baseTotal)}</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.baseTotal, pricing.currency)}</span>
               </div>
             )}
             {pricing.extraAdultTotal > 0 && (
               <div className="flex items-center justify-between">
                 <span>Extra Adults:</span>
-                <span className="font-semibold text-slate-800">{formatMoney(pricing.extraAdultTotal)}</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.extraAdultTotal, pricing.currency)}</span>
               </div>
             )}
             {pricing.childTotal > 0 && (
               <div className="flex items-center justify-between">
                 <span>Children:</span>
-                <span className="font-semibold text-slate-800">{formatMoney(pricing.childTotal)}</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.childTotal, pricing.currency)}</span>
               </div>
             )}
             {pricing.mealPlansTotal > 0 && (
               <div className="flex items-center justify-between">
                 <span>Meal Plans:</span>
-                <span className="font-semibold text-slate-800">{formatMoney(pricing.mealPlansTotal)}</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.mealPlansTotal, pricing.currency)}</span>
               </div>
             )}
             {pricing.extrasTotal > 0 && (
               <div className="flex items-center justify-between">
                 <span>Additional Services:</span>
-                <span className="font-semibold text-slate-800">{formatMoney(pricing.extrasTotal)}</span>
+                <span className="font-semibold text-slate-800">{formatMoney(pricing.extrasTotal, pricing.currency)}</span>
               </div>
             )}
             <div className="flex items-center justify-between">
               <span>Taxes & Fees:</span>
-              <span className="font-semibold text-slate-800">{formatMoney(pricing.taxesAmount)}</span>
+              <span className="font-semibold text-slate-800">{formatMoney(pricing.taxesAmount, pricing.currency)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Discount:</span>
               <span className="font-semibold text-slate-800">
-                {pricing.discountValue ? `-${formatMoney(pricing.discountValue)}` : 'None'}
+                {pricing.discountValue ? `-${formatMoney(pricing.discountValue, pricing.currency)}` : 'None'}
               </span>
             </div>
             <div className="flex items-center justify-between text-[#0B4EA2]">
               <span>Total Amount:</span>
-              <span className="font-semibold">{formatMoney(pricing.totalAmount)}</span>
+              <span className="font-semibold">{formatMoney(pricing.totalAmount, pricing.currency)}</span>
             </div>
             <div className="flex items-center justify-between text-[#0B4EA2]">
               <span>Required Deposit (25%):</span>
-              <span className="font-semibold">{formatMoney(pricing.requiredDeposit)}</span>
+              <span className="font-semibold">{formatMoney(pricing.requiredDeposit, pricing.currency)}</span>
             </div>
           </div>
         </div>
@@ -252,7 +252,7 @@ export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing
               value={value.paidAmount}
               onChange={(e) => onChange({ paidAmount: e.target.value })}
             />
-            <div className="text-[11px] text-slate-500">Remaining: {formatMoney(remainingBalance)}</div>
+            <div className="text-[11px] text-slate-500">Remaining: {formatMoney(remainingBalance, pricing.currency)}</div>
           </div>
 
           <div className="space-y-2">
@@ -370,8 +370,8 @@ export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing
             <div>Remaining Balance</div>
           </div>
           <div className="space-y-1 text-right font-semibold">
-            <div className="text-emerald-600">{formatMoney(summaryDepositPaid)}</div>
-            <div className="text-slate-800">{formatMoney(summaryRemainingBalance)}</div>
+            <div className="text-emerald-600">{formatMoney(summaryDepositPaid, pricing.currency)}</div>
+            <div className="text-slate-800">{formatMoney(summaryRemainingBalance, pricing.currency)}</div>
           </div>
         </div>
       </div>

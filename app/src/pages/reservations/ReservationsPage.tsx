@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { ChevronLeft, ChevronRight, Eye, LogIn, MoreHorizontal, XCircle, Download } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, LogIn, MoreHorizontal, Download } from 'lucide-react'
 import { IoSearchSharp } from "react-icons/io5";
 
 import { IconImage } from '../../shared/ui/IconImage'
@@ -11,106 +11,10 @@ import { ReservationDetailsPopup } from './pupops/ReservationDetailsPopup'
 import { ExtendStayPopup } from './pupops/ExtendStayPopup'
 import { CheckInProcessPopup } from './pupops/CheckInProcessPopup'
 import { CheckOutProcessPopup } from './checkout/CheckOutProcessPopup'
-
-// ReservationStatus enum mapping
-// 0 = Reserved, 1 = CheckedIn, 2 = CheckedOut, 3 = Cancelled
-const ReservationStatusMap: Record<number, string> = {
-  0: 'Reserved',
-  1: 'Checked In',
-  2: 'Checked Out',
-  3: 'Cancelled',
-  4: 'Pending',
-}
-
-const fallbackReservations: Reservation[] = [
-  {
-    id: 'R-10001',
-    guestId: 'G-10001',
-    guestName: 'Emma Johnson',
-    roomId: '101',
-    roomNumber: '101',
-    roomTypeId: 'RT-STD',
-    roomTypeName: 'Standard',
-    checkInDate: '2026-01-12',
-    checkOutDate: '2026-01-15',
-    status: 0,
-    statusAtBooking: 0,
-    totalAmount: 450,
-    paidAmount: 150,
-    remainingAmount: 300,
-    createdAt: '2026-01-01',
-    companions: [],
-    bookingSource: 'Website',
-  },
-  {
-    id: 'R-10002',
-    guestId: 'G-10002',
-    guestName: 'Michael Brown',
-    roomId: '108',
-    roomNumber: '108',
-    roomTypeId: 'RT-DBL',
-    roomTypeName: 'Double',
-    checkInDate: '2026-01-10',
-    checkOutDate: '2026-01-13',
-    status: 1,
-    statusAtBooking: 0,
-    totalAmount: 390,
-    paidAmount: 390,
-    remainingAmount: 0,
-    createdAt: '2026-01-02',
-    companions: [],
-    bookingSource: 'OTA',
-    otaSource: 'Booking.com',
-  },
-  {
-    id: 'R-10003',
-    guestId: 'G-10003',
-    guestName: 'Olivia Davis',
-    roomId: '203',
-    roomNumber: '203',
-    roomTypeId: 'RT-SUI',
-    roomTypeName: 'Suite',
-    checkInDate: '2026-01-18',
-    checkOutDate: '2026-01-20',
-    status: 0,
-    statusAtBooking: 0,
-    totalAmount: 800,
-    paidAmount: 200,
-    remainingAmount: 600,
-    createdAt: '2026-01-03',
-    companions: [],
-    bookingSource: 'phone',
-  },
-  {
-    id: 'R-10004',
-    guestId: 'G-10004',
-    guestName: 'John Smith',
-    roomId: null,
-    roomNumber: null,
-    roomTypeId: 'RT-STD',
-    roomTypeName: 'Standard',
-    checkInDate: '2026-01-22',
-    checkOutDate: '2026-01-24',
-    status: 3,
-    statusAtBooking: 0,
-    totalAmount: 320,
-    paidAmount: 0,
-    remainingAmount: 320,
-    createdAt: '2026-01-05',
-    companions: [],
-    bookingSource: 'walk-in',
-  },
-]
+import { OtaReservationModal } from '../../widgets/reservations/OtaReservationModal/OtaReservationModal'
 
 const today = new Date().toISOString().split('T')[0]
 const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
-
-function parseISODate(value: string): number | null {
-  const trimmed = value.trim()
-  const d = new Date(trimmed)
-  const t = d.getTime()
-  return Number.isFinite(t) ? t : null
-}
 
 function formatDateForDisplay(isoDate: string): string {
   if (!isoDate) return '—'
@@ -197,6 +101,7 @@ export function ReservationsPage() {
   const [roomTypeFilter, setRoomTypeFilter] = useState('all')
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
 
+  const [otaOpen, setOtaOpen] = useState(false)
   const [page, setPage] = useState(1)
   const perPage = 6
 
@@ -310,6 +215,8 @@ export function ReservationsPage() {
         reservation={checkOutReservation}
       />
 
+      <OtaReservationModal open={otaOpen} onClose={() => setOtaOpen(false)} />
+
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="relative w-full max-w-2xl">
@@ -401,7 +308,15 @@ export function ReservationsPage() {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end border-t border-slate-100 pt-5">
+        <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-5">
+          <button
+            type="button"
+            onClick={() => setOtaOpen(true)}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#0B4EA2] px-6 text-sm font-semibold text-[#0B4EA2] transition-all hover:bg-blue-50 active:scale-95"
+          >
+            <span className="text-base leading-none">+</span>
+            OTA Reservation
+          </button>
           <button
             type="button"
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"

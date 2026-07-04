@@ -1,4 +1,5 @@
 import { IconImage } from '../../../../shared/ui/IconImage'
+import { formatMoney } from '../../CheckInProcessModal/utils'
 import { useMemo } from 'react'
 import countries from 'i18n-iso-countries'
 import enLocale from 'i18n-iso-countries/langs/en.json'
@@ -152,13 +153,13 @@ export function NewReservationStep3({ value }: Props) {
               label="Price per Night (Base)"
               value={(() => {
                 const rate = localAriState.rates[0]
-                return rate?.basePriceAfterTax ? `$${rate.basePriceAfterTax.toFixed(2)}` : '—'
+                return rate?.basePriceAfterTax ? formatMoney(rate.basePriceAfterTax, rate.currency) : '—'
               })()}
             />
             {localAriState.rates[0]?.extraAdultPriceAfterTax > 0 && value.adultCount > (localAriState.rates[0]?.numberOfGuests || 1) && (
               <InfoRow 
                 label="Extra Adults / Night" 
-                value={`$${((value.adultCount - (localAriState.rates[0]?.numberOfGuests || 1)) * localAriState.rates[0].extraAdultPriceAfterTax).toFixed(2)}`} 
+                value={formatMoney((value.adultCount - (localAriState.rates[0]?.numberOfGuests || 1)) * localAriState.rates[0].extraAdultPriceAfterTax, localAriState.rates[0]?.currency || '$')} 
               />
             )}
             {value.childCount > 0 && (
@@ -173,7 +174,7 @@ export function NewReservationStep3({ value }: Props) {
                     const policy = (rate.childPolicies || []).find(p => age >= p.ageFrom && age <= p.ageTo)
                     total += policy ? policy.amountAfterTax : (rate.childrenPriceAfterTax || 0)
                   }
-                  return `$${total.toFixed(2)}`
+                  return formatMoney(total, rate.currency || '$')
                 })()} 
               />
             )}

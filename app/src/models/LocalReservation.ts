@@ -182,15 +182,24 @@ export interface CreateLocalReservationRequest {
   currency: string;
   roomRequests: Array<{
     roomTypeId: string;
-    quantity: number;
+    roomQuantity: number;
     adults: number;
     children: number;
     childAges: number[];
     ratePlanCode: string;
     pricePerNight: number;
   }>;
-  selectedServices: SelectedService[];
-  selectedMealPlans: SelectedMealPlan[];
+  selectedServices: Array<{
+    additionalServiceId: string;
+    serviceDate: string;
+    price: number;
+  }>;
+  selectedMealPlans: Array<{
+    mealPlanId: string;
+    price: number;
+    serviceDateStart: string;
+    numberOfDays: number;
+  }>;
   companions: Array<{
     firstName: string;
     lastName: string;

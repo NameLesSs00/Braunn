@@ -1,4 +1,5 @@
 import { IconImage } from '../../../../shared/ui/IconImage'
+import { formatMoney } from '../../CheckInProcessModal/utils'
 import { useMemo, useEffect, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
 import { fetchRoomTypes } from '../../../../features/roomTypes/roomTypesSlice'
@@ -233,18 +234,18 @@ export function NewReservationStep2({ value, onChange }: Props) {
   }, [localAriState.rates])
 
   const adultTotalText = useMemo(() => {
-    if (!roomRates) return '$ 0.00'
+    if (!roomRates) return formatMoney(0, '$')
     const baseGuests = roomRates.numberOfGuests || 1
     const baseRate = roomRates.basePriceBeforeTax || 0
     let total = baseRate
     if (value.adultCount > baseGuests) {
       total += (value.adultCount - baseGuests) * (roomRates.extraAdultPriceAfterTax || 0)
     }
-    return `$ ${total.toFixed(2)}`
+    return formatMoney(total, roomRates.currency || '$')
   }, [value.adultCount, roomRates])
 
   const childTotalText = useMemo(() => {
-    if (!roomRates) return '$ 0.00'
+    if (!roomRates) return formatMoney(0, '$')
     let total = 0
     const policies = roomRates.childPolicies || []
     const fallbackChildrenPrice = roomRates.childrenPriceAfterTax || 0
@@ -258,7 +259,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
         total += fallbackChildrenPrice
       }
     }
-    return `$ ${total.toFixed(2)}`
+    return formatMoney(total, roomRates.currency || '$')
   }, [value.childCount, value.childAges, roomRates])
 
   const roomTypeOptions: SelectOption[] = useMemo(() => {
@@ -398,129 +399,147 @@ export function NewReservationStep2({ value, onChange }: Props) {
 
 
   return (
-    <div className="space-y-7">
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-        <Labeled label="Check-in Date" required>
-          <InputControl
-            placeholder="MM/DD/YY"
-            leftIconSrc={MdDateRange}
-            right="caret"
-            type="date"
-            value={value.checkInDate}
-            onChange={(v) => onChange({ checkInDate: v })}
-          />
-        </Labeled>
-        <Labeled label="Check-out Date" required>
-          <InputControl
-            placeholder="MM/DD/YY"
-            leftIconSrc={MdDateRange}
-            right="caret"
-            type="date"
-            value={value.checkOutDate}
-            onChange={(v) => onChange({ checkOutDate: v })}
-          />
-        </Labeled>
-        <Labeled label="Nights" required>
-          <InputControl placeholder="0" value={value.nights} onChange={(v) => onChange({ nights: v })} />
-        </Labeled>
-      </div>
-      <div className="space-y-5">
-        {value.rooms.map((room, index) => (
-          <div key={room.id} className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-12 items-end">
-            <div className="md:col-span-2">
-              <Labeled label="Room Type" required>
-                <SelectControlWithOptions
-                  options={roomTypeOptions}
-                  value={room.roomType}
-                  onChange={(v) => {
-                    const selectedType = roomTypesState.items.find((t) => t.name === v)
+    <div className="space-y-6">
+      {/* Top Details Box */}
+      <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-5 space-y-5">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-12">
+          <div className="md:col-span-3">
+            <Labeled label="Check-in Date" required>
+              <InputControl
+                placeholder="MM/DD/YY"
+                leftIconSrc={MdDateRange}
+                right="caret"
+                type="date"
+                value={value.checkInDate}
+                onChange={(v) => onChange({ checkInDate: v })}
+              />
+            </Labeled>
+          </div>
+          <div className="md:col-span-3">
+            <Labeled label="Check-out Date" required>
+              <InputControl
+                placeholder="MM/DD/YY"
+                leftIconSrc={MdDateRange}
+                right="caret"
+                type="date"
+                value={value.checkOutDate}
+                onChange={(v) => onChange({ checkOutDate: v })}
+              />
+            </Labeled>
+          </div>
+          <div className="md:col-span-2">
+            <Labeled label="Nights" required>
+              <InputControl placeholder="0" value={value.nights} onChange={(v) => onChange({ nights: v })} />
+            </Labeled>
+          </div>
+          <div className="md:col-span-4">
+            <Labeled label="Rate Code (e.g. BAR)">
+              <SelectControlWithOptions
+                options={ratePlanOptions}
+                value={value.rateCode}
+                onChange={(v) => onChange({ rateCode: v })}
+              />
+            </Labeled>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {value.rooms.map((room, index) => (
+            <div key={room.id} className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-12 items-end">
+              <div className="md:col-span-4">
+                <Labeled label="Room Type" required>
+                  <SelectControlWithOptions
+                    options={roomTypeOptions}
+                    value={room.roomType}
+                    onChange={(v) => {
+                      const selectedType = roomTypesState.items.find((t) => t.name === v)
+                      onChange({
+                        rooms: value.rooms.map((r) =>
+                          r.id === room.id ? { ...r, roomType: v, roomTypeId: selectedType?.id || '' } : r,
+                        ),
+                      })
+                    }}
+                  />
+                </Labeled>
+              </div>
+              <div className="md:col-span-2 h-11 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 cursor-pointer appearance-none rounded-lg border-[1.5px] border-[#0B4EA2] bg-white bg-center bg-no-repeat checked:border-[#4F6EF7] checked:bg-[#4F6EF7] checked:bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBvbHlsaW5lIHBvaW50cz0iMjAgNiA5IDE3IDQgMTIiLz48L3N2Zz4=')] checked:bg-[size:12px_12px]"
+                  checked={value.isVip}
+                  onChange={(e) => onChange({ isVip: e.target.checked })}
+                />
+                <span className="select-none text-[11px] font-semibold text-slate-700 whitespace-nowrap">VIP Guest</span>
+              </div>
+              <div className="md:col-span-5">
+                <Counter
+                  label="Room Count *"
+                  value={room.roomCount}
+                  onIncrease={() => {
+                    const nextCount = room.roomCount + 1
                     onChange({
-                      rooms: value.rooms.map((r) =>
-                        r.id === room.id ? { ...r, roomType: v, roomTypeId: selectedType?.id || '' } : r,
-                      ),
+                      rooms: value.rooms.map((r) => (r.id === room.id ? { ...r, roomCount: nextCount } : r)),
                     })
                   }}
-
+                  onDecrease={() => {
+                    const nextCount = Math.max(1, room.roomCount - 1)
+                    onChange({
+                      rooms: value.rooms.map((r) => {
+                        if (r.id === room.id) {
+                          return { ...r, roomCount: nextCount }
+                        }
+                        return r
+                      }),
+                    })
+                  }}
                 />
-              </Labeled>
+              </div>
+              <div className="md:col-span-1 h-11 flex items-center justify-end">
+                {index > 0 && (
+                  <button
+                    type="button"
+                    className="grid h-10 w-10 place-items-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shrink-0"
+                    onClick={() => removeRoom(room.id)}
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="md:col-span-2 h-11 flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-5 w-5 cursor-pointer appearance-none rounded-lg border-[1.5px] border-[#0B4EA2] bg-white bg-center bg-no-repeat checked:border-[#4F6EF7] checked:bg-[#4F6EF7] checked:bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIzLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBvbHlsaW5lIHBvaW50cz0iMjAgNiA5IDE3IDQgMTIiLz48L3N2Zz4=')] checked:bg-[size:12px_12px]"
-                checked={value.isVip}
-                onChange={(e) => onChange({ isVip: e.target.checked })}
-              />
-              <span className="select-none text-[11px] font-semibold text-slate-700 whitespace-nowrap">VIP Guest</span>
-            </div>
-            <div className="md:col-span-12">
-              <Counter
-                label="Room Count *"
-                value={room.roomCount}
-                onIncrease={() => {
-                  const nextCount = room.roomCount + 1
-                  onChange({
-                    rooms: value.rooms.map((r) => (r.id === room.id ? { ...r, roomCount: nextCount } : r)),
-                  })
-                }}
-                onDecrease={() => {
-                  const nextCount = Math.max(1, room.roomCount - 1)
-                  onChange({
-                    rooms: value.rooms.map((r) => {
-                      if (r.id === room.id) {
-                        return { ...r, roomCount: nextCount }
-                      }
-                      return r
-                    }),
-                  })
-                }}
-              />
-            </div>
-
-            <div className="md:col-span-11">
-            </div>
-
-            <div className="md:col-span-1 h-11 flex items-center justify-end">
-              {index > 0 && (
-                <button
-                  type="button"
-                  className="grid h-10 w-10 place-items-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shrink-0"
-                  onClick={() => removeRoom(room.id)}
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Counter
-          label="Adult"
-          value={value.adultCount}
-          priceText={adultTotalText}
-          onIncrease={() => onChange({ adultCount: value.adultCount + 1 })}
-          onDecrease={() => onChange({ adultCount: Math.max(0, value.adultCount - 1) })}
-        />
-        <Counter
-          label="Child"
-          value={value.childCount}
-          priceText={childTotalText}
-          onIncrease={() => {
-            const newCount = value.childCount + 1;
-            onChange({ 
-              childCount: newCount,
-              childAges: [...(value.childAges || []), 0]
-            });
-          }}
-          onDecrease={() => {
-            const newCount = Math.max(0, value.childCount - 1);
-            onChange({ 
-              childCount: newCount,
-              childAges: (value.childAges || []).slice(0, newCount)
-            });
-          }}
-        />
+
+      <div>
+        <div className="mb-3 text-[13px] font-bold text-slate-800">Guests</div>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <Counter
+            label="Adult"
+            value={value.adultCount}
+            priceText={adultTotalText}
+            onIncrease={() => onChange({ adultCount: value.adultCount + 1 })}
+            onDecrease={() => onChange({ adultCount: Math.max(0, value.adultCount - 1) })}
+          />
+          <Counter
+            label="Child"
+            value={value.childCount}
+            priceText={childTotalText}
+            onIncrease={() => {
+              const newCount = value.childCount + 1;
+              onChange({ 
+                childCount: newCount,
+                childAges: [...(value.childAges || []), 0]
+              });
+            }}
+            onDecrease={() => {
+              const newCount = Math.max(0, value.childCount - 1);
+              onChange({ 
+                childCount: newCount,
+                childAges: (value.childAges || []).slice(0, newCount)
+              });
+            }}
+          />
+        </div>
       </div>
 
       {value.childCount > 0 && (
@@ -548,16 +567,6 @@ export function NewReservationStep2({ value, onChange }: Props) {
       )}
 
       <div className="space-y-5">
-
-        <Labeled label="Rate Code (e.g. BAR)">
-          <SelectControlWithOptions
-            options={ratePlanOptions}
-            value={value.rateCode}
-            onChange={(v) => onChange({ rateCode: v })}
-          />
-        </Labeled>
-
-
         {/* Invalid rate code warning */}
         {localAriState.status === 'succeeded' && localAriState.rates.length === 0 && value.rateCode.trim() !== '' && (
           <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
@@ -636,11 +645,11 @@ export function NewReservationStep2({ value, onChange }: Props) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {localAriState.rates.map((rate) => {
+                      {localAriState.rates.map((rate, index) => {
                         const dateObj = new Date(rate.date)
                         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
                         return (
-                          <tr key={rate.date} className="hover:bg-slate-50/50 transition-colors">
+                          <tr key={`${rate.date}-${index}`} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-5 py-4 text-sm font-semibold text-slate-600">
                               {dateObj.toLocaleDateString('en-GB')}
                             </td>
@@ -648,19 +657,19 @@ export function NewReservationStep2({ value, onChange }: Props) {
                               {dayNames[dateObj.getDay()]}
                             </td>
                             <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                              {rate.basePriceBeforeTax?.toFixed(2) ?? '0.00'}
+                              {formatMoney(rate.basePriceBeforeTax, rate.currency)}
                             </td>
                             <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                              {rate.basePriceAfterTax?.toFixed(2) ?? '0.00'}
+                              {formatMoney(rate.basePriceAfterTax, rate.currency)}
                             </td>
                             <td className="px-5 py-4 text-sm font-semibold text-slate-600">
-                              {rate.extraAdultPriceAfterTax?.toFixed(2) ?? '0.00'}
+                              {formatMoney(rate.extraAdultPriceAfterTax, rate.currency)}
                             </td>
                             <td className="px-5 py-4 text-sm font-semibold text-slate-600">
-                              {rate.childrenPriceAfterTax?.toFixed(2) ?? '0.00'}
+                              {formatMoney(rate.childrenPriceAfterTax, rate.currency)}
                             </td>
                             <td className="px-5 py-4 text-sm font-bold text-emerald-600">
-                              {rate.finalRateAfterTax?.toFixed(2) ?? '0.00'}
+                              {formatMoney(rate.finalRateAfterTax, rate.currency)}
                             </td>
                             <td className="px-5 py-4 text-sm text-slate-500">
                               {rate.numberOfGuests}

@@ -78,9 +78,11 @@ export function InHouseReservationDetailsPopup({ open, onClose, data }: Props) {
   }, [open, data?.resId])
 
   const nights = useMemo(() => {
-    if (!data) return 1
-    return calcNights(data.checkIn, data.checkOut)
-  }, [data])
+    if (!reservation) return 1
+    return calcNights(reservation.checkInDate, reservation.checkOutDate)
+  }, [reservation])
+
+  const currency = reservation?.finance?.currency || '$'
 
   const paymentStatusLabel = useMemo(() => {
     if (reservation?.finance?.paymentStatus) return reservation.finance.paymentStatus
@@ -176,19 +178,19 @@ export function InHouseReservationDetailsPopup({ open, onClose, data }: Props) {
                         <div className="grid grid-cols-1 gap-2 text-[12px] text-slate-600 md:grid-cols-2">
                           <div className="flex items-center justify-between">
                             <span>Total Amount</span>
-                            <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.grandTotal)}</span>
+                            <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.grandTotal, currency)}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span>Deposit Required</span>
-                            <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.depositAmount)}</span>
+                            <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.depositAmount, currency)}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span>Amount Paid</span>
-                            <span className="font-semibold text-emerald-600">{formatMoney(reservation.finance.paidAmount)}</span>
+                            <span className="font-semibold text-emerald-600">{formatMoney(reservation.finance.paidAmount, currency)}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span>Remaining Balance</span>
-                            <span className="font-semibold text-orange-600">{formatMoney(reservation.finance.remainingBalance)}</span>
+                            <span className="font-semibold text-orange-600">{formatMoney(reservation.finance.remainingBalance, currency)}</span>
                           </div>
                         </div>
                       </div>

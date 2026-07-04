@@ -1,4 +1,5 @@
 export type Pricing = {
+  currency: string
   baseTotal: number
   extraAdultTotal: number
   adultTotal: number

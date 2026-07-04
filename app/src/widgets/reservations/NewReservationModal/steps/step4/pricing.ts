@@ -66,6 +66,7 @@ export function computePricing(value: ReservationDraft, nights: number, localAri
   const requiredDeposit = totalAmount * 0.25
 
   return {
+    currency: rate?.currency || '$',
     baseTotal,
     extraAdultTotal,
     adultTotal,

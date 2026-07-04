@@ -5,9 +5,10 @@ interface SelectReservationTypeModalProps {
   open: boolean
   onClose: () => void
   onSelectIndividual: () => void
+  onSelectOta?: () => void
 }
 
-export function SelectReservationTypeModal({ open, onClose, onSelectIndividual }: SelectReservationTypeModalProps) {
+export function SelectReservationTypeModal({ open, onClose, onSelectIndividual, onSelectOta }: SelectReservationTypeModalProps) {
   if (!open) return null
 
   return (
@@ -46,7 +47,13 @@ export function SelectReservationTypeModal({ open, onClose, onSelectIndividual }
               </button>
 
               {/* OTA */}
-              <button className="flex flex-col items-center text-center p-8 border border-rose-100 rounded-2xl hover:shadow-md hover:border-rose-300 transition-all group bg-white">
+              <button 
+                onClick={() => {
+                  onClose();
+                  onSelectOta?.();
+                }}
+                className="flex flex-col items-center text-center p-8 border border-rose-100 rounded-2xl hover:shadow-md hover:border-rose-300 transition-all group bg-white"
+              >
                 <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Globe className="w-8 h-8 text-rose-800" />
                 </div>

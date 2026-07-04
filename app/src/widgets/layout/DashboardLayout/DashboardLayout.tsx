@@ -10,6 +10,7 @@ import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { addNotification, removeNotification } from '../../../features/notifications/notificationsSlice'
 import { ShiftStartModal } from '../../../features/shiftStart'
 import { SelectReservationTypeModal } from '../../reservations/SelectReservationTypeModal/SelectReservationTypeModal'
+import { OtaReservationModal } from '../../reservations/OtaReservationModal/OtaReservationModal'
 import { useEffect } from 'react'
 
 const titleByPath: Record<string, string> = {
@@ -39,6 +40,7 @@ export function DashboardLayout() {
   const title = titleByPath[location.pathname] ?? 'Dashboard'
   const [selectReservationTypeOpen, setSelectReservationTypeOpen] = useState(false)
   const [newReservationOpen, setNewReservationOpen] = useState(false)
+  const [otaReservationOpen, setOtaReservationOpen] = useState(false)
   const [shiftStartOpen, setShiftStartOpen] = useState(false)
 
   const isShiftActive = useAppSelector((state) => state.shift.isShiftActive)
@@ -104,8 +106,13 @@ export function DashboardLayout() {
           setSelectReservationTypeOpen(false)
           setNewReservationOpen(true)
         }}
+        onSelectOta={() => {
+          setSelectReservationTypeOpen(false)
+          setOtaReservationOpen(true)
+        }}
       />
       <NewReservationModal open={newReservationOpen} onClose={() => setNewReservationOpen(false)} />
+      <OtaReservationModal open={otaReservationOpen} onClose={() => setOtaReservationOpen(false)} />
       <ShiftStartModal open={shiftStartOpen} onClose={() => setShiftStartOpen(false)} />
     </div>
   )

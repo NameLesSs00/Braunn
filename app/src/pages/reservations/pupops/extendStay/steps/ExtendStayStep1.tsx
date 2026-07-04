@@ -67,8 +67,9 @@ function daysBetween(start: Date | null, end: Date | null) {
   return Math.max(0, diff)
 }
 
-function formatMoney(amount: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+function formatMoney(amount: number, curr: string) {
+  if (curr === '$' || curr === '€' || curr === '£') return `${curr}${amount.toFixed(2)}`
+  return `${amount.toFixed(2)} ${curr}`
 }
 
 export function ExtendStayStep1({ value, newCheckOutIso, onChangeNewCheckOutIso, onCancel, onConfirm }: Props) {
@@ -81,6 +82,7 @@ export function ExtendStayStep1({ value, newCheckOutIso, onChangeNewCheckOutIso,
   const extraNights = useMemo(() => daysBetween(checkOut, newCheckOut), [checkOut, newCheckOut])
   const ratePerNight = 120
   const totalAdditional = extraNights * ratePerNight
+  const currency = value?.finance?.currency || '$'
 
   const canConfirm = Boolean(newCheckOutIso) && extraNights > 0
 
@@ -134,11 +136,11 @@ export function ExtendStayStep1({ value, newCheckOutIso, onChangeNewCheckOutIso,
           </div>
           <div className="flex items-center justify-between">
             <span className="font-semibold text-[#0B4EA2]">Rate per Night:</span>
-            <span className="font-semibold text-slate-800">{formatMoney(ratePerNight)}</span>
+            <span className="font-semibold text-slate-800">{formatMoney(ratePerNight, currency)}</span>
           </div>
           <div className="flex items-center justify-between border-t border-[#BBD3FF] pt-2">
             <span className="font-semibold text-[#0B4EA2]">Total Additional:</span>
-            <span className="font-semibold text-[#0B4EA2]">{formatMoney(totalAdditional)}</span>
+            <span className="font-semibold text-[#0B4EA2]">{formatMoney(totalAdditional, currency)}</span>
           </div>
         </div>
       </div>

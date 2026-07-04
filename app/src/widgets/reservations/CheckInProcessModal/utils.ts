@@ -3,8 +3,34 @@ export function publicAsset(path: string) {
   return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
 }
 
-export function formatMoney(value: number) {
-  return `$${value.toFixed(2)}`
+export function formatMoney(value?: number | string | null, currency: string = '$') {
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+    SAR: 'SAR ',
+    AED: 'AED ',
+    EGP: 'EGP ',
+    JOD: 'JOD ',
+    KWD: 'KWD ',
+  }
+
+  const resolveCurrency = (curr: string): string => {
+    // If it's already a symbol character, use as-is
+    if (['$', '€', '£'].includes(curr)) return curr
+    // Map ISO code to symbol, or fall back to the code itself with a trailing space
+    return CURRENCY_SYMBOLS[curr.toUpperCase()] ?? `${curr} `
+  }
+
+  const formatWithCurrency = (n: number, curr: string) => {
+    const sym = resolveCurrency(curr)
+    return `${sym}${n.toFixed(2)}`
+  }
+
+  if (value === undefined || value === null || value === '') return formatWithCurrency(0, currency)
+  const n = Number(value)
+  if (Number.isNaN(n)) return formatWithCurrency(0, currency)
+  return formatWithCurrency(n, currency)
 }
 
 export function parseNumberOrZero(value: string) {

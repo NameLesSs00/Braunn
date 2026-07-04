@@ -298,18 +298,20 @@ export function AddOtaPricingPopup({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between bg-white rounded-t-2xl">
+        <div className="flex items-center justify-between px-8 py-5 bg-[#0B4EA2]">
           <div>
-            <h2 className="text-xl font-bold text-slate-800 tracking-tight">OTA Pricing Updates</h2>
-            <p className="text-sm text-slate-500 mt-1">Build and send rate updates to connected OTAs via RateTiger.</p>
+            <h2 className="text-lg font-semibold text-white tracking-wide">OTA Pricing Updates</h2>
+            <p className="text-sm text-white/80 mt-1">Build and send rate updates to connected OTAs via RateTiger.</p>
           </div>
-          <button 
+          <button
+            type="button"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10"
+            aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <span className="text-2xl leading-none">×</span>
           </button>
         </div>
 
@@ -339,7 +341,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                       <select
                         value={entry.roomTypeId}
                         onChange={(e) => handleUpdateEntry(entry.id, 'roomTypeId', e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#004bb4] focus:ring-1 focus:ring-[#004bb4]"
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2]"
                       >
                         <option value="">Select Room Type</option>
                         {roomTypes.map(rt => (
@@ -352,7 +354,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                       <select
                         value={entry.ratePlanCode}
                         onChange={(e) => handleUpdateEntry(entry.id, 'ratePlanCode', e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#004bb4] focus:ring-1 focus:ring-[#004bb4]"
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2]"
                       >
                         <option value="">Select Rate Plan</option>
                         {ratePlans.map(rp => (
@@ -366,7 +368,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                         type="date"
                         value={entry.startDate}
                         onChange={(e) => handleUpdateEntry(entry.id, 'startDate', e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#004bb4] focus:ring-1 focus:ring-[#004bb4]"
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2]"
                       />
                     </div>
                     <div>
@@ -375,7 +377,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                         type="date"
                         value={entry.endDate}
                         onChange={(e) => handleUpdateEntry(entry.id, 'endDate', e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#004bb4] focus:ring-1 focus:ring-[#004bb4]"
+                        className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2]"
                       />
                     </div>
                   </div>
@@ -386,7 +388,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold text-slate-800 text-lg">Rates Configurations</h3>
-                      <button onClick={() => handleAddRateItem(entry.id)} className="text-[#004bb4] hover:text-blue-800 text-sm font-semibold flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
+                      <button onClick={() => handleAddRateItem(entry.id)} className="text-[#0B4EA2] hover:text-blue-800 text-sm font-semibold flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
                         <Plus className="w-4 h-4" /> Add Rate List
                       </button>
                     </div>
@@ -405,7 +407,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <h5 className="font-bold text-slate-700 text-[13px] uppercase tracking-wider">Base Guest Amounts</h5>
-                              <button onClick={() => handleAddBaseAmt(entry.id, rateItem.id)} className="text-[#004bb4] hover:text-blue-800 text-xs font-semibold flex items-center gap-1">
+                              <button onClick={() => handleAddBaseAmt(entry.id, rateItem.id)} className="text-[#0B4EA2] hover:text-blue-800 text-xs font-semibold flex items-center gap-1">
                                 <Plus className="w-3 h-3" /> Add Row
                               </button>
                             </div>
@@ -415,15 +417,15 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                                   <div className="flex-1 grid grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                                     <div>
                                       <label className="block text-[11px] font-bold text-slate-500 mb-1">GUESTS</label>
-                                      <input type="number" min="1" value={amt.numberOfGuests} onChange={(e) => handleUpdateBaseAmt(entry.id, rateItem.id, amt.id, 'numberOfGuests', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm focus:border-[#004bb4] outline-none transition-colors" />
+                                      <input type="number" min="1" value={amt.numberOfGuests} onChange={(e) => handleUpdateBaseAmt(entry.id, rateItem.id, amt.id, 'numberOfGuests', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm focus:border-[#0B4EA2] outline-none transition-colors" />
                                     </div>
                                     <div>
-                                      <label className="block text-[11px] font-bold text-slate-500 mb-1">AMOUNT</label>
-                                      <input type="number" min="0" step="0.01" value={amt.amountAfterTax} onChange={(e) => handleUpdateBaseAmt(entry.id, rateItem.id, amt.id, 'amountAfterTax', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm focus:border-[#004bb4] outline-none transition-colors" />
+                                      <label className="block text-[11px] font-bold text-slate-500 mb-1">AMOUNT AFTER TAX</label>
+                                      <input type="number" min="0" step="0.01" value={amt.amountAfterTax} onChange={(e) => handleUpdateBaseAmt(entry.id, rateItem.id, amt.id, 'amountAfterTax', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm focus:border-[#0B4EA2] outline-none transition-colors" />
                                     </div>
                                     <div>
                                       <label className="block text-[11px] font-bold text-slate-500 mb-1">CURRENCY</label>
-                                      <select value={amt.currencyCode} onChange={(e) => handleUpdateBaseAmt(entry.id, rateItem.id, amt.id, 'currencyCode', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm bg-white cursor-pointer focus:border-[#004bb4] outline-none transition-colors">
+                                      <select value={amt.currencyCode} onChange={(e) => handleUpdateBaseAmt(entry.id, rateItem.id, amt.id, 'currencyCode', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm bg-white cursor-pointer focus:border-[#0B4EA2] outline-none transition-colors">
                                         {CURRENCIES.map(curr => (
                                           <option key={curr} value={curr}>{curr}</option>
                                         ))}
@@ -431,7 +433,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                                     </div>
                                     <div>
                                       <label className="block text-[11px] font-bold text-slate-500 mb-1">TYPE</label>
-                                      <select value={amt.ageQualifyingCode} onChange={(e) => handleUpdateBaseAmt(entry.id, rateItem.id, amt.id, 'ageQualifyingCode', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm bg-white cursor-pointer focus:border-[#004bb4] outline-none transition-colors">
+                                      <select value={amt.ageQualifyingCode} onChange={(e) => handleUpdateBaseAmt(entry.id, rateItem.id, amt.id, 'ageQualifyingCode', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm bg-white cursor-pointer focus:border-[#0B4EA2] outline-none transition-colors">
                                         <option value="10">Adult</option>
                                         <option value="8">Child</option>
                                       </select>
@@ -451,7 +453,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <h5 className="font-bold text-slate-700 text-[13px] uppercase tracking-wider">Additional Guest Amounts</h5>
-                              <button onClick={() => handleAddAdditionalAmt(entry.id, rateItem.id)} className="text-[#004bb4] hover:text-blue-800 text-xs font-semibold flex items-center gap-1">
+                              <button onClick={() => handleAddAdditionalAmt(entry.id, rateItem.id)} className="text-[#0B4EA2] hover:text-blue-800 text-xs font-semibold flex items-center gap-1">
                                 <Plus className="w-3 h-3" /> Add Row
                               </button>
                             </div>
@@ -460,12 +462,12 @@ export function AddOtaPricingPopup({ onClose }: Props) {
                                 <div key={amt.id} className="flex gap-3 items-start">
                                   <div className="flex-1 grid grid-cols-2 gap-3 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                                     <div>
-                                      <label className="block text-[11px] font-bold text-slate-500 mb-1">AMOUNT</label>
-                                      <input type="number" min="0" step="0.01" value={amt.amount} onChange={(e) => handleUpdateAdditionalAmt(entry.id, rateItem.id, amt.id, 'amount', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm focus:border-[#004bb4] outline-none transition-colors" />
+                                      <label className="block text-[11px] font-bold text-slate-500 mb-1">AMOUNT AFTER TAX</label>
+                                      <input type="number" min="0" step="0.01" value={amt.amount} onChange={(e) => handleUpdateAdditionalAmt(entry.id, rateItem.id, amt.id, 'amount', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm focus:border-[#0B4EA2] outline-none transition-colors" />
                                     </div>
                                     <div>
                                       <label className="block text-[11px] font-bold text-slate-500 mb-1">TYPE</label>
-                                      <select value={amt.ageQualifyingCode} onChange={(e) => handleUpdateAdditionalAmt(entry.id, rateItem.id, amt.id, 'ageQualifyingCode', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm bg-white cursor-pointer focus:border-[#004bb4] outline-none transition-colors">
+                                      <select value={amt.ageQualifyingCode} onChange={(e) => handleUpdateAdditionalAmt(entry.id, rateItem.id, amt.id, 'ageQualifyingCode', e.target.value)} className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm bg-white cursor-pointer focus:border-[#0B4EA2] outline-none transition-colors">
                                         <option value="10">Adult</option>
                                         <option value="8">Child</option>
                                       </select>
@@ -489,7 +491,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
 
           <button
             onClick={handleAddEntry}
-            className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 font-semibold hover:border-[#004bb4] hover:text-[#004bb4] hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2 bg-white"
+            className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-300 text-slate-500 font-semibold hover:border-[#0B4EA2] hover:text-[#0B4EA2] hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2 bg-white"
           >
             <Plus className="w-5 h-5" />
             Add Another Rate Config
@@ -509,7 +511,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-6 py-2.5 text-sm font-semibold text-white bg-[#004bb4] hover:bg-blue-800 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[130px] justify-center"
+            className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0B4EA2] hover:bg-blue-800 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[130px] justify-center"
           >
             {isSubmitting ? (
               <>

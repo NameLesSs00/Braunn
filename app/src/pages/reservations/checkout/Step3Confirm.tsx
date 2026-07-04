@@ -1,6 +1,8 @@
 import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
-import type { PmsReservation } from '../../../models/PmsReservation'
+import type { PmsReservation, PmsReservationDetails } from '../../../models/PmsReservation'
 import { CheckCircle2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { getPmsReservationById } from '../../../shared/apis/PmsReservation'
 
 type Props = {
   reservation: PmsReservation
@@ -17,6 +19,14 @@ function formatDate(iso?: string) {
 }
 
 export function Step3Confirm({ reservation, paymentData, onNext, onBack }: Props) {
+  const [details, setDetails] = useState<PmsReservationDetails | null>(null)
+
+  useEffect(() => {
+    getPmsReservationById(reservation.id).then((res) => setDetails(res)).catch(() => {})
+  }, [reservation.id])
+
+  const currency = details?.finance?.currency || '$'
+
   const roomCharge = reservation.totalAmount || 480
   const depositPaid = reservation.paidAmount || 120
   const tax = 20
@@ -58,25 +68,25 @@ export function Step3Confirm({ reservation, paymentData, onNext, onBack }: Props
       {/* Payment Summary Card */}
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <h4 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-400">Payment Summary</h4>
-        <div className="space-y-3">
-          <SummaryRow label="Number of Night :" value="1" amount={formatMoney(roomCharge)} />
+        <div className="space-y-4">
+          <SummaryRow label="Number of Night :" value="1" amount={formatMoney(roomCharge, currency)} />
           <SummaryRow label="Number of Guest" value="1" />
-          <SummaryRow label="Adult :" value="1" amount={formatMoney(roomCharge)} />
+          <SummaryRow label="Adult :" value="1" amount={formatMoney(roomCharge, currency)} />
           
-          <div className="my-2 h-px bg-slate-50" />
+          <div className="my-4 h-px bg-slate-100" />
           
-          <SummaryRow label="Total Room Charges" amount={formatMoney(roomCharge)} />
-          <SummaryRow label="Deposit Paid" amount={formatMoney(depositPaid)} amountClassName="text-emerald-500" />
-          <SummaryRow label="Remaining Balance" amount={formatMoney(remainingBalance)} />
-          <SummaryRow label="Late Check-out Fee" amount={formatMoney(lateFee)} labelClassName="text-orange-600" amountClassName="text-orange-600" />
-          <SummaryRow label="Additional Charges" amount={formatMoney(additionalCharges)} subtext="No services" />
-          <SummaryRow label="Taxes" amount={formatMoney(tax)} />
+          <SummaryRow label="Total Room Charges" amount={formatMoney(roomCharge, currency)} />
+          <SummaryRow label="Deposit Paid" amount={formatMoney(depositPaid, currency)} amountClassName="text-emerald-500" />
+          <SummaryRow label="Remaining Balance" amount={formatMoney(remainingBalance, currency)} />
+          <SummaryRow label="Late Check-out Fee" amount={formatMoney(lateFee, currency)} labelClassName="text-orange-600" amountClassName="text-orange-600" />
+          <SummaryRow label="Additional Charges" amount={formatMoney(additionalCharges, currency)} subtext="No services" />
+          <SummaryRow label="Taxes" amount={formatMoney(tax, currency)} />
           
-          <div className="my-3 h-px bg-slate-100" />
+          <div className="my-4 h-px bg-slate-100" />
           
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-bold text-slate-800">Amount Paid at Check-out</span>
-            <span className="text-sm font-extrabold text-slate-800">{formatMoney(totalAmount)}</span>
+            <span className="text-sm font-extrabold text-slate-800">{formatMoney(totalAmount, currency)}</span>
           </div>
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-slate-500 font-medium uppercase tracking-wider">Payment Method</span>

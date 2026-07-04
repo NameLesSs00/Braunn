@@ -103,6 +103,8 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
     return calcNights(reservation.checkInDate, reservation.checkOutDate)
   }, [reservation])
 
+  const currency = reservation?.finance?.currency || '$'
+
   return (
     <Modal open={open} onClose={onClose} lockScroll>
       <div className="flex h-[calc(100vh-2rem)] w-[94vw] max-w-6xl flex-col overflow-y-auto rounded-2xl bg-white shadow-xl">
@@ -156,7 +158,7 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                     <InfoRow label="Room view" value={viewTypeLabel(roomType?.viewType)} />
                     <InfoRow label="Room Type" value={reservation.roomTypeName ?? '-----'} />
                     <InfoRow label="Maximum Guests" value={roomType ? `${roomType.maxGuests} guests` : '-----'} />
-                    <InfoRow label="Price per Night" value={reservation.reservationRooms?.[0]?.pricePerNight ? formatMoney(reservation.reservationRooms[0].pricePerNight) : '-----'} />
+                    <InfoRow label="Price per Night" value={reservation.reservationRooms?.[0]?.pricePerNight ? formatMoney(reservation.reservationRooms[0].pricePerNight, currency) : '-----'} />
                   </div>
                 </Step4Card>
               </div>
@@ -193,48 +195,48 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                       {reservation.finance.baseRoomAmount > 0 && (
                         <div className="flex items-center justify-between">
                           <span>Base Room Amount</span>
-                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.baseRoomAmount)}</span>
+                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.baseRoomAmount, currency)}</span>
                         </div>
                       )}
                       {reservation.finance.totalMealPlanCost > 0 && (
                         <div className="flex items-center justify-between">
                           <span>Meal Plans</span>
-                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.totalMealPlanCost)}</span>
+                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.totalMealPlanCost, currency)}</span>
                         </div>
                       )}
                       {reservation.finance.totalAdditionalServices > 0 && (
                         <div className="flex items-center justify-between">
                           <span>Additional Services</span>
-                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.totalAdditionalServices)}</span>
+                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.totalAdditionalServices, currency)}</span>
                         </div>
                       )}
                       {reservation.finance.taxAmount > 0 && (
                         <div className="flex items-center justify-between">
                           <span>Taxes</span>
-                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.taxAmount)}</span>
+                          <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.taxAmount, currency)}</span>
                         </div>
                       )}
                       {reservation.finance.discountAmount > 0 && (
                         <div className="flex items-center justify-between">
                           <span>Discount</span>
-                          <span className="font-semibold text-emerald-600">-{formatMoney(reservation.finance.discountAmount)}</span>
+                          <span className="font-semibold text-emerald-600">-{formatMoney(reservation.finance.discountAmount, currency)}</span>
                         </div>
                       )}
                       <div className="col-span-2 mt-2 flex items-center justify-between border-t border-slate-200 pt-3">
                         <span className="font-semibold text-slate-700">Grand Total</span>
-                        <span className="font-bold text-slate-900">{formatMoney(reservation.finance.grandTotal)}</span>
+                        <span className="font-bold text-slate-900">{formatMoney(reservation.finance.grandTotal, currency)}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Deposit Required</span>
-                        <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.depositAmount)}</span>
+                        <span className="font-semibold text-slate-800">{formatMoney(reservation.finance.depositAmount, currency)}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Amount Paid</span>
-                        <span className="font-semibold text-emerald-600">{formatMoney(reservation.finance.paidAmount)}</span>
+                        <span className="font-semibold text-emerald-600">{formatMoney(reservation.finance.paidAmount, currency)}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Remaining Balance</span>
-                        <span className="font-semibold text-orange-600">{formatMoney(reservation.finance.remainingBalance)}</span>
+                        <span className="font-semibold text-orange-600">{formatMoney(reservation.finance.remainingBalance, currency)}</span>
                       </div>
                     </div>
                   </div>
@@ -253,7 +255,7 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                             {mp.numberOfNights ? ` · ${mp.numberOfNights} night(s)` : ''}
                           </div>
                         </div>
-                        <span className="font-bold text-slate-800">{formatMoney(mp.totalCost)}</span>
+                        <span className="font-bold text-slate-800">{formatMoney(mp.totalCost, currency)}</span>
                       </div>
                     ))}
                   </div>
@@ -271,7 +273,7 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                             Qty: {svc.quantity} · {formatDisplayDate(svc.serviceDate)}
                           </div>
                         </div>
-                        <span className="font-bold text-slate-800">{formatMoney(svc.totalPrice)}</span>
+                        <span className="font-bold text-slate-800">{formatMoney(svc.totalPrice, currency)}</span>
                       </div>
                     ))}
                   </div>

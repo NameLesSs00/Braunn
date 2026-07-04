@@ -1,5 +1,6 @@
 import { AlertCircle, Calendar, CheckCircle2, ChevronDown } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
+import { formatMoney } from '../../CheckInProcessModal/utils'
 
 import type { ReservationDraft } from '../../../../features/reservations/draftSlice'
 
@@ -18,9 +19,7 @@ type Props = {
 
 type PaymentMethod = 'charge_to_room' | 'pay_now' | 'charge_to_company'
 
-function formatMoney(amount: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-}
+
 
 function parseIsoDate(value: string) {
   const trimmed = value.trim()
@@ -102,6 +101,7 @@ export function ExtendStayStep2({
   }, [value.paidAmount])
 
   const newTotalBalance = currentBalance + extensionCharge
+  const currency = (value as any)?.finance?.currency || '$'
 
   const alternativeRooms = useMemo(
     () => [
@@ -398,11 +398,11 @@ export function ExtendStayStep2({
           <div className="space-y-3 text-sm text-slate-700">
             <div className="flex items-center justify-between">
               <span>Current Balance:</span>
-              <span className="font-semibold">{formatMoney(currentBalance)}</span>
+              <span className="font-semibold">{formatMoney(currentBalance, currency)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Extension Charge:</span>
-              <span className="font-semibold">{formatMoney(extensionCharge)}</span>
+              <span className="font-semibold">{formatMoney(extensionCharge, currency)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Room change :</span>
@@ -411,7 +411,7 @@ export function ExtendStayStep2({
             <div className="border-t border-[#BBD3FF] pt-3">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-[#0B4EA2]">New Total Balance:</span>
-                <span className="font-semibold text-[#0B4EA2]">{formatMoney(newTotalBalance)}</span>
+                <span className="font-semibold text-[#0B4EA2]">{formatMoney(newTotalBalance, currency)}</span>
               </div>
             </div>
           </div>

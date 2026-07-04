@@ -17,8 +17,9 @@ type Props = {
 
 type PaymentMethod = 'charge_to_room' | 'pay_now' | 'charge_to_company'
 
-function formatMoney(amount: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+function formatMoney(amount: number, curr: string) {
+  if (curr === '$' || curr === '€' || curr === '£') return `${curr}${amount.toFixed(2)}`
+  return `${amount.toFixed(2)} ${curr}`
 }
 
 function parseIsoDate(value: string) {
@@ -98,6 +99,9 @@ export function ExtendStayStep2({
 }: Props) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('charge_to_room')
   const [confirmError, setConfirmError] = useState('')
+  const [isConfirming, setIsConfirming] = useState(false)
+
+  const currency = value?.finance?.currency || '$'
 
   const checkIn = useMemo(() => parseReservationDate(value.checkInDate), [value.checkInDate])
   const checkOut = useMemo(() => parseReservationDate(value.checkOutDate), [value.checkOutDate])
@@ -200,11 +204,11 @@ export function ExtendStayStep2({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-[#0B4EA2]">Rate per Night:</span>
-                  <span className="font-semibold text-slate-800">{formatMoney(ratePerNight)}</span>
+                  <span className="font-semibold text-slate-800">{formatMoney(ratePerNight, currency)}</span>
                 </div>
                 <div className="flex items-center justify-between border-t border-[#BBD3FF] pt-2">
                   <span className="font-semibold text-[#0B4EA2]">Total Additional:</span>
-                  <span className="font-semibold text-[#0B4EA2]">{formatMoney(extensionCharge)}</span>
+                  <span className="font-semibold text-[#0B4EA2]">{formatMoney(extensionCharge, currency)}</span>
                 </div>
               </div>
             </div>
@@ -262,7 +266,7 @@ export function ExtendStayStep2({
                             </div>
                           </div>
                         </div>
-                        <div className="text-xs font-semibold text-slate-700">{formatMoney(r.price)}/night</div>
+                        <div className="text-xs font-semibold text-slate-700">{formatMoney(r.price, currency)}/night</div>
                       </div>
                     </button>
                   )
@@ -292,7 +296,7 @@ export function ExtendStayStep2({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
           <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <span>€</span>
+            <span>{currency}</span>
             Payment Method
           </div>
 
@@ -344,15 +348,15 @@ export function ExtendStayStep2({
             </div>
             <div className="flex items-center justify-between">
               <span>Extension Charge</span>
-              <span className="font-semibold">{formatMoney(extensionCharge)}</span>
+              <span className="font-semibold">{formatMoney(extensionCharge, currency)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Current Balance</span>
-              <span className="font-semibold">{formatMoney(currentBalance)}</span>
+              <span className="font-medium text-slate-600">Current Balance</span>
+              <span className="font-semibold">{formatMoney(currentBalance, currency)}</span>
             </div>
-            <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-              <span className="font-semibold">New Total Balance</span>
-              <span className="font-semibold text-[#0B4EA2]">{formatMoney(newTotalBalance)}</span>
+            <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+              <span className="font-bold text-[#0B4EA2]">New Total Balance</span>
+              <span className="font-semibold text-[#0B4EA2]">{formatMoney(newTotalBalance, currency)}</span>
             </div>
           </div>
         </div>

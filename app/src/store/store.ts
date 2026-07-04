@@ -50,6 +50,7 @@ import { laundryTypesReducer } from '../features/Laundryfeatures/laundryTypes/la
 import { laundryIssuesReducer } from '../features/Laundryfeatures/laundryIssues/laundryIssuesSlice';
 import { laundryPurchasesReducer } from '../features/Laundryfeatures/laundryPurchases/laundryPurchasesSlice';
 import corporateContractReducer from '../features/corporateContracts/corporateContractSlice';
+import otaReservationDraftReducer from '../features/reservations/otaReservationDraftSlice';
 
 export const store = configureStore({
   reducer: {
@@ -104,6 +105,7 @@ export const store = configureStore({
     laundryIssues: laundryIssuesReducer,
     laundryPurchases: laundryPurchasesReducer,
     corporateContract: corporateContractReducer,
+    otaReservationDraft: otaReservationDraftReducer,
   },
 })
 

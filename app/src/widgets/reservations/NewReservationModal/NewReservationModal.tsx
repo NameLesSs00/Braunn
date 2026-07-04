@@ -279,42 +279,51 @@ export function NewReservationModal({ open, onClose }: Props) {
                         bookingSource: draft.bookingSource || 'WalkIn',
                         reservationType: draft.isVip ? 'VIP' : 'Normal',
                         currency: draft.currency || 'USD',
-                        roomRequests: [
-                          {
-                            roomTypeId: draft.rooms[0]?.roomTypeId || '00000000-0000-0000-0000-000000000000',
-                            quantity: Number(draft.rooms[0]?.roomCount) || 1,
+                        roomRequests: draft.rooms
+                          .filter((r) => r.roomTypeId && r.roomTypeId.trim() !== '')
+                          .map((r) => ({
+                            roomTypeId: r.roomTypeId,
+                            roomQuantity: Number(r.roomCount) || 1,
                             adults: Number(draft.adultCount) || 1,
                             children: Number(draft.childCount) || 0,
                             childAges: draft.childAges || [],
                             ratePlanCode: draft.rateCode || 'STD',
-                            pricePerNight: localAriState.rates[0]?.amountBeforeTax || 0,
-                          }
-                        ],
-                        selectedServices: draft.extras.map(extra => ({
-                          additionalServiceId: financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)?.id || '00000000-0000-0000-0000-000000000000',
-                          quantity: extra.qty || 1,
-                          serviceDate: extra.serviceDate || draft.checkInDate || new Date().toISOString().split('T')[0]
-                        })),
-                        selectedMealPlans: draft.mealPlans.map(mp => ({
-                          mealPlanId: mp.mealPlanId,
-                          price: mp.price || 0,
-                          serviceDateStart: mp.serviceDateStart || new Date().toISOString().split('T')[0],
-                          serviceDateEnd: mp.serviceDateEnd || new Date().toISOString().split('T')[0]
-                        })),
-                        companions: (draft.companions || []).map(c => ({
-                          firstName: c.firstName,
-                          lastName: c.lastName,
-                          phoneNumber: c.phoneNumber,
-                          email: c.email,
-                          address: c.address,
-                          nationalId: c.nationalId
-                        })),
+                            pricePerNight: localAriState.rates[0]?.amountBeforeTax ?? localAriState.rates[0]?.basePriceBeforeTax ?? 0,
+                          })),
+                        selectedServices: draft.extras
+                          .filter((extra) => extra.item && extra.item.trim() !== '' && financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)?.id)
+                          .map((extra) => ({
+                            additionalServiceId: financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)!.id,
+                            price: extra.price || 0,
+                            serviceDate: extra.serviceDate || draft.checkInDate || new Date().toISOString().split('T')[0],
+                          })),
+                        selectedMealPlans: draft.mealPlans
+                          .filter((mp) => mp.mealPlanId && mp.mealPlanId.trim() !== '')
+                          .map((mp) => {
+                            const start = new Date(mp.serviceDateStart || draft.checkInDate || new Date().toISOString().split('T')[0]);
+                            const end = new Date(mp.serviceDateEnd || draft.checkOutDate || new Date().toISOString().split('T')[0]);
+                            const diffDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                            return {
+                              mealPlanId: mp.mealPlanId,
+                              price: mp.price || 0,
+                              serviceDateStart: mp.serviceDateStart || new Date().toISOString().split('T')[0],
+                              numberOfDays: diffDays,
+                            }
+                          }),
+                        companions: (draft.companions || [])
+                          .filter((c) => c.firstName && c.firstName.trim() !== '')
+                          .map((c) => ({
+                            firstName: c.firstName,
+                            lastName: c.lastName,
+                            phoneNumber: c.phoneNumber,
+                            email: c.email,
+                            address: c.address,
+                            nationalId: c.nationalId,
+                          })),
                         specialRequests: draft.specialRequests || '',
                         comments: draft.notes || '',
-                        couponCode: draft.coupon || '',
-                        couponDiscountAmount: 0,
+                        discountPercentage: 0,
                         depositAmount: Number(draft.depositAmountReceived) || 0,
-                        paidAmount: Number(draft.paidAmount) || 0,
                         paymentMethod: draft.paymentMethod || 'Card',
                         paymentReference: draft.paymentReference || '',
                         paymentDate: draft.paymentDate || new Date().toISOString(),

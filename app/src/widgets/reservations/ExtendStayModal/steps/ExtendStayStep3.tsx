@@ -1,5 +1,6 @@
 import { CheckCircle2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { formatMoney } from '../../CheckInProcessModal/utils'
 
 import { SuccessAlertModal } from '../../../../shared/ui/SuccessAlertModal'
 import type { ReservationDraft } from '../../../../features/reservations/draftSlice'
@@ -54,9 +55,7 @@ function formatShortDate(d: Date | null) {
   return d.toLocaleDateString('en-US')
 }
 
-function formatMoney(amount: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-}
+
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -84,6 +83,7 @@ export function ExtendStayStep3({
   const newCheckOut = useMemo(() => (newCheckOutIso ? parseIsoDate(newCheckOutIso) : null), [newCheckOutIso])
 
   const roomNumber = selectedRoomNumber || value.rooms[0]?.roomNumbers?.[0] || '—'
+  const currency = (value as any)?.finance?.currency || '$'
 
   const handleUpdateBalance = () => {
     onUpdateBalance()
@@ -102,7 +102,7 @@ export function ExtendStayStep3({
 
           <div className="flex items-center justify-between gap-4 py-4">
             <div className="text-sm font-semibold text-[#0B4EA2]">New Total Balance:</div>
-            <div className="text-sm font-semibold text-[#0B4EA2]">{formatMoney(newTotalBalance)}</div>
+            <div className="text-sm font-semibold text-[#0B4EA2]">{formatMoney(newTotalBalance, currency)}</div>
           </div>
         </div>
       </div>
