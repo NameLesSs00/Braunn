@@ -7,9 +7,10 @@ import type { Pricing } from '../../../widgets/reservations/CheckInProcessModal/
 
 import { getRoomTypeById } from '../../../shared/apis/roomTypesApi'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
-import { checkInPmsReservation, fetchPmsReservationById } from '../../../features/pms/pmsSlice'
-import type { PmsCheckInParams } from '../../../shared/apis/PmsReservation'
-import type { PmsReservationDetails } from '../../../models/PmsReservation'
+import { fetchLocalReservationById } from '../../../features/localReservations/localReservationsSlice'
+import { checkInRoom } from '../../../features/ops/opsSlice'
+import { fetchRooms } from '../../../features/rooms/roomsSlice'
+import type { LocalReservation } from '../../../models/LocalReservation'
 import { SuccessAlertModal } from '../../../shared/ui/SuccessAlertModal'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 
@@ -17,6 +18,7 @@ type Props = {
   open: boolean
   onClose: () => void
   reservationId: string | null
+  onSuccess?: () => void
 }
 
 function isoDateOnly(value?: string) {
@@ -27,9 +29,9 @@ function isoDateOnly(value?: string) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
 
-function reservationToDraft(res: PmsReservationDetails): ReservationDraft {
+function reservationToDraft(res: LocalReservation): ReservationDraft {
   return {
-    bookingSource: res.channelName ?? '',
+    bookingSource: res.channelSource ?? '',
     isGroupReservation: false,
     firstName: res.guest?.firstName ?? '',
     surName: res.guest?.lastName ?? '',
@@ -78,10 +80,11 @@ function viewTypeLabel(viewType?: number) {
   return '-----'
 }
 
-export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
+export function CheckInProcessPopup({ open, onClose, reservationId, onSuccess }: Props) {
   const dispatch = useAppDispatch()
-  const pmsSelected = useAppSelector((s) => s.pms.selected)
-  const submittingCheckIn = useAppSelector((s) => s.pms.checkInStatus === 'loading')
+  const pmsSelected = useAppSelector((s) => s.localReservations.selected)
+  const roomsList = useAppSelector((s) => s.rooms.items)
+  const submittingCheckIn = useAppSelector((s) => s.ops.status === 'loading')
 
   const staticDraft = useMemo<ReservationDraft>(
     () => ({
@@ -96,8 +99,8 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
       nationality: '',
       idNumber: '',
       notes: '',
-      checkInDate: '2026-03-07',
-      checkOutDate: '2026-03-10',
+      checkInDate: isoDateOnly(new Date().toISOString()),
+      checkOutDate: isoDateOnly(new Date(Date.now() + 86400000).toISOString()),
       nights: '',
       adultCount: 1,
       childCount: 0,
@@ -140,14 +143,16 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
     setAlertMessage('')
     setAlertVariant('success')
 
-    void dispatch(fetchPmsReservationById(reservationId))
+    void dispatch(fetchLocalReservationById(reservationId))
+    void dispatch(fetchRooms())
   }, [dispatch, open, reservationId])
+
 
   useEffect(() => {
     if (!pmsSelected) return
 
     setDraft((prev) => ({ ...prev, ...reservationToDraft(pmsSelected as any) }))
-    const firstRoom = pmsSelected.reservationRooms?.[0]
+    const firstRoom = (pmsSelected as any).reservationRooms?.[0]
     setSelectedRoomId(firstRoom?.roomId ?? '')
     
     if (firstRoom?.roomTypeId) {
@@ -164,7 +169,7 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
   }, [pmsSelected])
 
   const pricing = useMemo<Pricing>(() => {
-    const totalAmount = pmsSelected?.totalAmount ?? 0
+    const totalAmount = pmsSelected?.finance?.grandTotal ?? 0
     return {
       baseTotal: totalAmount,
       extraAdultTotal: 0,
@@ -178,8 +183,9 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
       discountValue: 0,
       totalAmount,
       requiredDeposit: 0,
+      currency: pmsSelected?.finance?.currency ?? '$',
     }
-  }, [pmsSelected?.totalAmount])
+  }, [pmsSelected?.finance?.grandTotal, pmsSelected?.finance?.currency])
 
   const companionsText = useMemo(() => {
     const names = pmsSelected?.companions?.map((c: any) => c.fullName).filter(Boolean) ?? []
@@ -191,35 +197,41 @@ export function CheckInProcessPopup({ open, onClose, reservationId }: Props) {
   const reservationDetails = useMemo(
     () => ({
       reservationId: reservationId ?? '',
-      guestName: pmsSelected?.guestName ?? '-----',
+      reservationRoomId: pmsSelected?.reservationRoomIds?.[0] ?? pmsSelected?.reservationRooms?.[0]?.reservationRoomId ?? (pmsSelected?.reservationRooms?.[0] as any)?.id ?? reservationId ?? '',
+      guestName: pmsSelected?.guest?.fullName ?? pmsSelected?.guest?.firstName ?? '-----',
+      roomTypeId: pmsSelected?.reservationRooms?.[0]?.roomTypeId ?? '',
       roomTypeName: pmsSelected?.roomTypeName ?? '-----',
+      roomNumber: pmsSelected?.roomNumber ?? (pmsSelected?.reservationRooms?.[0]?.roomId ? roomsList.find((r) => r.id === pmsSelected.reservationRooms![0].roomId)?.roomNumber : null) ?? null,
       checkInDate: pmsSelected?.checkInDate ?? '',
       checkOutDate: pmsSelected?.checkOutDate ?? '',
       roomView,
       extras: '-----',
-      totalAmount: pmsSelected?.totalAmount ?? 0,
+      totalAmount: pmsSelected?.finance?.grandTotal ?? 0,
       companions: companionsText,
       guestsCount,
     }),
-    [companionsText, guestsCount, pmsSelected?.checkInDate, pmsSelected?.checkOutDate, pmsSelected?.guestName, pmsSelected?.roomTypeName, pmsSelected?.totalAmount, reservationId, roomView],
+    [companionsText, guestsCount, pmsSelected, reservationId, roomView, roomsList],
   )
 
   const onChangeDraft = (patch: Partial<ReservationDraft>) => {
     setDraft((prev) => ({ ...prev, ...patch }))
   }
 
-  const onSubmitCheckIn = async (params: PmsCheckInParams) => {
-    if (!reservationId) return
+  const onSubmitCheckIn = async (notes: string = '') => {
+    if (!reservationId || !reservationDetails.reservationRoomId) return
 
     try {
-      const res = await dispatch(checkInPmsReservation(params)).unwrap()
-      // The fulfilled case in pmsSlice already updates 'selected'
+      await dispatch(checkInRoom({ reservationRoomId: reservationDetails.reservationRoomId, notes })).unwrap()
       
       setAlertVariant('success')
-      setAlertMessage(`Checked in successfully to Room ${res.roomNumber ?? ''}`.trim())
+      setAlertMessage(`Checked in successfully to Room ${reservationDetails.roomNumber ?? ''}`.trim())
       setAlertOpen(true)
+      
+      if (onSuccess) {
+        onSuccess()
+      }
     } catch (e) {
-      const message = typeof e === 'string' ? e : e instanceof Error ? e.message : 'Failed to check in reservation'
+      const message = typeof e === 'string' ? e : e instanceof Error ? e.message : 'Failed to check in room'
       setAlertVariant('error')
       setAlertMessage(message)
       setAlertOpen(true)

@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import * as api from '../../shared/apis/Ops'
+import type { EarlyCheckOutParams, CheckInRoomParams } from '../../shared/apis/Ops'
 
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
 
@@ -27,6 +28,18 @@ export const assignRoom = createAsyncThunk(
   }
 )
 
+export const assignReservationRoom = createAsyncThunk(
+  'ops/assignReservationRoom',
+  async (params: api.AssignReservationRoomParams, thunkApi) => {
+    try {
+      return await api.assignReservationRoom(params, thunkApi.signal)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to assign reservation room'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
 export const earlyCheckOut = createAsyncThunk(
   'ops/earlyCheckOut',
   async (params: api.EarlyCheckOutParams, thunkApi) => {
@@ -34,6 +47,18 @@ export const earlyCheckOut = createAsyncThunk(
       return await api.earlyCheckOut(params, thunkApi.signal)
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to early check out'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
+export const checkInRoom = createAsyncThunk(
+  'ops/checkInRoom',
+  async (params: CheckInRoomParams, thunkApi) => {
+    try {
+      return await api.checkInReservationRoom(params, thunkApi.signal)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to check in room'
       return thunkApi.rejectWithValue(message)
     }
   }
@@ -65,6 +90,18 @@ const opsSlice = createSlice({
         state.status = 'failed'
         state.error = (action.payload as string | undefined) ?? action.error.message
       })
+      .addCase(assignReservationRoom.pending, (state) => {
+        state.status = 'loading'
+        state.error = undefined
+      })
+      .addCase(assignReservationRoom.fulfilled, (state, action) => {
+        state.status = 'succeeded'
+        state.lastResponse = action.payload
+      })
+      .addCase(assignReservationRoom.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = (action.payload as string | undefined) ?? action.error.message
+      })
       .addCase(earlyCheckOut.pending, (state) => {
         state.status = 'loading'
         state.error = undefined
@@ -74,6 +111,17 @@ const opsSlice = createSlice({
         state.lastResponse = action.payload
       })
       .addCase(earlyCheckOut.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = (action.payload as string | undefined) ?? action.error.message
+      })
+      .addCase(checkInRoom.pending, (state) => {
+        state.status = 'loading'
+        state.error = undefined
+      })
+      .addCase(checkInRoom.fulfilled, (state) => {
+        state.status = 'succeeded'
+      })
+      .addCase(checkInRoom.rejected, (state, action) => {
         state.status = 'failed'
         state.error = (action.payload as string | undefined) ?? action.error.message
       })

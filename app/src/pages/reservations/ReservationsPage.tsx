@@ -204,6 +204,9 @@ export function ReservationsPage() {
           setCheckInReservationId(null)
         }}
         reservationId={checkInReservationId}
+        onSuccess={() => {
+          void dispatch(fetchPmsReservations({ startDate: checkInFrom, endDate: checkInTo }))
+        }}
       />
 
       <CheckOutProcessPopup
@@ -309,14 +312,14 @@ export function ReservationsPage() {
         </div>
 
         <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-5">
-          <button
+          {/* <button
             type="button"
             onClick={() => setOtaOpen(true)}
             className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#0B4EA2] px-6 text-sm font-semibold text-[#0B4EA2] transition-all hover:bg-blue-50 active:scale-95"
           >
             <span className="text-base leading-none">+</span>
             OTA Reservation
-          </button>
+          </button> */}
           <button
             type="button"
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"
@@ -327,7 +330,7 @@ export function ReservationsPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden bg-white">
+      <div className="bg-white pb-32">
         <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_.7fr_.9fr_1fr_.8fr_1.2fr] bg-[#EAF2FF] px-6 py-3 text-[12px] font-semibold text-slate-700">
           <div>Guest</div>
           <div>Room</div>
@@ -423,6 +426,7 @@ export function ReservationsPage() {
                     type="button"
                     className="grid h-9 w-9 place-items-center rounded-md text-slate-600 hover:bg-slate-100"
                     aria-label="More"
+                    onMouseDown={(e) => e.stopPropagation()}
                     onClick={() => setOpenMenuForId((prev) => (prev === row.id ? null : row.id))}
                   >
                     <MoreHorizontal className="h-4 w-4" />
@@ -452,7 +456,14 @@ export function ReservationsPage() {
                         className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
                         onClick={() => setOpenMenuForId(null)}
                       >
-                        Move Room
+                        Move Room Maintaince
+                      </button>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
+                        onClick={() => setOpenMenuForId(null)}
+                      >
+                        Move Room Client Request
                       </button>
                     </div>
                   ) : null}

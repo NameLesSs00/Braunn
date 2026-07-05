@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, CheckCircle2, AlertCircle } from 'lucide-react'
 
 import { Modal } from '../../../shared/ui/Modal'
 import { IconImage } from '../../../shared/ui/IconImage'
@@ -7,8 +7,10 @@ import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 
 import type { ReservationDraft } from '../../../features/reservations/draftSlice'
 import { fetchRoomTypes } from '../../../features/roomTypes/roomTypesSlice'
-import { fetchRooms, fetchRoomsAvailability } from '../../../features/rooms/roomsSlice'
-import { fetchFinancialServices, fetchFinancialDiscounts } from '../../../features/adminFinancialSettings/financialSettingsSlice'
+import { fetchRoomsAvailability } from '../../../features/rooms/roomsSlice'
+import { assignReservationRoom } from '../../../features/ops/opsSlice'
+import { SuccessAlertModal } from '../../../shared/ui/SuccessAlertModal'
+
 
 import { FaCheck } from 'react-icons/fa'
 import { LuKey } from 'react-icons/lu'
@@ -27,11 +29,13 @@ type Props = {
   pricing: Pricing
   selectedRoomId?: string
   onChangeSelectedRoomId?: (roomId: string) => void
-  onSubmitCheckIn?: (params: PmsCheckInParams) => Promise<void>
+  onSubmitCheckIn?: (notes?: string) => Promise<void>
   submittingCheckIn?: boolean
   reservationDetails?: {
     reservationId: string
+    reservationRoomId?: string
     guestName: string
+    roomTypeId?: string
     roomTypeName: string
     checkInDate: string
     checkOutDate: string
@@ -40,6 +44,7 @@ type Props = {
     totalAmount: number
     companions: string
     guestsCount: number
+    roomNumber?: string | null
   }
 }
 
@@ -57,30 +62,29 @@ export function CheckInProcessModal({
 }: Props) {
   const dispatch = useAppDispatch()
   const roomTypes = useAppSelector((s) => s.roomTypes.items)
-  const rooms = useAppSelector((s) => s.rooms.items)
   const roomsAvailability = useAppSelector((s) => s.rooms.availability)
   const roomsAvailabilityStatus = useAppSelector((s) => s.rooms.availabilityStatus)
-  const financialServices = useAppSelector((s) => s.financialSettings.services)
-  const financialDiscounts = useAppSelector((s) => s.financialSettings.discounts)
-  const financialStatus = useAppSelector((s) => s.financialSettings.status)
+
+
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [idVerified, setIdVerified] = useState(false)
   const [guestInfoConfirmed, setGuestInfoConfirmed] = useState(false)
   const [assignRoomOpen, setAssignRoomOpen] = useState(false)
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState('')
-  const [selectedServiceId, setSelectedServiceId] = useState('')
-  const [selectedDiscountId, setSelectedDiscountId] = useState('')
+  const [confirmingAssign, setConfirmingAssign] = useState(false)
+  const [isAssigning, setIsAssigning] = useState(false)
+  const [assignAlertOpen, setAssignAlertOpen] = useState(false)
+  const [assignAlertVariant, setAssignAlertVariant] = useState<'success' | 'error'>('success')
+  const [assignAlertMessage, setAssignAlertMessage] = useState('')
+
 
   useEffect(() => {
     if (!open) return
     setStep(1)
     setIdVerified(false)
     setGuestInfoConfirmed(false)
-    setAssignRoomOpen(false)
-    setSelectedRoomTypeId('')
-    setSelectedServiceId('')
-    setSelectedDiscountId('')
+    // Pre-open assignment if room is already assigned is now handled by a separate effect
 
     // Set default dates: today and end of current month
     const now = new Date()
@@ -102,20 +106,41 @@ export function CheckInProcessModal({
   }, [open])
 
   useEffect(() => {
-    if (!open) return
-    void dispatch(fetchRoomTypes())
-    void dispatch(fetchRooms())
-    void dispatch(fetchFinancialServices())
-    void dispatch(fetchFinancialDiscounts())
-  }, [dispatch, open])
+    if (reservationDetails?.roomNumber) {
+      setAssignRoomOpen(true)
+    }
+  }, [reservationDetails?.roomNumber])
 
   useEffect(() => {
-    if (!open || !selectedRoomTypeId || !value.checkInDate || !value.checkOutDate) return
+    if (!open) return
+    void dispatch(fetchRoomTypes())
+  }, [dispatch, open])
+
+  // Auto-trigger availability when assignRoomOpen changes or reservationDetails changes
+  useEffect(() => {
+    if (!open) return
+    
+    // Pre-set roomTypeId from reservationDetails if available
+    if (reservationDetails?.reservationId && !selectedRoomTypeId) {
+      if (reservationDetails.roomTypeId) {
+        setSelectedRoomTypeId(reservationDetails.roomTypeId)
+      } else if (reservationDetails.roomTypeName && roomTypes.length > 0) {
+        const matched = roomTypes.find((rt) => rt.name === reservationDetails.roomTypeName)
+        if (matched) setSelectedRoomTypeId(matched.id)
+      }
+    }
+  }, [open, reservationDetails, selectedRoomTypeId, roomTypes])
+
+  useEffect(() => {
+    const startDate = reservationDetails?.checkInDate ? formatDateForDisplay(reservationDetails.checkInDate) : value.checkInDate
+    const endDate = reservationDetails?.checkOutDate ? formatDateForDisplay(reservationDetails.checkOutDate) : value.checkOutDate
+
+    if (!open || !selectedRoomTypeId || !startDate || !endDate) return
 
     void dispatch(
       fetchRoomsAvailability({
-        StartDate: value.checkInDate,
-        EndDate: value.checkOutDate,
+        StartDate: startDate,
+        EndDate: endDate,
         RoomTypeId: selectedRoomTypeId,
       }),
     ).then(() => {
@@ -132,7 +157,7 @@ export function CheckInProcessModal({
     return [value.firstName, value.surName].filter(Boolean).join(' ')
   }, [reservationDetails?.guestName, value.firstName, value.surName])
 
-  const roomNumber = value.rooms[0]?.roomNumber || '104'
+  const roomNumber = reservationDetails?.roomNumber || value.rooms[0]?.roomNumber || 'Not assigned'
   const roomType = reservationDetails?.roomTypeName || value.rooms[0]?.roomType || 'double'
   const extrasText = value.extras.length ? value.extras.map((e) => `${e.qty} ${e.item}`).join(', ') : 'No extras'
 
@@ -144,16 +169,10 @@ export function CheckInProcessModal({
   const currency = pricing.currency || '$'
   const totalAmountText = reservationDetails ? formatMoney(reservationDetails.totalAmount, currency) : formatMoney(pricing.totalAmount, currency)
 
-  const selectedService = useMemo(() => {
-    return financialServices.find((s) => s.id === selectedServiceId)
-  }, [financialServices, selectedServiceId])
 
-  const selectedDiscount = useMemo(() => {
-    return financialDiscounts.find((d) => d.id === selectedDiscountId)
-  }, [financialDiscounts, selectedDiscountId])
 
   const filteredRooms = useMemo(() => {
-    if (roomsAvailabilityStatus === 'succeeded' && roomsAvailability.length > 0) {
+    if (roomsAvailabilityStatus === 'succeeded') {
       return roomsAvailability.map((r) => ({
         id: r.roomId,
         roomNumber: r.roomNumber,
@@ -162,11 +181,8 @@ export function CheckInProcessModal({
         basePrice: r.basePrice,
       }))
     }
-
-    let result = rooms
-    if (selectedRoomTypeId) result = result.filter((r) => r.roomTypeId === selectedRoomTypeId)
-    return result
-  }, [rooms, selectedRoomTypeId, roomsAvailability, roomsAvailabilityStatus])
+    return []
+  }, [roomsAvailability, roomsAvailabilityStatus])
 
   useEffect(() => {
     if (!assignRoomOpen) return
@@ -239,7 +255,8 @@ export function CheckInProcessModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <>
+      <Modal open={open} onClose={onClose}>
       <div className="flex h-[92vh] w-[92vw] max-w-5xl flex-col overflow-y-auto rounded-2xl bg-white shadow-xl">
         <div className="flex items-start justify-between bg-[#0B4EA2] px-8 py-5">
           <div>
@@ -344,92 +361,40 @@ export function CheckInProcessModal({
                 </div>
               </div>
 
-              <div className="mt-6 flex items-end justify-end">
-                <div className="w-full max-w-[320px] text-right">
-                  <div className="mb-2 text-xs font-semibold text-slate-700">
-                    Room <span className="text-red-500">*</span>
+              {!reservationDetails?.roomNumber && (
+                <div className="mt-6 flex items-end justify-end">
+                  <div className="w-full max-w-[320px] text-right">
+                    <div className="mb-2 text-xs font-semibold text-slate-700">
+                      Room <span className="text-red-500">*</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="h-11 w-full rounded-xl border border-[#0B4EA2] bg-white text-sm font-semibold text-[#0B4EA2]"
+                      onClick={() => setAssignRoomOpen((p) => !p)}
+                    >
+                      Assign Room
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="h-11 w-full rounded-xl border border-[#0B4EA2] bg-white text-sm font-semibold text-[#0B4EA2]"
-                    onClick={() => setAssignRoomOpen((p) => !p)}
-                  >
-                    Assign Room
-                  </button>
                 </div>
-              </div>
+              )}
 
               {assignRoomOpen ? (
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {/* Room Type — read-only */}
                     <div className="space-y-2">
                       <div className="text-[12px] font-semibold text-slate-700">Room Type</div>
-                      <select
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
-                        value={selectedRoomTypeId}
-                        onChange={(e) => {
-                          const id = e.target.value
-                          setSelectedRoomTypeId(id)
-                          const rt = roomTypes.find((x) => x.id === id)
-                          onChange({
-                            rooms: value.rooms.map((r, idx) =>
-                              idx === 0
-                                ? {
-                                  ...r,
-                                  roomType: rt?.name ?? '',
-                                  roomNumber: '',
-                                }
-                                : r,
-                            ),
-                          })
-                        }}
-                        required
-                      >
-                        <option value="" disabled>
-                          Select room type
-                        </option>
-                        {roomTypes.map((rt) => (
-                          <option key={rt.id} value={rt.id}>
-                            {rt.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="text-[12px] font-semibold text-slate-700">Start Date</div>
                       <input
-                        type="date"
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
-                        value={value.checkInDate}
-                        onChange={(e) => onChange({ checkInDate: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="text-[12px] font-semibold text-slate-700">End Date</div>
-                      <input
-                        type="date"
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
-                        value={value.checkOutDate}
-                        onChange={(e) => onChange({ checkOutDate: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="text-[12px] font-semibold text-slate-700">Room Count</div>
-                      <input
-                        type="number"
                         className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
-                        value={value.rooms[0]?.roomCount ?? ''}
+                        value={reservationDetails?.roomTypeName ?? value.rooms[0]?.roomType ?? ''}
                         disabled
+                        readOnly
                       />
                     </div>
 
+                    {/* Rate Plan — read-only */}
                     <div className="space-y-2">
-                      <div className="text-[12px] font-semibold text-slate-700">Room Plan</div>
+                      <div className="text-[12px] font-semibold text-slate-700">Rate Plan</div>
                       <input
                         className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
                         value={value.ratePlan ?? ''}
@@ -438,18 +403,31 @@ export function CheckInProcessModal({
                     </div>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="text-[12px] font-semibold text-slate-700">Room Number</div>
-                        {roomsAvailabilityStatus === 'loading' ? (
-                          <div className="text-[10px] text-slate-400">Checking availability...</div>
-                        ) : roomsAvailabilityStatus === 'succeeded' ? (
-                          <div className="text-[10px] font-medium text-emerald-600">
-                            {roomsAvailability.length} rooms available
-                          </div>
-                        ) : null}
-                      </div>
+                  {/* Room Number */}
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[12px] font-semibold text-slate-700">Room Number</div>
+                      {!reservationDetails?.roomNumber && (
+                        <>
+                          {roomsAvailabilityStatus === 'loading' ? (
+                            <div className="text-[10px] text-slate-400">Checking availability...</div>
+                          ) : roomsAvailabilityStatus === 'succeeded' ? (
+                            <div className="text-[10px] font-medium text-emerald-600">
+                              {roomsAvailability.length} rooms available
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                    
+                    {reservationDetails?.roomNumber ? (
+                      <input
+                        className="h-11 w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 outline-none"
+                        value={`Assigned Room: ${reservationDetails.roomNumber}`}
+                        disabled
+                        readOnly
+                      />
+                    ) : (
                       <select
                         className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none disabled:bg-slate-50"
                         value={selectedRoomId ?? ''}
@@ -458,114 +436,91 @@ export function CheckInProcessModal({
                           const nextRoomId = e.target.value
                           const room = filteredRooms.find((r) => r.id === nextRoomId)
                           const nextRoomNumber = room?.roomNumber ?? ''
-
                           onChangeSelectedRoomId?.(nextRoomId)
                           onChange({
                             rooms: value.rooms.map((r, idx) => (idx === 0 ? { ...r, roomNumber: nextRoomNumber } : r)),
                           })
+                          setConfirmingAssign(false)
                         }}
-                        required
                       >
                         <option value="" disabled>
                           {roomsAvailabilityStatus === 'loading' ? 'Loading available rooms...' : 'Select room number'}
                         </option>
                         {filteredRooms.map((r) => (
                           <option key={r.id} value={r.id}>
-                            {r.roomNumber} {'basePrice' in r && r.basePrice ? `($${r.basePrice})` : ''}
+                            {r.roomNumber}
                           </option>
                         ))}
                       </select>
-                    </div>
+                    )}
                   </div>
+
+                  {/* Confirm button */}
+                  {!reservationDetails?.roomNumber && selectedRoomId && !confirmingAssign && (
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        className="w-full rounded-xl bg-[#0B4EA2] py-2.5 text-sm font-semibold text-white hover:bg-[#093d81] transition-colors"
+                        onClick={() => setConfirmingAssign(true)}
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Inline confirmation dialog */}
+                  {confirmingAssign && (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <div className="mb-3 text-sm font-semibold text-slate-800">
+                        Are you sure you want to allocate this room?
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          className="flex-1 rounded-xl bg-[#0B4EA2] py-2.5 text-sm font-semibold text-white hover:bg-[#093d81] disabled:opacity-60 transition-colors"
+                          disabled={isAssigning}
+                          onClick={async () => {
+                            const reservationRoomId = reservationDetails?.reservationRoomId
+                            const roomIdToAssign = selectedRoomId ?? ''
+                            if (!reservationRoomId || !roomIdToAssign) {
+                              alert(`Missing data! reservationRoomId: ${reservationRoomId}, roomId: ${roomIdToAssign}`)
+                              return
+                            }
+                            setIsAssigning(true)
+                            try {
+                              await dispatch(assignReservationRoom({
+                                reservationRoomId,
+                                roomId: roomIdToAssign,
+                                notes: '',
+                              })).unwrap()
+                              setAssignAlertVariant('success')
+                              setAssignAlertMessage('Room has been allocated successfully!')
+                            } catch (e) {
+                              setAssignAlertVariant('error')
+                              setAssignAlertMessage(typeof e === 'string' ? e : 'Failed to allocate room.')
+                            } finally {
+                              setIsAssigning(false)
+                              setConfirmingAssign(false)
+                              setAssignAlertOpen(true)
+                            }
+                          }}
+                        >
+                          {isAssigning ? 'Allocating...' : 'Yes, Confirm'}
+                        </button>
+                        <button
+                          type="button"
+                          className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                          onClick={() => setConfirmingAssign(false)}
+                          disabled={isAssigning}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : null}
 
-              <div className="mt-8 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-slate-800">Additional Services</div>
-                  {financialStatus === 'loading' && <div className="text-[10px] text-slate-400">Loading services...</div>}
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="text-[12px] font-semibold text-slate-700">Service</div>
-                      <select
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
-                        value={selectedServiceId}
-                        onChange={(e) => setSelectedServiceId(e.target.value)}
-                      >
-                        <option value="">Select a service</option>
-                        {financialServices.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {selectedService && (
-                      <div className="flex items-center gap-4">
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Price</div>
-                          <div className="flex h-10 items-center rounded-lg border border-slate-100 bg-slate-50 px-4 text-sm font-bold text-[#0B4EA2]">
-                            {formatMoney(selectedService.price)}
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Status</div>
-                          <div className={[
-                            "flex h-10 items-center justify-center rounded-lg border px-4 text-xs font-bold",
-                            selectedService.isActive ? "border-emerald-100 bg-emerald-50 text-emerald-600" : "border-rose-100 bg-rose-50 text-rose-600"
-                          ].join(" ")}>
-                            {selectedService.isActive ? "✓ Available" : "✗ Unavailable"}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="text-[12px] font-semibold text-slate-700">Discount</div>
-                      <select
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none"
-                        value={selectedDiscountId}
-                        onChange={(e) => setSelectedDiscountId(e.target.value)}
-                      >
-                        <option value="">Select a discount</option>
-                        {financialDiscounts.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {selectedDiscount && (
-                      <div className="flex items-center gap-4">
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Value</div>
-                          <div className="flex h-10 items-center rounded-lg border border-slate-100 bg-slate-50 px-4 text-sm font-bold text-[#0B4EA2]">
-                            {`${selectedDiscount.value}%`}
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Status</div>
-                          <div className={[
-                            "flex h-10 items-center justify-center rounded-lg border px-4 text-xs font-bold",
-                            selectedDiscount.isActive ? "border-emerald-100 bg-emerald-50 text-emerald-600" : "border-rose-100 bg-rose-50 text-rose-600"
-                          ].join(" ")}>
-                            {selectedDiscount.isActive ? "✓ Active" : "✗ Inactive"}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
 
               <div className="mt-8 space-y-5">
                 <div className="rounded-2xl bg-[#FFECC2] px-5 py-4">
@@ -1093,18 +1048,8 @@ export function CheckInProcessModal({
                     setStep(3)
                   } else if (step === 3) {
                     if (onSubmitCheckIn) {
-                      const payload: PmsCheckInParams = {
-                        reservationId: reservationDetails?.reservationId ?? '',
-                        roomNumber: value.rooms[0]?.roomNumber ?? '',
-                        selectedServices: selectedService ? [{
-                          additionalServiceId: selectedService.id,
-                          quantity: selectedService.price
-                        }] : [],
-                        selectedDiscountIds: selectedDiscount ? [selectedDiscount.id] : []
-                      }
-
                       try {
-                        await onSubmitCheckIn(payload)
+                        await onSubmitCheckIn('')
                       } catch (err) {
                         console.error('Check-in submission failed:', err)
                         return
@@ -1127,5 +1072,20 @@ export function CheckInProcessModal({
         </div>
       </div>
     </Modal>
+
+      {/* Assignment Status Alert */}
+      <SuccessAlertModal
+        open={assignAlertOpen}
+        onClose={() => setAssignAlertOpen(false)}
+        icon={
+          assignAlertVariant === 'success' ? (
+            <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+          ) : (
+            <AlertCircle className="h-12 w-12 text-rose-600" />
+          )
+        }
+        message={assignAlertMessage}
+      />
+    </>
   )
 }

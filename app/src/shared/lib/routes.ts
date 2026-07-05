@@ -9,6 +9,7 @@ export const routes = {
   servicesRequests: '/services-requests',
   inHouseList: '/in-house-list',
   roomAllocation: '/room-allocation',
+  roomAllocationDetails: '/room-allocation/:id',
   salesRevenue: {
     dashboard: '/sales-revenue',
     rateCalendar: '/sales-revenue/rate-calendar',

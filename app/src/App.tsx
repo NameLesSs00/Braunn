@@ -10,6 +10,7 @@ import { ServicesRequestsPage } from './pages/servicesRequests/ServicesRequestsP
 import { ReportsPage } from './pages/reports/ReportsPage'
 import { InHouseListPage } from './pages/inHouseList/InHouseListPage'
 import { RoomAllocationPage } from './pages/roomAllocation/RoomAllocationPage'
+import { RoomAllocationDetailsPage } from './pages/roomAllocation/RoomAllocationDetailsPage'
 import { SalesRevenueDashboardPage } from './pages/salesRevenue/SalesRevenueDashboardPage'
 import { RateCalendarPage } from './pages/salesRevenue/RateCalendarPage'
 import { RoomTypesPage } from './pages/salesRevenue/RoomTypesPage'
@@ -70,6 +71,7 @@ export default function App() {
             <Route path={routes.servicesRequests} element={<ServicesRequestsPage />} />
             <Route path={routes.inHouseList} element={<InHouseListPage />} />
             <Route path={routes.roomAllocation} element={<RoomAllocationPage />} />
+            <Route path={routes.roomAllocationDetails} element={<RoomAllocationDetailsPage />} />
             <Route path={routes.salesRevenue.dashboard} element={<SalesRevenueDashboardPage />} />
             <Route path={routes.salesRevenue.rateCalendar} element={<RateCalendarPage />} />
             <Route path={routes.salesRevenue.roomTypes} element={<RoomTypesPage />} />

@@ -11,8 +11,6 @@ import { NewReservationModal } from '../../widgets/reservations/NewReservationMo
 import { FiLogIn } from "react-icons/fi";
 import { CgLogOut } from "react-icons/cg";
 import { GoSearch } from "react-icons/go";
-  //to be removed
-import { CheckInProcessPopup } from '../reservations/pupops/CheckInProcessPopup'
 
 import { MdAddCircleOutline } from "react-icons/md";
 interface StatCardProps {
@@ -221,56 +219,6 @@ export function DashboardPage() {
               setSearchReservationOpen(true)
             }}
           />
-        </div>
-      </div>
-
-      <div className="space-y-5">
-        <div className="text-sm font-semibold text-slate-800">Today's Activity</div>
-
-        <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <IconImage src={FiLogIn} alt="Pending Check-ins" className="h-5 w-5 text-green-500" />
-            <div className="text-sm font-medium text-slate-800">Pending Check-ins (1)</div>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 rounded-xl bg-emerald-50 px-5 py-4">
-            <div>
-              <div className="text-sm font-semibold text-slate-800">Emma Johnson</div>
-              <div className="mt-1 text-sm text-slate-600">Room 104</div>
-            </div>
-
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-3 text-sm font-semibold text-white"
-              
-            >
-              <IconImage src={FiLogIn} alt="Check in" className="h-4 w-4" />
-              check in
-            </button>
-          </div>
-        </div>
-        
-
-        <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <IconImage src={CgLogOut} alt="Pending Check-outs" className="h-5 w-5 text-rose-500" />
-            <div className="text-sm font-medium text-slate-800">Pending Check-outs (1)</div>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 rounded-xl bg-rose-50 px-5 py-4">
-            <div>
-              <div className="text-sm font-semibold text-slate-800">Emma Johnson</div>
-              <div className="mt-1 text-sm text-slate-600">Room 104</div>
-            </div>
-
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-6 py-3 text-sm font-semibold text-white"
-            >
-              <IconImage src={CgLogOut} alt="Check out" className="h-4 w-4" />
-              check out
-            </button>
-          </div>
         </div>
       </div>
       </div>

@@ -303,8 +303,10 @@ export interface LocalReservation {
   actualCheckOutDate: string;
   status: string;
   channelSource: string;
-  roomNumber: string;
+  roomNumber: string | null;
   roomTypeName: string;
+  reservationRoomIds?: string[];
+  reservationRooms?: any[];
   guest: LocalReservationGuest;
   companions: LocalReservationCompanion[];
   additionalServices: LocalReservationAdditionalService[];

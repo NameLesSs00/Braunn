@@ -71,6 +71,7 @@ export interface PmsReservationDetails extends PmsReservation {
   bookingSource: string
   guest: PmsGuest
   reservationRooms: PmsReservationRoom[]
+  reservationRoomIds: string[]
   createdAt: string
   companions: any[]
   guarantee: any | null

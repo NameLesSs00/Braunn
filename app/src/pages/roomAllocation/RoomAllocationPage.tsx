@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, Search, Loader2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronDown, Search } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
 import { fetchPmsReservations } from '../../features/pms/pmsSlice'
-import { assignRoom } from '../../features/ops/opsSlice'
+
 import type { PmsReservation } from '../../models/PmsReservation'
 
 type AllocationStatusFilter = 'All status' | 'Allocated' | 'Not Allocated'
@@ -36,6 +37,7 @@ function GuestDot({ name }: { name: string }) {
 }
 
 export function RoomAllocationPage() {
+  const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const pmsReservations = useAppSelector((s) => s.pms.reservations)
 
@@ -46,20 +48,7 @@ export function RoomAllocationPage() {
   const [arrivalDate, setArrivalDate] = useState('')
   const [reservationStatus, setReservationStatus] = useState<ReservationStatusFilter>('All status')
 
-  const [roomInputs, setRoomInputs] = useState<Record<string, string>>({})
-  const [allocatingIds, setAllocatingIds] = useState<Record<string, boolean>>({})
 
-  useEffect(() => {
-    if (pmsReservations) {
-      const initialInputs: Record<string, string> = {}
-      pmsReservations.forEach((r) => {
-        if (r.roomNumber) {
-          initialInputs[r.id] = r.roomNumber
-        }
-      })
-      setRoomInputs(initialInputs)
-    }
-  }, [pmsReservations])
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 
@@ -249,13 +238,11 @@ export function RoomAllocationPage() {
       </div>
 
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-100">
-        <div className="grid grid-cols-[0.9fr_1.3fr_0.6fr_0.9fr_0.9fr_0.6fr_0.8fr_1fr_1.2fr] bg-[#EAF2FF] px-5 py-3 text-[12px] font-bold text-slate-700">
-          <div>Res.Id</div>
+        <div className="grid grid-cols-[1.5fr_0.8fr_1.1fr_1.1fr_0.8fr_1fr_1.2fr] bg-[#EAF2FF] px-5 py-3 text-[12px] font-bold text-slate-700">
           <div>Guest</div>
           <div>Nights</div>
           <div>Arrival Date</div>
           <div>Departure Date</div>
-          <div>Guests</div>
           <div>Status</div>
           <div>Allocation</div>
           <div className="text-right">Action</div>
@@ -269,11 +256,10 @@ export function RoomAllocationPage() {
             <div
               key={`${r.id}-${idx}`}
               className={[
-                'grid grid-cols-[0.9fr_1.3fr_0.6fr_0.9fr_0.9fr_0.6fr_0.8fr_1fr_1.2fr] items-center px-5 py-3 text-[13px]',
+                'grid grid-cols-[1.5fr_0.8fr_1.1fr_1.1fr_0.8fr_1fr_1.2fr] items-center px-5 py-3 text-[13px]',
                 idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
               ].join(' ')}
             >
-              <div className="font-medium text-slate-700">{r.id}</div>
               <div className="flex items-center gap-2 text-slate-700">
                 <span className="truncate">{r.guestName}</span>
                 <GuestDot name={r.guestName} />
@@ -281,64 +267,30 @@ export function RoomAllocationPage() {
               <div className="text-slate-600">{nights}</div>
               <div className="text-slate-600">{formatDateForDisplay(r.checkInDate)}</div>
               <div className="text-slate-600">{formatDateForDisplay(r.checkOutDate)}</div>
-              <div className="text-slate-600">—</div>
               <div className="text-slate-600">{r.status}</div>
-              <div className="text-slate-600 flex items-center gap-1.5">
-                {isAllocated && (
-                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" title="Allocated" />
+              <div className="text-slate-600 flex items-center gap-1.5 font-medium">
+                {isAllocated ? (
+                  <>
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="text-emerald-700">Allocated</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="inline-block h-2 w-2 rounded-full bg-slate-300" />
+                    <span>Not Allocated</span>
+                  </>
                 )}
-                <input
-                  type="text"
-                  placeholder="Room No."
-                  className={[
-                    "h-8 w-20 rounded-lg border px-2 text-[12px] font-semibold outline-none transition-all",
-                    isAllocated 
-                      ? "border-emerald-100 bg-emerald-50/50 text-emerald-700 focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2]" 
-                      : "border-slate-200 bg-white text-slate-700 focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2]"
-                  ].join(" ")}
-                  value={roomInputs[r.id] ?? ''}
-                  onChange={(e) => setRoomInputs({ ...roomInputs, [r.id]: e.target.value })}
-                />
               </div>
               <div className="flex justify-end">
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 h-8 w-max whitespace-nowrap rounded-lg bg-[#0B4EA2] px-4 text-[12px] font-semibold text-white transition-colors hover:bg-[#0a3f85] disabled:bg-slate-300 disabled:cursor-not-allowed"
-                  disabled={allocatingIds[r.id] || !(roomInputs[r.id] ?? '')}
-                  onClick={async () => {
-                    const roomNo = roomInputs[r.id] ?? ''
-                    setAllocatingIds((prev) => ({ ...prev, [r.id]: true }))
-                    try {
-                      await dispatch(
-                        assignRoom({
-                          reservationId: r.id,
-                          roomNumber: roomNo,
-                        })
-                      ).unwrap()
-                      
-                      // Refresh reservations list
-                      await dispatch(
-                        fetchPmsReservations({
-                          startDate: computedDateRange.startDate,
-                          endDate: computedDateRange.endDate,
-                        })
-                      ).unwrap()
-                    } catch (error) {
-                      console.error('Room allocation failed:', error)
-                      alert('Failed to allocate room: ' + error)
-                    } finally {
-                      setAllocatingIds((prev) => ({ ...prev, [r.id]: false }))
-                    }
+                  className="flex items-center justify-center gap-1.5 h-8 w-28 whitespace-nowrap rounded-lg bg-[#0B4EA2] px-4 text-[12px] font-semibold text-white transition-colors hover:bg-[#0a3f85] disabled:bg-slate-300 disabled:cursor-not-allowed"
+                  disabled={r.status === 'CheckedIn'}
+                  onClick={() => {
+                    navigate(`/room-allocation/${r.id}`)
                   }}
                 >
-                  {allocatingIds[r.id] ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
-                      Allocating...
-                    </>
-                  ) : (
-                    'Allocate Room'
-                  )}
+                  Allocate Room
                 </button>
               </div>
             </div>
