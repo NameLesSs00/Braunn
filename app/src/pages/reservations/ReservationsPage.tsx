@@ -12,6 +12,7 @@ import { ExtendStayPopup } from './pupops/ExtendStayPopup'
 import { CheckInProcessPopup } from './pupops/CheckInProcessPopup'
 import { CheckOutProcessPopup } from './checkout/CheckOutProcessPopup'
 import { OtaReservationModal } from '../../widgets/reservations/OtaReservationModal/OtaReservationModal'
+import { MoveRoomPopup } from './pupops/MoveRoomPopup'
 
 const today = new Date().toISOString().split('T')[0]
 const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
@@ -96,6 +97,9 @@ export function ReservationsPage() {
 
   const [extendStayOpen, setExtendStayOpen] = useState(false)
   const [extendStayReservationId, setExtendStayReservationId] = useState<string | null>(null)
+
+  const [moveRoomOpen, setMoveRoomOpen] = useState(false)
+  const [moveRoomReservationId, setMoveRoomReservationId] = useState<string | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [roomTypeFilter, setRoomTypeFilter] = useState('all')
@@ -195,6 +199,15 @@ export function ReservationsPage() {
         open={extendStayOpen}
         onClose={closeExtendStay}
         reservationId={extendStayReservationId}
+      />
+
+      <MoveRoomPopup
+        open={moveRoomOpen}
+        onClose={() => {
+          setMoveRoomOpen(false)
+          setMoveRoomReservationId(null)
+        }}
+        reservationId={moveRoomReservationId}
       />
 
       <CheckInProcessPopup
@@ -454,16 +467,13 @@ export function ReservationsPage() {
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                        onClick={() => setOpenMenuForId(null)}
+                        onClick={() => {
+                          setOpenMenuForId(null)
+                          setMoveRoomReservationId(row.id)
+                          setMoveRoomOpen(true)
+                        }}
                       >
-                        Move Room Maintaince
-                      </button>
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                        onClick={() => setOpenMenuForId(null)}
-                      >
-                        Move Room Client Request
+                        Move Room
                       </button>
                     </div>
                   ) : null}
