@@ -176,7 +176,7 @@ function DateControl({ label, value, onChange }: { label: string; value: string;
         </span>
 
         {open ? (
-          <div className="absolute right-0 top-full z-20 mt-2 w-[300px] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+          <div className="absolute right-0 top-full z-50 mt-2 w-[300px] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
             <div className="mb-3 flex items-center justify-between">
               <button
                 type="button"
@@ -280,22 +280,6 @@ function blockTheme(type: RoomPlanBlock['type']) {
   }
 }
 
-function housekeepingPillTheme(status: HousekeepingStatus) {
-  if (status === 'clean') return 'bg-emerald-100 text-emerald-700'
-  return 'bg-rose-100 text-rose-700'
-}
-
-function roomStatusPillTheme(status: RoomStatus) {
-  const themes: Record<RoomStatus, string> = {
-    confirmed: 'bg-amber-100 text-amber-700',
-    checked_in: 'bg-emerald-100 text-emerald-700',
-    available: 'bg-slate-100 text-slate-700 border border-slate-200',
-    cleaning: 'bg-blue-100 text-blue-700',
-    maintained: 'bg-rose-100 text-rose-700',
-    dirty: 'bg-slate-200 text-slate-800',
-  }
-  return themes[status] || 'bg-slate-100 text-slate-700'
-}
 
 export function RoomPlanPage() {
   const { openNewReservation } = useNewReservationModal()

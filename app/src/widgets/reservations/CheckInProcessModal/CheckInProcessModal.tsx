@@ -77,6 +77,8 @@ export function CheckInProcessModal({
   const [assignAlertOpen, setAssignAlertOpen] = useState(false)
   const [assignAlertVariant, setAssignAlertVariant] = useState<'success' | 'error'>('success')
   const [assignAlertMessage, setAssignAlertMessage] = useState('')
+  const [roomAssignedSuccessfully, setRoomAssignedSuccessfully] = useState(false)
+  const [assignedRoomNumber, setAssignedRoomNumber] = useState<string | null>(null)
 
 
   useEffect(() => {
@@ -84,7 +86,10 @@ export function CheckInProcessModal({
     setStep(1)
     setIdVerified(false)
     setGuestInfoConfirmed(false)
-    // Pre-open assignment if room is already assigned is now handled by a separate effect
+    setAssignRoomOpen(false)
+    setConfirmingAssign(false)
+    setRoomAssignedSuccessfully(false)
+    setAssignedRoomNumber(null)
 
     // Set default dates: today and end of current month
     const now = new Date()
@@ -105,11 +110,7 @@ export function CheckInProcessModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  useEffect(() => {
-    if (reservationDetails?.roomNumber) {
-      setAssignRoomOpen(true)
-    }
-  }, [reservationDetails?.roomNumber])
+
 
   useEffect(() => {
     if (!open) return
@@ -361,54 +362,78 @@ export function CheckInProcessModal({
                 </div>
               </div>
 
-              {!reservationDetails?.roomNumber && (
-                <div className="mt-6 flex items-end justify-end">
-                  <div className="w-full max-w-[320px] text-right">
-                    <div className="mb-2 text-xs font-semibold text-slate-700">
-                      Room <span className="text-red-500">*</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="h-11 w-full rounded-xl border border-[#0B4EA2] bg-white text-sm font-semibold text-[#0B4EA2]"
-                      onClick={() => setAssignRoomOpen((p) => !p)}
-                    >
-                      Assign Room
-                    </button>
+              {/* Room allocation area — deterministic, no toggle dependency */}
+              {reservationDetails?.roomNumber ? (
+                // Already assigned from backend
+                <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600">Room Assigned</div>
+                    <div className="text-sm font-bold text-emerald-800">Room {reservationDetails.roomNumber}</div>
                   </div>
                 </div>
-              )}
-
-              {assignRoomOpen ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    {/* Room Type — read-only */}
-                    <div className="space-y-2">
-                      <div className="text-[12px] font-semibold text-slate-700">Room Type</div>
-                      <input
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
-                        value={reservationDetails?.roomTypeName ?? value.rooms[0]?.roomType ?? ''}
-                        disabled
-                        readOnly
-                      />
-                    </div>
-
-                    {/* Rate Plan — read-only */}
-                    <div className="space-y-2">
-                      <div className="text-[12px] font-semibold text-slate-700">Rate Plan</div>
-                      <input
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
-                        value={value.ratePlan ?? ''}
-                        disabled
-                      />
-                    </div>
+              ) : roomAssignedSuccessfully && assignedRoomNumber ? (
+                // Just assigned in this session
+                <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   </div>
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600">Room Assigned</div>
+                    <div className="text-sm font-bold text-emerald-800">Room {assignedRoomNumber}</div>
+                  </div>
+                </div>
+              ) : (
+                // No room yet — show Assign Room button and form
+                <>
+                  {!assignRoomOpen && (
+                    <div className="mt-6 flex items-end justify-end">
+                      <div className="w-full max-w-[320px] text-right">
+                        <div className="mb-2 text-xs font-semibold text-slate-700">
+                          Room <span className="text-red-500">*</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="h-11 w-full rounded-xl border border-[#0B4EA2] bg-white text-sm font-semibold text-[#0B4EA2]"
+                          onClick={() => setAssignRoomOpen(true)}
+                        >
+                          Assign Room
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Room Number */}
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-[12px] font-semibold text-slate-700">Room Number</div>
-                      {!reservationDetails?.roomNumber && (
-                        <>
+                  {assignRoomOpen && (
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {/* Room Type — read-only */}
+                        <div className="space-y-2">
+                          <div className="text-[12px] font-semibold text-slate-700">Room Type</div>
+                          <input
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                            value={reservationDetails?.roomTypeName ?? value.rooms[0]?.roomType ?? ''}
+                            disabled
+                            readOnly
+                          />
+                        </div>
+
+                        {/* Rate Plan — read-only */}
+                        <div className="space-y-2">
+                          <div className="text-[12px] font-semibold text-slate-700">Rate Plan</div>
+                          <input
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                            value={value.ratePlan ?? ''}
+                            disabled
+                          />
+                        </div>
+                      </div>
+
+                      {/* Room Number */}
+                      <div className="mt-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-[12px] font-semibold text-slate-700">Room Number</div>
                           {roomsAvailabilityStatus === 'loading' ? (
                             <div className="text-[10px] text-slate-400">Checking availability...</div>
                           ) : roomsAvailabilityStatus === 'succeeded' ? (
@@ -416,110 +441,105 @@ export function CheckInProcessModal({
                               {roomsAvailability.length} rooms available
                             </div>
                           ) : null}
-                        </>
-                      )}
-                    </div>
-                    
-                    {reservationDetails?.roomNumber ? (
-                      <input
-                        className="h-11 w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 outline-none"
-                        value={`Assigned Room: ${reservationDetails.roomNumber}`}
-                        disabled
-                        readOnly
-                      />
-                    ) : (
-                      <select
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none disabled:bg-slate-50"
-                        value={selectedRoomId ?? ''}
-                        disabled={roomsAvailabilityStatus === 'loading'}
-                        onChange={(e) => {
-                          const nextRoomId = e.target.value
-                          const room = filteredRooms.find((r) => r.id === nextRoomId)
-                          const nextRoomNumber = room?.roomNumber ?? ''
-                          onChangeSelectedRoomId?.(nextRoomId)
-                          onChange({
-                            rooms: value.rooms.map((r, idx) => (idx === 0 ? { ...r, roomNumber: nextRoomNumber } : r)),
-                          })
-                          setConfirmingAssign(false)
-                        }}
-                      >
-                        <option value="" disabled>
-                          {roomsAvailabilityStatus === 'loading' ? 'Loading available rooms...' : 'Select room number'}
-                        </option>
-                        {filteredRooms.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.roomNumber}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
+                        </div>
 
-                  {/* Confirm button */}
-                  {!reservationDetails?.roomNumber && selectedRoomId && !confirmingAssign && (
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        className="w-full rounded-xl bg-[#0B4EA2] py-2.5 text-sm font-semibold text-white hover:bg-[#093d81] transition-colors"
-                        onClick={() => setConfirmingAssign(true)}
-                      >
-                        Confirm
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Inline confirmation dialog */}
-                  {confirmingAssign && (
-                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                      <div className="mb-3 text-sm font-semibold text-slate-800">
-                        Are you sure you want to allocate this room?
-                      </div>
-                      <div className="flex gap-3">
-                        <button
-                          type="button"
-                          className="flex-1 rounded-xl bg-[#0B4EA2] py-2.5 text-sm font-semibold text-white hover:bg-[#093d81] disabled:opacity-60 transition-colors"
-                          disabled={isAssigning}
-                          onClick={async () => {
-                            const reservationRoomId = reservationDetails?.reservationRoomId
-                            const roomIdToAssign = selectedRoomId ?? ''
-                            if (!reservationRoomId || !roomIdToAssign) {
-                              alert(`Missing data! reservationRoomId: ${reservationRoomId}, roomId: ${roomIdToAssign}`)
-                              return
-                            }
-                            setIsAssigning(true)
-                            try {
-                              await dispatch(assignReservationRoom({
-                                reservationRoomId,
-                                roomId: roomIdToAssign,
-                                notes: '',
-                              })).unwrap()
-                              setAssignAlertVariant('success')
-                              setAssignAlertMessage('Room has been allocated successfully!')
-                            } catch (e) {
-                              setAssignAlertVariant('error')
-                              setAssignAlertMessage(typeof e === 'string' ? e : 'Failed to allocate room.')
-                            } finally {
-                              setIsAssigning(false)
-                              setConfirmingAssign(false)
-                              setAssignAlertOpen(true)
-                            }
+                        <select
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none disabled:bg-slate-50"
+                          value={selectedRoomId ?? ''}
+                          disabled={roomsAvailabilityStatus === 'loading'}
+                          onChange={(e) => {
+                            const nextRoomId = e.target.value
+                            const room = filteredRooms.find((r) => r.id === nextRoomId)
+                            const nextRoomNumber = room?.roomNumber ?? ''
+                            onChangeSelectedRoomId?.(nextRoomId)
+                            onChange({
+                              rooms: value.rooms.map((r, idx) => (idx === 0 ? { ...r, roomNumber: nextRoomNumber } : r)),
+                            })
+                            setConfirmingAssign(false)
                           }}
                         >
-                          {isAssigning ? 'Allocating...' : 'Yes, Confirm'}
-                        </button>
-                        <button
-                          type="button"
-                          className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                          onClick={() => setConfirmingAssign(false)}
-                          disabled={isAssigning}
-                        >
-                          Cancel
-                        </button>
+                          <option value="" disabled>
+                            {roomsAvailabilityStatus === 'loading' ? 'Loading available rooms...' : 'Select room number'}
+                          </option>
+                          {filteredRooms.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.roomNumber}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+
+                      {/* Confirm button */}
+                      {selectedRoomId && !confirmingAssign && (
+                        <div className="mt-4">
+                          <button
+                            type="button"
+                            className="w-full rounded-xl bg-[#0B4EA2] py-2.5 text-sm font-semibold text-white hover:bg-[#093d81] transition-colors"
+                            onClick={() => setConfirmingAssign(true)}
+                          >
+                            Confirm
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Inline confirmation dialog */}
+                      {confirmingAssign && (
+                        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                          <div className="mb-3 text-sm font-semibold text-slate-800">
+                            Are you sure you want to allocate this room?
+                          </div>
+                          <div className="flex gap-3">
+                            <button
+                              type="button"
+                              className="flex-1 rounded-xl bg-[#0B4EA2] py-2.5 text-sm font-semibold text-white hover:bg-[#093d81] disabled:opacity-60 transition-colors"
+                              disabled={isAssigning}
+                              onClick={async () => {
+                                const reservationRoomId = reservationDetails?.reservationRoomId
+                                const roomIdToAssign = selectedRoomId ?? ''
+                                if (!reservationRoomId || !roomIdToAssign) {
+                                  alert(`Missing data! reservationRoomId: ${reservationRoomId}, roomId: ${roomIdToAssign}`)
+                                  return
+                                }
+                                setIsAssigning(true)
+                                try {
+                                  await dispatch(assignReservationRoom({
+                                    reservationRoomId,
+                                    roomId: roomIdToAssign,
+                                    notes: '',
+                                  })).unwrap()
+                                  const room = filteredRooms.find((r) => r.id === roomIdToAssign)
+                                  setAssignedRoomNumber(room?.roomNumber ?? '')
+                                  setRoomAssignedSuccessfully(true)
+                                  setAssignRoomOpen(false)
+                                  setAssignAlertVariant('success')
+                                  setAssignAlertMessage('Room has been allocated successfully!')
+                                } catch (e) {
+                                  setAssignAlertVariant('error')
+                                  setAssignAlertMessage(typeof e === 'string' ? e : 'Failed to allocate room.')
+                                } finally {
+                                  setIsAssigning(false)
+                                  setConfirmingAssign(false)
+                                  setAssignAlertOpen(true)
+                                }
+                              }}
+                            >
+                              {isAssigning ? 'Allocating...' : 'Yes, Confirm'}
+                            </button>
+                            <button
+                              type="button"
+                              className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                              onClick={() => setConfirmingAssign(false)}
+                              disabled={isAssigning}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              ) : null}
+                </>
+              )}
 
 
               <div className="mt-8 space-y-5">

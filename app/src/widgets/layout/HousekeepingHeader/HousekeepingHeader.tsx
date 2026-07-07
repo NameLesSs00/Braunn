@@ -8,12 +8,13 @@ import { FaBell } from 'react-icons/fa6'
 import { IconImage } from '../../../shared/ui/IconImage'
 import { ShiftCloseModal } from '../../../features/shiftClose'
 import { ShiftStartModal } from '../../../features/shiftStart'
+import { selectIsShiftActive } from '../../../features/shift/shiftSlice'
 
 export function HousekeepingHeader() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const notifications = useAppSelector((state) => state.notifications.items)
-  const isShiftActive = useAppSelector((state) => state.shift.isShiftActive)
+  const isShiftActive = useAppSelector(selectIsShiftActive)
 
   const [profileOpen, setProfileOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)

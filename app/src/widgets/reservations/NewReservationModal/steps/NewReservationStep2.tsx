@@ -254,7 +254,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
     let total = 0
     const policies = roomRates.childPolicies || []
     const fallbackChildrenPrice = roomRates.childrenPriceAfterTax || 0
-    
+
     for (let i = 0; i < value.childCount; i++) {
       const age = value.childAges?.[i] || 0
       const policy = policies.find(p => age >= p.ageFrom && age <= p.ageTo)
@@ -861,7 +861,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
                     return (
                       <tr key={extra.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-3 py-2 w-48 align-top">
-                        <InputControl
+                          <InputControl
                             type="date"
                             value={extra.serviceDate ? extra.serviceDate.split('T')[0] : ''}
                             onChange={(v) => updateExtra(extra.id, { serviceDate: v })}

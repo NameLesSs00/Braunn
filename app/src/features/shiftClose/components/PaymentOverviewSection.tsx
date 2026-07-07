@@ -25,17 +25,21 @@ export function PaymentOverviewSection({ data, onCountedAmountChange }: Props) {
       {/* System Total vs Counted */}
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="text-[11px] text-slate-400">System Total</p>
+          <p className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">System Total</p>
           <p className="mt-1 text-[20px] font-bold text-slate-800">${data.systemTotal.toFixed(2)}</p>
         </div>
-        <div className="rounded-xl border-2 border-[#BEDBFF] bg-white px-4 py-3">
-          <p className="text-[11px] text-[##4A5565] font-medium">Counted Amount (Editable)</p>
-          <input
-            type="text"
-            className="mt-1 w-full bg-transparent text-[20px] font-bold text-slate-800 outline-none"
-            value={countedInput}
-            onChange={handleCountedChange}
-          />
+        <div className="rounded-xl border-2 border-emerald-400 bg-white px-4 py-3 shadow-sm transition-all focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-100/50">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Enter Counted Cash</p>
+          <div className="mt-1 flex items-center">
+            <span className="mr-1 text-[20px] font-bold text-slate-400">$</span>
+            <input
+              type="number"
+              className="w-full bg-transparent text-[20px] font-bold text-slate-800 outline-none placeholder:text-slate-200"
+              placeholder="0.00"
+              value={countedInput}
+              onChange={handleCountedChange}
+            />
+          </div>
         </div>
       </div>
 

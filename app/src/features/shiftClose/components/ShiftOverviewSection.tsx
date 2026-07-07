@@ -1,4 +1,4 @@
-import { Clock, CalendarCheck, Users, DollarSign, UserCircle, CheckCircle, ArrowRightLeft } from 'lucide-react'
+import { Clock, UserCircle } from 'lucide-react'
 import type { ShiftOverview } from '../types'
 
 type Props = {
@@ -6,12 +6,6 @@ type Props = {
 }
 
 export function ShiftOverviewSection({ data }: Props) {
-  const stats = [
-    { icon: CalendarCheck, label: 'Reservations', value: data.reservations },
-    { icon: Users,         label: 'Check-ins',    value: data.checkIns },
-    { icon: ArrowRightLeft,label: 'Check-outs',   value: data.checkOuts },
-    { icon: DollarSign,    label: 'Revenue',      value: `$${data.revenue}` },
-  ]
 
   return (
     <section>
@@ -41,18 +35,6 @@ export function ShiftOverviewSection({ data }: Props) {
         </span>
       </div>
 
-      {/* Stats row */}
-      <div className="mt-4 grid grid-cols-4 gap-3">
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-center">
-            <div className="mx-auto mb-1 flex items-center justify-center gap-1 text-slate-400">
-              <s.icon className="h-3.5 w-3.5" />
-              <span className="text-[11px]">{s.label}</span>
-            </div>
-            <p className="text-[18px] font-bold text-slate-800">{s.value}</p>
-          </div>
-        ))}
-      </div>
     </section>
   )
 }

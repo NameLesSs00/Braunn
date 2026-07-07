@@ -9,6 +9,7 @@ import { Notification, removeNotification } from '../../../features/notification
 import { IconImage } from '../../../shared/ui/IconImage'
 import { ShiftCloseModal } from '../../../features/shiftClose'
 import { ShiftStartModal } from '../../../features/shiftStart'
+import { selectIsShiftActive } from '../../../features/shift/shiftSlice'
 import { IoPerson } from "react-icons/io5";
 import { FaBell } from "react-icons/fa6";
 
@@ -28,7 +29,7 @@ export function Header({ title, onAddReservationClick }: Props) {
   const [shiftCloseOpen, setShiftCloseOpen] = useState(false)
   const [shiftStartOpen, setShiftStartOpen] = useState(false)
 
-  const isShiftActive = useAppSelector((state) => state.shift.isShiftActive)
+  const isShiftActive = useAppSelector(selectIsShiftActive)
 
   const profileRef = useRef<HTMLDivElement | null>(null)
   const notificationsRef = useRef<HTMLDivElement | null>(null)

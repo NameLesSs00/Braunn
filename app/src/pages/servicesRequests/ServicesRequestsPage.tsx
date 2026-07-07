@@ -59,9 +59,7 @@ type Service = {
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
-const REQUEST_TYPES: RequestType[] = [
-  'Extra Towels', 'Room Cleaning', 'Maintenance', 'Food Order', 'WiFi Support', 'Other',
-]
+
 
 const ALL_DEPARTMENTS: Department[] = [
   'Housekeeping', 'F&B', 'IT Services', 'Front Desk', 'Guest Assistance', 'Maintenance',
@@ -69,25 +67,9 @@ const ALL_DEPARTMENTS: Department[] = [
 
 const ALL_STATUSES: ReqStatus[] = ['Pending', 'In Progress', 'Done', 'Cancelled']
 
-function now(): { date: string; dateTime: string } {
-  const d = new Date()
-  const date = d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-  const dateTime = d.toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-  })
-  return { date, dateTime }
-}
 
-const INITIAL_REQUESTS: Request[] = [
-  { id: 'Q01', guestName: 'N/A', roomNumber: '102', department: 'Housekeeping',     requestType: 'Extra Towels',  priority: 'Urgent', date: '12/22/2025', dateTime: 'Dec 22, 2025, 10:00 AM', quantity: 1, status: 'Pending', notes: '' },
-  { id: 'Q02', guestName: 'N/A', roomNumber: '102', department: 'Housekeeping',     requestType: 'Room Cleaning', priority: 'Normal', date: '12/22/2025', dateTime: 'Dec 22, 2025, 10:30 AM', quantity: 1, status: 'Pending', notes: '' },
-  { id: 'Q03', guestName: 'N/A', roomNumber: '102', department: 'Housekeeping',     requestType: 'Extra Towels',  priority: 'Urgent', date: '12/22/2025', dateTime: 'Dec 22, 2025, 11:00 AM', quantity: 1, status: 'Pending', notes: '' },
-  { id: 'Q04', guestName: 'N/A', roomNumber: '205', department: 'F&B',              requestType: 'Food Order',    priority: 'Normal', date: '12/22/2025', dateTime: 'Dec 22, 2025, 12:00 PM', quantity: 1, status: 'Pending', notes: '' },
-  { id: 'Q05', guestName: 'N/A', roomNumber: '205', department: 'F&B',              requestType: 'Food Order',    priority: 'Urgent', date: '12/22/2025', dateTime: 'Dec 22, 2025, 12:30 PM', quantity: 1, status: 'Pending', notes: '' },
-  { id: 'Q06', guestName: 'N/A', roomNumber: '301', department: 'IT Services',      requestType: 'WiFi Support',  priority: 'Normal', date: '12/22/2025', dateTime: 'Dec 22, 2025, 2:00 PM',  quantity: 1, status: 'Pending', notes: '' },
-  { id: 'Q07', guestName: 'N/A', roomNumber: '301', department: 'Front Desk',       requestType: 'Other',         priority: 'Urgent', date: '12/22/2025', dateTime: 'Dec 22, 2025, 3:00 PM',  quantity: 1, status: 'Pending', notes: '' },
-  { id: 'Q08', guestName: 'N/A', roomNumber: '401', department: 'Guest Assistance', requestType: 'Other',         priority: 'Normal', date: '12/22/2025', dateTime: 'Dec 22, 2025, 4:00 PM',  quantity: 1, status: 'Pending', notes: '' },
-]
+
+
 
 function formatDate(dateStr?: string) {
   if (!dateStr) return '-------'
@@ -129,9 +111,7 @@ function statusPillClass(s: ReqStatus) {
   }
 }
 
-function genId() {
-  return `REQ-${Date.now()}-${Math.floor(Math.random() * 10000)}`
-}
+
 
 // ─── Modal wrapper ────────────────────────────────────────────────────────────
 
@@ -158,16 +138,7 @@ function getCurrentDateTimeString(): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
-function formatSubmitDate(dStr: string) {
-  const d = new Date(dStr)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  const seconds = String(d.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-}
+
 
 // ─── New Request Modal ────────────────────────────────────────────────────────
 
@@ -577,6 +548,10 @@ function RequestsTab({
   onView: (r: Request) => void
 }) {
   const [page, setPage] = useState(1)
+  const [query, setQuery] = useState('')
+  const [date, setDate] = useState('')
+  const [department, setDepartment] = useState('all')
+  const [statusVal, setStatusVal] = useState('all')
   const pageSize = 8
 
   const rows = useMemo(() => {
@@ -1172,13 +1147,7 @@ export function ServicesRequestsPage() {
   const [detailsOpen, setDetailsOpen]       = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
 
-  function handleSubmitRequest(req: Request) {
-    setLocalRequests((prev) => [req, ...prev])
-    setNewOpen(false)
-    // immediately show the details popup for the new request
-    setSelectedRequest(req)
-    setDetailsOpen(true)
-  }
+
 
   function handleViewRequest(req: Request) {
     setSelectedRequest(req)

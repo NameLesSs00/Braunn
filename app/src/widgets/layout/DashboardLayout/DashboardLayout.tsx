@@ -9,6 +9,7 @@ import { NewReservationModalProvider } from './NewReservationModalContext'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { addNotification, removeNotification } from '../../../features/notifications/notificationsSlice'
 import { ShiftStartModal } from '../../../features/shiftStart'
+import { selectIsShiftActive, fetchBusinessDate, fetchCurrentShift } from '../../../features/shift/shiftSlice'
 import { SelectReservationTypeModal } from '../../reservations/SelectReservationTypeModal/SelectReservationTypeModal'
 import { OtaReservationModal } from '../../reservations/OtaReservationModal/OtaReservationModal'
 import { useEffect } from 'react'
@@ -43,12 +44,19 @@ export function DashboardLayout() {
   const [otaReservationOpen, setOtaReservationOpen] = useState(false)
   const [shiftStartOpen, setShiftStartOpen] = useState(false)
 
-  const isShiftActive = useAppSelector((state) => state.shift.isShiftActive)
+  const isShiftActive = useAppSelector(selectIsShiftActive)
+  const shiftStatus = useAppSelector((state) => state.shift.shiftStatus)
   const notifications = useAppSelector((state) => state.notifications.items)
 
+  // ── Bootstrap: fetch server time + active shift once on app mount ──────────
   useEffect(() => {
-    // If shift is not active and no shift_start notification exists, add one
-    if (!isShiftActive) {
+    void dispatch(fetchBusinessDate())
+    void dispatch(fetchCurrentShift())
+  }, [dispatch])
+
+  useEffect(() => {
+    // If shift is not active (and we are done loading) and no shift_start notification exists, add one
+    if (!isShiftActive && shiftStatus !== 'idle' && shiftStatus !== 'loading') {
       const hasShiftNotification = notifications.some((n) => n.type === 'shift_start')
       if (!hasShiftNotification) {
         dispatch(
@@ -66,6 +74,7 @@ export function DashboardLayout() {
     }
   }, [isShiftActive, notifications, dispatch, removeNotification])
 
+
   return (
     <div className="h-screen overflow-hidden bg-[#F6F8FC]">
       <NewReservationModalProvider value={{ openNewReservation: () => setNewReservationOpen(true) }}>
@@ -75,7 +84,7 @@ export function DashboardLayout() {
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            {!isShiftActive && (
+            {(!isShiftActive && shiftStatus !== 'idle' && shiftStatus !== 'loading') && (
               <div 
                 className="flex cursor-pointer items-center justify-center gap-3 bg-amber-400 px-8 py-2.5 text-center transition-colors hover:bg-amber-500"
                 onClick={() => setShiftStartOpen(true)}
