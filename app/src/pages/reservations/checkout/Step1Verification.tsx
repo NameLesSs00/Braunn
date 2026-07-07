@@ -35,7 +35,13 @@ export function Step1Verification({ reservation, onNext, onBack }: Props) {
     setLoading(true)
     getPmsReservationById(reservation.id, controller.signal)
       .then(setDetails)
-      .finally(() => setLoading(false))
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name === 'AbortError') return
+        // non-abort errors: just leave details null, component will show what it can
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
     return () => controller.abort()
   }, [reservation.id])
 

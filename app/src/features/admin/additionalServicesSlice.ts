@@ -1,6 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import * as api from '../../shared/apis/AdditionalServices'
-import type { AdditionalService, CreateAdditionalServiceRequest } from '../../models/AdditionalService'
+import type {
+  AdditionalService,
+  CreateAdditionalServiceRequest,
+  UpdateAdditionalServiceRequest,
+} from '../../models/AdditionalService'
 
 interface AdditionalServicesState {
   items: AdditionalService[]
@@ -30,10 +34,36 @@ export const addAdditionalService = createAsyncThunk(
   'additionalServices/addAdditionalService',
   async (data: CreateAdditionalServiceRequest, thunkApi) => {
     try {
-      await api.createAdditionalService(data)
-      return await api.getAdditionalServices()
+      const created = await api.createAdditionalService(data)
+      return created
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to create additional service'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
+export const updateAdditionalService = createAsyncThunk(
+  'additionalServices/updateAdditionalService',
+  async ({ id, data }: { id: string; data: UpdateAdditionalServiceRequest }, thunkApi) => {
+    try {
+      await api.updateAdditionalService(id, data)
+      return { id, data }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to update additional service'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
+export const deleteAdditionalService = createAsyncThunk(
+  'additionalServices/deleteAdditionalService',
+  async (id: string, thunkApi) => {
+    try {
+      await api.deleteAdditionalService(id)
+      return id
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to delete additional service'
       return thunkApi.rejectWithValue(message)
     }
   }
@@ -45,10 +75,11 @@ const additionalServicesSlice = createSlice({
   reducers: {
     clearError(state) {
       state.error = undefined
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
+      // ── Fetch ────────────────────────────────────────────────────────────────
       .addCase(fetchAdditionalServices.pending, (state) => {
         state.status = 'loading'
         state.error = undefined
@@ -61,9 +92,24 @@ const additionalServicesSlice = createSlice({
         state.status = 'failed'
         state.error = (action.payload as string | undefined) ?? action.error.message
       })
+
+      // ── Create ───────────────────────────────────────────────────────────────
       .addCase(addAdditionalService.fulfilled, (state, action) => {
-        state.status = 'succeeded'
-        state.items = action.payload as AdditionalService[]
+        state.items.push(action.payload as AdditionalService)
+      })
+
+      // ── Update ───────────────────────────────────────────────────────────────
+      .addCase(updateAdditionalService.fulfilled, (state, action) => {
+        const { id, data } = action.payload
+        const idx = state.items.findIndex((s) => s.id === id)
+        if (idx !== -1) {
+          state.items[idx] = { ...state.items[idx], ...data }
+        }
+      })
+
+      // ── Delete ───────────────────────────────────────────────────────────────
+      .addCase(deleteAdditionalService.fulfilled, (state, action) => {
+        state.items = state.items.filter((s) => s.id !== action.payload)
       })
   },
 })

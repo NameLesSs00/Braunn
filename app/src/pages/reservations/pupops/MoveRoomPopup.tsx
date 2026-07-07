@@ -11,11 +11,29 @@ type Props = {
 
 export function MoveRoomPopup({ open, onClose, reservationId }: Props) {
   const pmsReservations = useAppSelector((s) => s.pms.reservations)
+  const inHouseReservations = useAppSelector((s) => s.pms.inHouseReservations)
 
   const reservation = useMemo(() => {
     if (!reservationId) return null
-    return pmsReservations.find((r) => r.id === reservationId) || null
-  }, [reservationId, pmsReservations])
+    const reservation = pmsReservations.find((r) => r.id === reservationId)
+    if (reservation) return reservation
+
+    const inHouseReservation = inHouseReservations.find((r) => r.reservationId === reservationId)
+    if (!inHouseReservation) return null
+
+    return {
+      id: inHouseReservation.reservationId,
+      guestName: inHouseReservation.guestFullName,
+      roomNumber: inHouseReservation.roomNumber,
+      roomTypeName: inHouseReservation.roomTypeName,
+      checkInDate: inHouseReservation.checkInDate,
+      checkOutDate: inHouseReservation.checkOutDate,
+      status: inHouseReservation.status,
+      totalAmount: inHouseReservation.remainingBalance,
+      paidAmount: 0,
+      channelName: null,
+    }
+  }, [reservationId, pmsReservations, inHouseReservations])
 
   return (
     <MoveRoomModal

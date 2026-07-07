@@ -14,8 +14,14 @@ import { CheckOutProcessPopup } from './checkout/CheckOutProcessPopup'
 import { OtaReservationModal } from '../../widgets/reservations/OtaReservationModal/OtaReservationModal'
 import { MoveRoomPopup } from './pupops/MoveRoomPopup'
 
-const today = new Date().toISOString().split('T')[0]
-const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
+const getLocalYYYYMMDD = (d: Date = new Date()) => {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+const today = getLocalYYYYMMDD()
+const lastDayOfMonth = getLocalYYYYMMDD(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0))
 
 function formatDateForDisplay(isoDate: string): string {
   if (!isoDate) return '—'
@@ -250,11 +256,11 @@ export function ReservationsPage() {
           <div className="text-sm font-semibold text-slate-600">{filteredRows.length} results</div>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div className="space-y-2">
-            <div className="text-[12px] font-semibold text-slate-700">Status</div>
+        <div className="mt-5 flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[120px] space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</div>
             <select
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-600 outline-none"
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -266,10 +272,10 @@ export function ReservationsPage() {
             </select>
           </div>
 
-          <div className="space-y-2">
-            <div className="text-[12px] font-semibold text-slate-700">Room Type</div>
+          <div className="flex-1 min-w-[120px] space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Room Type</div>
             <select
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-600 outline-none"
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none"
               value={roomTypeFilter}
               onChange={(e) => setRoomTypeFilter(e.target.value)}
             >
@@ -280,10 +286,10 @@ export function ReservationsPage() {
             </select>
           </div>
 
-          <div className="space-y-2">
-            <div className="text-[12px] font-semibold text-slate-700">Payment Status</div>
+          <div className="flex-1 min-w-[120px] space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Payment</div>
             <select
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-600 outline-none"
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none"
               value={paymentStatusFilter}
               onChange={(e) => setPaymentStatusFilter(e.target.value)}
             >
@@ -293,11 +299,11 @@ export function ReservationsPage() {
             </select>
           </div>
 
-          <div className="space-y-2">
-            <div className="text-[12px] font-semibold text-slate-700">Check-in from</div>
+          <div className="flex-1 min-w-[130px] space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Check-in From</div>
             <div className="relative">
               <input
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 pr-10 text-sm text-slate-600 outline-none placeholder:text-slate-400"
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none placeholder:text-slate-400"
                 placeholder="YYYY-MM-DD"
                 type="date"
                 value={checkInFrom}
@@ -306,21 +312,17 @@ export function ReservationsPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="text-[12px] font-semibold text-slate-700">Check-in To</div>
+          <div className="flex-1 min-w-[130px] space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Check-in To</div>
             <div className="relative">
               <input
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 pr-10 text-sm text-slate-600 outline-none placeholder:text-slate-400"
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none placeholder:text-slate-400"
                 placeholder="YYYY-MM-DD"
                 type="date"
                 value={checkInTo}
                 onChange={(e) => setCheckInTo(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="flex items-end justify-end md:col-span-1">
-            <Pagination page={safePage} pages={pages} onChange={setPage} />
           </div>
         </div>
 
@@ -343,7 +345,7 @@ export function ReservationsPage() {
         </div>
       </div>
 
-      <div className="bg-white pb-32">
+      <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
         <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_.7fr_.9fr_1fr_.8fr_1.2fr] bg-[#EAF2FF] px-6 py-3 text-[12px] font-semibold text-slate-700">
           <div>Guest</div>
           <div>Room</div>
@@ -356,9 +358,18 @@ export function ReservationsPage() {
           <div className="text-center">Action</div>
         </div>
 
-        <div>
-          {pageRows.map((row: PmsReservation, idx) => {
-            const statusLabel = row.status
+        <div className="min-h-[360px] flex flex-col">
+          {pageRows.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
+              <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
+                <IoSearchSharp className="h-6 w-6" />
+              </div>
+              <h3 className="text-[15px] font-semibold text-slate-700">No reservations found</h3>
+              <p className="mt-1 text-sm text-slate-500">Try adjusting your filters or date range.</p>
+            </div>
+          ) : (
+            pageRows.map((row: PmsReservation, idx) => {
+              const statusLabel = row.status
             const paymentLabel = row.paidAmount >= row.totalAmount ? 'Fully Paid' : row.paidAmount > 0 ? 'deposit paid' : 'Unpaid'
 
             const isCheckInToday = row.checkInDate.startsWith(today)
@@ -480,7 +491,13 @@ export function ReservationsPage() {
                 </div>
               </div>
             )
-          })}
+          }))}
+        </div>
+        <div className="mt-4 flex justify-between items-center px-6 pb-5">
+          <div className="text-[13px] text-slate-500 font-medium">
+            Showing {pageRows.length} of {filteredRows.length} reservations
+          </div>
+          <Pagination page={safePage} pages={pages} onChange={setPage} />
         </div>
       </div>
     </div>

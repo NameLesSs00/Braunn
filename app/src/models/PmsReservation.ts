@@ -9,6 +9,24 @@ export interface PmsReservation {
   totalAmount: number
   paidAmount: number
   channelName: string | null
+  // New fields from /local/reservations/by-date
+  bookingReference?: string | null
+  guestId?: string
+  guest?: any
+  roomId?: string
+  roomTypeId?: string
+  roomType?: any
+  actualCheckOutDate?: string | null
+  bookingSource?: string
+  reservationType?: string
+  corporateAccountId?: string | null
+  groupContractId?: string | null
+  couponCode?: string | null
+  baseRateAtBooking?: number
+  remainingAmount?: number
+  currency?: string
+  createdAt?: string
+  localFinance?: any
 }
 
 export interface PmsGuest {
@@ -100,4 +118,101 @@ export interface PmsInHouseReservation {
   checkOutDate: string
   remainingBalance: number
   status: string
+}
+
+// ─── Folio endpoint types (GET /api/pms/reservations/{id}/folio) ───────────
+
+export interface FolioCharge {
+  roomNumber: string | null
+  department: string
+  description: string
+  postingDate: string
+  quantity: number
+  unitAmount: number
+  amountBeforeTax: number
+  taxAmount: number
+  amountAfterTax: number
+  isVoided: boolean
+  isPostedToFolio: boolean
+  externalReference: string | null
+}
+
+export interface FolioPayment {
+  paymentDate: string
+  paymentMethod: string
+  amount: number
+  reference: string
+  status: string
+}
+
+export interface FolioTotals {
+  roomChargesTotal: number
+  serviceChargesTotal: number
+  mealChargesTotal: number
+  packageChargesTotal: number
+  manualChargesTotal: number
+  taxTotal: number
+  chargesTotal: number
+  paymentsTotal: number
+  remainingBalance: number
+  paymentStatus: string
+}
+
+export interface FolioRateRateLine {
+  ratePlanCode: string
+  startDate: string
+  endDate: string
+  amountAfterTax: number
+}
+
+export interface FolioService {
+  serviceDate: string
+  serviceName: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+}
+
+export interface FolioMealPlan {
+  mealPlanCode: string
+  mealPlanName: string
+  pricePerDay: number
+  numberOfNights: number
+  totalCost: number
+  serviceDateStart: string
+  serviceDateEnd: string
+}
+
+export interface FolioDiscount {
+  discountName: string
+  calculatedAmount: number
+}
+
+export interface PmsReservationFolio {
+  roomNumbers: string[]
+  charges: FolioCharge[]
+  payments: FolioPayment[]
+  totals: FolioTotals
+  guestName: string
+  roomNumber: string
+  roomTypeName: string
+  channelName: string
+  externalReservationId: string | null
+  rateTigerConfirmedId: string | null
+  currency: string
+  checkInDate: string
+  checkOutDate: string
+  numberOfNights: number
+  totalRoomRate: number
+  roomRateLines: FolioRateRateLine[]
+  totalAdditionalServices: number
+  services: FolioService[]
+  totalMealPlanCost: number
+  mealPlans: FolioMealPlan[]
+  totalDiscounts: number
+  discounts: FolioDiscount[]
+  grandTotal: number
+  paidAmount: number
+  remainingBalance: number
+  paymentStatus: string
 }

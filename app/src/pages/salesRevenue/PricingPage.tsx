@@ -65,6 +65,8 @@ export function PricingPage() {
   const [localEndDate, setLocalEndDate] = useState(nextWeek)
   const [localRoomTypeId, setLocalRoomTypeId] = useState('')
   const [localRatePlanCode, setLocalRatePlanCode] = useState('')
+  const [localAdults, setLocalAdults] = useState(2)
+  const [localChildren, setLocalChildren] = useState(0)
 
   // OTA Pricing tab filter state
   const [otaRoomTypeCode, setOtaRoomTypeCode] = useState('')
@@ -90,21 +92,22 @@ export function PricingPage() {
     dispatch(fetchRatePlans())
   }, [dispatch])
 
-  // Fetch local ARI rates when Local Pricing tab is active and a room type is selected
+  // Fetch local ARI rates when Local Pricing tab is active and required filters are set.
+  // Order of importance: dates -> room type -> rate plan -> adults -> children
   useEffect(() => {
-    if (activeTab === 'local-pricing' && localRoomTypeId && localRatePlanCode) {
+    if (activeTab === 'local-pricing' && localStartDate && localEndDate && localRoomTypeId) {
       dispatch(fetchLocalARIRates({
-        roomTypeId: localRoomTypeId,
-        ratePlanCode: localRatePlanCode,
         startDate: localStartDate,
         endDate: localEndDate,
+        roomTypeId: localRoomTypeId,
+        ratePlanCode: localRatePlanCode || undefined,
         roomCount: 1,
-        adults: 2,
-        children: 0,
+        adults: localAdults,
+        children: localChildren,
         extraBeds: 0,
       }))
     }
-  }, [dispatch, activeTab, localRoomTypeId, localRatePlanCode, localStartDate, localEndDate])
+  }, [dispatch, activeTab, localStartDate, localEndDate, localRoomTypeId, localRatePlanCode, localAdults, localChildren])
 
   // Fetch OTA Rate Plans when OTA Pricing tab is opened (populates the Rate Plan dropdown)
   useEffect(() => {
@@ -533,6 +536,25 @@ export function PricingPage() {
               {/* Local Pricing Filters */}
               <div className="flex flex-wrap items-end gap-4 px-5 py-4 border-b border-slate-100 bg-slate-50/60">
                 <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">From</label>
+                  <input
+                    type="date"
+                    value={localStartDate}
+                    onChange={(e) => setLocalStartDate(e.target.value)}
+                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">To</label>
+                  <input
+                    type="date"
+                    value={localEndDate}
+                    min={localStartDate}
+                    onChange={(e) => setLocalEndDate(e.target.value)}
+                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors"
+                  />
+                </div>
+                <div>
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Room Type</label>
                   <div className="relative">
                     <select
@@ -565,22 +587,23 @@ export function PricingPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">From</label>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Adults</label>
                   <input
-                    type="date"
-                    value={localStartDate}
-                    onChange={(e) => setLocalStartDate(e.target.value)}
-                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors"
+                    type="number"
+                    min={0}
+                    value={localAdults}
+                    onChange={(e) => setLocalAdults(Number(e.target.value || 0))}
+                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors w-28"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">To</label>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Children</label>
                   <input
-                    type="date"
-                    value={localEndDate}
-                    min={localStartDate}
-                    onChange={(e) => setLocalEndDate(e.target.value)}
-                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors"
+                    type="number"
+                    min={0}
+                    value={localChildren}
+                    onChange={(e) => setLocalChildren(Number(e.target.value || 0))}
+                    className="bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-lg h-9 px-3 outline-none hover:border-slate-300 focus:border-[#004bb4] transition-colors w-28"
                   />
                 </div>
               </div>
@@ -589,7 +612,7 @@ export function PricingPage() {
               {!localRoomTypeId ? (
                 <div className="p-16 text-center flex flex-col items-center justify-center min-h-[300px]">
                   <MapPin className="w-10 h-10 text-slate-300 mb-3" />
-                  <p className="text-sm text-slate-500">Select a Room Type and Rate Plan Code to view configured rates.</p>
+                    <p className="text-sm text-slate-500">Select dates and a Room Type to view configured rates.</p>
                 </div>
               ) : localAriStatus === 'loading' ? (
                 <div className="p-16 text-center flex flex-col items-center justify-center min-h-[300px]">
@@ -636,11 +659,11 @@ export function PricingPage() {
                               ) : (
                                 <>
                                   <td className="px-5 py-4 text-slate-600 text-sm">{rate.numberOfGuests ?? '-'}</td>
-                                  <td className="px-5 py-4 font-bold text-slate-800 text-sm">${rate.basePriceBeforeTax?.toLocaleString() ?? '-'}</td>
-                                  <td className="px-5 py-4 font-semibold text-[#004bb4] text-sm">${rate.basePriceAfterTax?.toLocaleString() ?? '-'}</td>
-                                  <td className="px-5 py-4 font-semibold text-slate-600 text-sm">${rate.extraAdultPriceAfterTax?.toLocaleString() ?? '-'}</td>
-                                  <td className="px-5 py-4 font-semibold text-slate-600 text-sm">${rate.childrenPriceAfterTax?.toLocaleString() ?? '-'}</td>
-                                  <td className="px-5 py-4 font-bold text-emerald-600 text-sm">${rate.finalRateAfterTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 font-bold text-slate-800 text-sm"><span className="text-[10px] font-bold text-slate-400 mr-0.5">{rate.currency || 'EUR'}</span>{rate.basePriceBeforeTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 font-semibold text-[#004bb4] text-sm"><span className="text-[10px] font-bold text-[#004bb4]/60 mr-0.5">{rate.currency || 'EUR'}</span>{rate.basePriceAfterTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 font-semibold text-slate-600 text-sm"><span className="text-[10px] font-bold text-slate-400 mr-0.5">{rate.currency || 'EUR'}</span>{rate.extraAdultPriceAfterTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 font-semibold text-slate-600 text-sm"><span className="text-[10px] font-bold text-slate-400 mr-0.5">{rate.currency || 'EUR'}</span>{rate.childrenPriceAfterTax?.toLocaleString() ?? '-'}</td>
+                                  <td className="px-5 py-4 font-bold text-emerald-600 text-sm"><span className="text-[10px] font-bold text-emerald-600/60 mr-0.5">{rate.currency || 'EUR'}</span>{rate.finalRateAfterTax?.toLocaleString() ?? '-'}</td>
                                   <td className="px-5 py-4 text-xs text-slate-400">
                                     <div className="font-medium text-slate-500">{rate.modifiedBy ?? '-'}</div>
                                     <div>{rate.modifiedAt ? new Date(rate.modifiedAt).toLocaleDateString() : ''}</div>
@@ -660,7 +683,7 @@ export function PricingPage() {
                                         {p.amountAfterTax === 0 ? (
                                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Free</span>
                                         ) : (
-                                          <span className="font-bold text-[#004bb4]">${p.amountAfterTax}</span>
+                                          <span className="font-bold text-[#004bb4]"><span className="text-[10px] font-bold text-[#004bb4]/60 mr-0.5">{rate.currency || 'EUR'}</span>{p.amountAfterTax}</span>
                                         )}
                                       </div>
                                     ))}

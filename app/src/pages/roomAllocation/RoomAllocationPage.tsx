@@ -248,54 +248,66 @@ export function RoomAllocationPage() {
           <div className="text-right">Action</div>
         </div>
 
-        {filteredRows.map((r, idx) => {
-          const isAllocated = !!r.roomNumber
-          const allocationText = isAllocated ? 'Allocated' : 'Not Allocated'
-          const nights = getDifferenceInDays(r.checkInDate, r.checkOutDate)
-          return (
-            <div
-              key={`${r.id}-${idx}`}
-              className={[
-                'grid grid-cols-[1.5fr_0.8fr_1.1fr_1.1fr_0.8fr_1fr_1.2fr] items-center px-5 py-3 text-[13px]',
-                idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
-              ].join(' ')}
-            >
-              <div className="flex items-center gap-2 text-slate-700">
-                <span className="truncate">{r.guestName}</span>
-                <GuestDot name={r.guestName} />
+        <div className="min-h-[360px] flex flex-col">
+          {filteredRows.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
+              <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
+                <Search className="h-6 w-6" />
               </div>
-              <div className="text-slate-600">{nights}</div>
-              <div className="text-slate-600">{formatDateForDisplay(r.checkInDate)}</div>
-              <div className="text-slate-600">{formatDateForDisplay(r.checkOutDate)}</div>
-              <div className="text-slate-600">{r.status}</div>
-              <div className="text-slate-600 flex items-center gap-1.5 font-medium">
-                {isAllocated ? (
-                  <>
-                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                    <span className="text-emerald-700">Allocated</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="inline-block h-2 w-2 rounded-full bg-slate-300" />
-                    <span>Not Allocated</span>
-                  </>
-                )}
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-1.5 h-8 w-28 whitespace-nowrap rounded-lg bg-[#0B4EA2] px-4 text-[12px] font-semibold text-white transition-colors hover:bg-[#0a3f85] disabled:bg-slate-300 disabled:cursor-not-allowed"
-                  disabled={r.status === 'CheckedIn'}
-                  onClick={() => {
-                    navigate(`/room-allocation/${r.id}`)
-                  }}
-                >
-                  Allocate Room
-                </button>
-              </div>
+              <h3 className="text-[15px] font-semibold text-slate-700">No rooms found</h3>
+              <p className="mt-1 text-sm text-slate-500">Try adjusting your filters or date range.</p>
             </div>
-          )
-        })}
+          ) : (
+            filteredRows.map((r, idx) => {
+              const isAllocated = !!r.roomNumber
+              const allocationText = isAllocated ? 'Allocated' : 'Not Allocated'
+              const nights = getDifferenceInDays(r.checkInDate, r.checkOutDate)
+              return (
+                <div
+                  key={`${r.id}-${idx}`}
+                  className={[
+                    'grid grid-cols-[1.5fr_0.8fr_1.1fr_1.1fr_0.8fr_1fr_1.2fr] items-center px-5 py-3 text-[13px]',
+                    idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
+                  ].join(' ')}
+                >
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <span className="truncate">{r.guestName}</span>
+                    <GuestDot name={r.guestName} />
+                  </div>
+                  <div className="text-slate-600">{nights}</div>
+                  <div className="text-slate-600">{formatDateForDisplay(r.checkInDate)}</div>
+                  <div className="text-slate-600">{formatDateForDisplay(r.checkOutDate)}</div>
+                  <div className="text-slate-600">{r.status}</div>
+                  <div className="text-slate-600 flex items-center gap-1.5 font-medium">
+                    {isAllocated ? (
+                      <>
+                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                        <span className="text-emerald-700">Allocated</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="inline-block h-2 w-2 rounded-full bg-slate-300" />
+                        <span>Not Allocated</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      className="flex items-center justify-center gap-1.5 h-8 w-28 whitespace-nowrap rounded-lg bg-[#0B4EA2] px-4 text-[12px] font-semibold text-white transition-colors hover:bg-[#0a3f85] disabled:bg-slate-300 disabled:cursor-not-allowed"
+                      disabled={r.status === 'CheckedIn'}
+                      onClick={() => {
+                        navigate(`/room-allocation/${r.id}`)
+                      }}
+                    >
+                      Allocate Room
+                    </button>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
       </div>
     </div>
   )

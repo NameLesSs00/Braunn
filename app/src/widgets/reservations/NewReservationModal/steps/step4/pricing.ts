@@ -3,41 +3,25 @@ import type { Pricing } from '../../../CheckInProcessModal/types'
 import type { LocalARIState } from '../../../../../features/localAri/localAriSlice'
 
 export function computePricing(value: ReservationDraft, nights: number, localAriState: LocalARIState): Pricing {
-  const rate = localAriState?.rates[0]
-  const baseRate = rate?.basePriceBeforeTax || 0
-  const nightsSafe = Math.max(1, nights || 1)
+  const rates = localAriState?.rates || []
+  const firstRate = rates[0]
+  const taxPercentage = firstRate?.taxPercentage || 0
 
-  // Adults calculation
-  const adultCount = value.adultCount || 0
-  const baseGuests = rate?.numberOfGuests || 1
-  let baseTotal = baseRate * nightsSafe // Base rate covers up to baseGuests
-  let extraAdultTotal = 0
-  
-  if (adultCount > baseGuests) {
-    const extraAdults = adultCount - baseGuests
-    const extraAdultPrice = rate?.extraAdultPriceBeforeTax || 0
-    extraAdultTotal = extraAdultPrice * extraAdults * nightsSafe
-  }
-  
-  const adultTotal = baseTotal + extraAdultTotal
+  const rateSubtotalBeforeTax = rates.reduce((sum, rate) => {
+    return sum + (rate.amountBeforeTax ?? rate.basePriceBeforeTax ?? 0)
+  }, 0)
+  const rateTotalAfterTax = rates.reduce((sum, rate) => {
+    const beforeTax = rate.amountBeforeTax ?? rate.basePriceBeforeTax ?? 0
+    const afterTax = rate.amountAfterTax ?? rate.finalRateAfterTax ?? beforeTax * (1 + (rate.taxPercentage || 0) / 100)
+    return sum + afterTax
+  }, 0)
 
-  // Children calculation
-  let childTotal = 0
-  if (value.childCount && value.childCount > 0) {
-    const childAges = value.childAges || []
-    const policies = rate?.childPolicies || []
-    const fallbackChildrenPrice = rate?.childrenPriceBeforeTax || 0
-
-    for (let i = 0; i < value.childCount; i++) {
-      const age = childAges[i] || 0
-      const policy = policies.find(p => age >= p.ageFrom && age <= p.ageTo)
-      if (policy) {
-        childTotal += (policy as any).amountBeforeTax * nightsSafe
-      } else {
-        childTotal += fallbackChildrenPrice * nightsSafe
-      }
-    }
-  }
+  const fallbackNights = Math.max(1, nights || 1)
+  const fallbackBaseTotal = rates.length === 0 ? (firstRate?.basePriceBeforeTax || 0) * fallbackNights : 0
+  const baseTotal = rates.length > 0 ? rateSubtotalBeforeTax : fallbackBaseTotal
+  const adultTotal = baseTotal
+  const extraAdultTotal = 0
+  const childTotal = 0
 
   // Extras calculation
   const extrasTotal = (value.extras || []).reduce((sum, extra) => {
@@ -58,15 +42,16 @@ export function computePricing(value: ReservationDraft, nights: number, localAri
   }, 0)
 
   const subtotal = adultTotal + childTotal + extrasTotal + mealPlansTotal
-  const taxPercentage = rate?.taxPercentage || 0
-  const taxesAmount = subtotal * (taxPercentage / 100)
+  const rateTaxesAmount = Math.max(0, rateTotalAfterTax - rateSubtotalBeforeTax)
+  const addOnsTaxesAmount = (extrasTotal + mealPlansTotal) * (taxPercentage / 100)
+  const taxesAmount = rateTaxesAmount + addOnsTaxesAmount
 
   let discountValue = 0
   const totalAmount = Math.max(0, subtotal + taxesAmount - discountValue)
   const requiredDeposit = totalAmount * 0.25
 
   return {
-    currency: rate?.currency || '$',
+    currency: firstRate?.currency || '$',
     baseTotal,
     extraAdultTotal,
     adultTotal,

@@ -1,4 +1,4 @@
-import { PmsReservation, PmsReservationDetails, PmsCheckInByDate, PmsInHouseReservation } from '../../models/PmsReservation'
+import { PmsReservation, PmsReservationDetails, PmsCheckInByDate, PmsInHouseReservation, PmsReservationFolio } from '../../models/PmsReservation'
 import { apiRequest, unwrapApiResponse } from './apiClient'
 
 const basePath = 'pms/reservations'
@@ -10,11 +10,18 @@ export interface GetPmsReservationsParams {
 
 export function getPmsReservations(params: GetPmsReservationsParams, signal?: AbortSignal) {
   const query = new URLSearchParams(params as any).toString()
-  return apiRequest<PmsReservation[]>({
+  return apiRequest<any[]>({
     method: 'GET',
-    path: `${basePath}?${query}`,
+    path: `local/reservations/by-date?${query}`,
     signal
-  }).then((r) => unwrapApiResponse<PmsReservation[]>(r))
+  }).then((r) => {
+    const data = unwrapApiResponse<any[]>(r)
+    return data.map((item) => ({
+      ...item,
+      guestName: item.guest?.fullName || '',
+      channelName: item.bookingSource || null
+    })) as PmsReservation[]
+  })
 }
 
 export function getPmsReservationById(id: string, signal?: AbortSignal) {
@@ -23,6 +30,14 @@ export function getPmsReservationById(id: string, signal?: AbortSignal) {
     path: `${basePath}/${id}`,
     signal
   }).then((r) => unwrapApiResponse<PmsReservationDetails>(r))
+}
+
+export function getPmsReservationFolio(id: string, signal?: AbortSignal) {
+  return apiRequest<PmsReservationFolio>({
+    method: 'GET',
+    path: `${basePath}/${id}/folio`,
+    signal
+  }).then((r) => unwrapApiResponse<PmsReservationFolio>(r))
 }
 
 export interface PmsCheckInParams {

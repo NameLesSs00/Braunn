@@ -172,6 +172,7 @@ export interface CreateLocalReservationRequest {
     phone: string;
     nationalId: string;
     address: string;
+    streetName: string;
     countryCode: string;
   };
   checkInDate: string;
@@ -210,13 +211,8 @@ export interface CreateLocalReservationRequest {
   }>;
   specialRequests: string;
   comments: string;
-  couponCode?: string;
-  couponDiscountAmount?: number;
-  depositAmount?: number;
-  paidAmount?: number;
-  paymentMethod?: string;
-  paymentReference?: string;
-  paymentDate?: string;
+  discountPercentage: number;
+  paymentMethod: string;
   guarantee?: {
     guaranteeType: string;
     guaranteeCode: string;
@@ -224,10 +220,9 @@ export interface CreateLocalReservationRequest {
     cardCode: string;
     cardHolderName: string;
     maskedCardNumber: string;
-    cardNumber: string;
+    tokenizedCardReference: string;
     expirationDate: string;
     seriesCodeMasked: string;
-    cvv: string;
     notes: string;
   };
 }

@@ -8,4 +8,11 @@ export interface AdditionalService {
 export interface CreateAdditionalServiceRequest {
   name: string
   price: number
+  isActive: boolean
+}
+
+export interface UpdateAdditionalServiceRequest {
+  name: string
+  price: number
+  isActive: boolean
 }

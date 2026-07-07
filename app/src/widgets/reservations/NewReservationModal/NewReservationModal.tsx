@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { updateDraft, resetDraft } from '../../../features/reservations/draftSlice'
 import { addNotification } from '../../../features/notifications/notificationsSlice'
 import { createLocalReservation } from '../../../features/localReservations/localReservationsSlice'
+import type { CreateLocalReservationRequest } from '../../../models/LocalReservation'
 import { createOptionalReservation } from '../../../features/reservations/optionalReservationsSlice'
 
 
@@ -263,7 +264,7 @@ export function NewReservationModal({ open, onClose }: Props) {
                     if (step4Page === 1) {
 
 
-                      const localReservationPayload = {
+                      const localReservationPayload: CreateLocalReservationRequest = {
                         guest: {
                           firstName: draft.firstName || 'Unknown',
                           lastName: draft.surName || 'Unknown',
@@ -271,6 +272,7 @@ export function NewReservationModal({ open, onClose }: Props) {
                           phone: draft.phone || '',
                           nationalId: draft.idNumber || '',
                           address: draft.addressLine || '',
+                          streetName: draft.addressLine || '',
                           countryCode: draft.countryCode || draft.nationality || '',
                         },
                         checkInDate: draft.checkInDate || new Date().toISOString().split('T')[0],
@@ -323,10 +325,7 @@ export function NewReservationModal({ open, onClose }: Props) {
                         specialRequests: draft.specialRequests || '',
                         comments: draft.notes || '',
                         discountPercentage: 0,
-                        depositAmount: Number(draft.depositAmountReceived) || 0,
                         paymentMethod: draft.paymentMethod || 'Card',
-                        paymentReference: draft.paymentReference || '',
-                        paymentDate: draft.paymentDate || new Date().toISOString(),
                         guarantee: {
                           guaranteeType: draft.guaranteeType || '',
                           guaranteeCode: draft.guaranteeCode || '',
@@ -334,10 +333,9 @@ export function NewReservationModal({ open, onClose }: Props) {
                           cardCode: draft.cardCode || '',
                           cardHolderName: draft.cardHolderName || '',
                           maskedCardNumber: draft.cardNo ? `****${draft.cardNo.slice(-4)}` : '',
-                          cardNumber: draft.cardNo || '',
+                          tokenizedCardReference: '',
                           expirationDate: draft.cardExpire || '',
                           seriesCodeMasked: draft.cardSeriesCode ? '***' : '',
-                          cvv: draft.cardSeriesCode || '',
                           notes: ''
                         }
                       }

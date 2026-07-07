@@ -4,14 +4,24 @@ import type { LocalARIRate, GetLocalARIRatesParams, CreateLocalARIRatePayload, C
 const basePath = '/local/ari'
 
 export function getLocalARIRates(params: GetLocalARIRatesParams, signal?: AbortSignal) {
-  const cleanedParams: Record<string, string> = {}
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      cleanedParams[key] = String(value)
-    }
+  // Build query params in the explicit order required by the backend
+  const orderedKeys = [
+    'startDate',
+    'endDate',
+    'roomTypeId',
+    'ratePlanCode',
+    'roomCount',
+    'adults',
+    'children',
+    'extraBeds',
+    'groupName',
+    'corporateAccountId',
+  ]
+  const qp = new URLSearchParams()
+  orderedKeys.forEach((k) => {
+    const v = (params as any)[k]
+    if (v !== undefined && v !== null) qp.append(k, String(v))
   })
-  
-  const qp = new URLSearchParams(cleanedParams).toString()
   return apiRequest<unknown>({
     method: 'GET',
     path: `${basePath}/rates?${qp}`,

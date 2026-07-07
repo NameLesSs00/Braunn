@@ -233,16 +233,21 @@ export function NewReservationStep2({ value, onChange }: Props) {
     return rate || null
   }, [localAriState.rates])
 
+  const isSingleRoomType = useMemo(() => {
+    return value.rooms.some((room) => room.roomType.trim().toLowerCase() === 'single')
+  }, [value.rooms])
+
+  useEffect(() => {
+    if (isSingleRoomType && (value.childCount > 0 || (value.childAges || []).length > 0)) {
+      onChange({ childCount: 0, childAges: [] })
+    }
+  }, [isSingleRoomType, value.childCount, value.childAges, onChange])
+
   const adultTotalText = useMemo(() => {
     if (!roomRates) return formatMoney(0, '$')
-    const baseGuests = roomRates.numberOfGuests || 1
-    const baseRate = roomRates.basePriceBeforeTax || 0
-    let total = baseRate
-    if (value.adultCount > baseGuests) {
-      total += (value.adultCount - baseGuests) * (roomRates.extraAdultPriceAfterTax || 0)
-    }
+    const total = roomRates.amountBeforeTax ?? roomRates.basePriceBeforeTax ?? 0
     return formatMoney(total, roomRates.currency || '$')
-  }, [value.adultCount, roomRates])
+  }, [roomRates])
 
   const childTotalText = useMemo(() => {
     if (!roomRates) return formatMoney(0, '$')
@@ -453,10 +458,12 @@ export function NewReservationStep2({ value, onChange }: Props) {
                     value={room.roomType}
                     onChange={(v) => {
                       const selectedType = roomTypesState.items.find((t) => t.name === v)
+                      const isSingle = v.trim().toLowerCase() === 'single'
                       onChange({
                         rooms: value.rooms.map((r) =>
                           r.id === room.id ? { ...r, roomType: v, roomTypeId: selectedType?.id || '' } : r,
                         ),
+                        ...(isSingle ? { childCount: 0, childAges: [] } : {}),
                       })
                     }}
                   />
@@ -512,7 +519,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
 
       <div>
         <div className="mb-3 text-[13px] font-bold text-slate-800">Guests</div>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <div className={['grid grid-cols-1 gap-5', isSingleRoomType ? 'md:grid-cols-1' : 'md:grid-cols-2'].join(' ')}>
           <Counter
             label="Adult"
             value={value.adultCount}
@@ -520,29 +527,31 @@ export function NewReservationStep2({ value, onChange }: Props) {
             onIncrease={() => onChange({ adultCount: value.adultCount + 1 })}
             onDecrease={() => onChange({ adultCount: Math.max(0, value.adultCount - 1) })}
           />
-          <Counter
-            label="Child"
-            value={value.childCount}
-            priceText={childTotalText}
-            onIncrease={() => {
-              const newCount = value.childCount + 1;
-              onChange({ 
-                childCount: newCount,
-                childAges: [...(value.childAges || []), 0]
-              });
-            }}
-            onDecrease={() => {
-              const newCount = Math.max(0, value.childCount - 1);
-              onChange({ 
-                childCount: newCount,
-                childAges: (value.childAges || []).slice(0, newCount)
-              });
-            }}
-          />
+          {!isSingleRoomType && (
+            <Counter
+              label="Child"
+              value={value.childCount}
+              priceText={childTotalText}
+              onIncrease={() => {
+                const newCount = value.childCount + 1;
+                onChange({
+                  childCount: newCount,
+                  childAges: [...(value.childAges || []), 0]
+                });
+              }}
+              onDecrease={() => {
+                const newCount = Math.max(0, value.childCount - 1);
+                onChange({
+                  childCount: newCount,
+                  childAges: (value.childAges || []).slice(0, newCount)
+                });
+              }}
+            />
+          )}
         </div>
       </div>
 
-      {value.childCount > 0 && (
+      {!isSingleRoomType && value.childCount > 0 && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="mb-3 text-[12px] font-semibold text-slate-700">Children's Ages</div>
           <div className="flex flex-wrap gap-4">

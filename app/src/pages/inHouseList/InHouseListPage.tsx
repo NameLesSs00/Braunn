@@ -11,12 +11,12 @@ import {
 } from 'lucide-react'
 
 import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
-import { fetchPmsInHouseReservations } from '../../features/pms/pmsSlice'
-import type { PmsReservation } from '../../models/PmsReservation'
+import { fetchPmsReservations } from '../../features/pms/pmsSlice'
 import { ReservationDetailsPopup } from '../reservations/pupops/ReservationDetailsPopup'
 import { ExtendStayPopup } from '../reservations/pupops/ExtendStayPopup'
 import { CheckInProcessPopup } from '../reservations/pupops/CheckInProcessPopup'
 import { CheckOutProcessPopup } from '../reservations/checkout/CheckOutProcessPopup'
+import { MoveRoomPopup } from '../reservations/pupops/MoveRoomPopup'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -45,8 +45,7 @@ function GuestDot({ name }: { name: string }) {
 
 export function InHouseListPage() {
   const dispatch = useAppDispatch()
-  const inHouseReservations = useAppSelector((s) => s.pms.inHouseReservations)
-  const pmsReservations = useAppSelector((s) => s.pms.reservations)
+  const inHouseReservations = useAppSelector((s) => s.pms.reservations.filter(r => r.status === 'CheckedIn' || r.status === 'CheckedOut'))
 
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -75,11 +74,21 @@ export function InHouseListPage() {
   const [extendStayOpen, setExtendStayOpen] = useState(false)
   const [extendStayReservationId, setExtendStayReservationId] = useState<string | null>(null)
 
+  const [moveRoomOpen, setMoveRoomOpen] = useState(false)
+  const [moveRoomReservationId, setMoveRoomReservationId] = useState<string | null>(null)
+
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 
+  const computedDateRange = useMemo(() => {
+    const d = new Date()
+    const startDate = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0]
+    const endDate = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+    return { startDate, endDate }
+  }, [])
+
   useEffect(() => {
-    void dispatch(fetchPmsInHouseReservations())
-  }, [dispatch])
+    void dispatch(fetchPmsReservations(computedDateRange))
+  }, [dispatch, computedDateRange])
 
   useEffect(() => {
     if (!openMenuForId) return
@@ -97,7 +106,7 @@ export function InHouseListPage() {
 
     if (q) {
       result = result.filter((r) =>
-        [r.guestFullName, r.reservationId, r.roomTypeName].some((v) => (v ?? '').toLowerCase().includes(q))
+        [r.guestName, r.id, r.roomTypeName].some((v) => (v ?? '').toLowerCase().includes(q))
       )
     }
 
@@ -136,21 +145,10 @@ export function InHouseListPage() {
 
   const checkOutReservation = useMemo(() => {
     if (!checkOutReservationId) return null
-    const found = inHouseReservations.find((r) => r.reservationId === checkOutReservationId)
+    const found = inHouseReservations.find((r) => r.id === checkOutReservationId)
     if (!found) return null
 
-    return {
-      id: found.reservationId,
-      guestName: found.guestFullName,
-      roomNumber: found.roomNumber,
-      roomTypeName: found.roomTypeName,
-      checkInDate: found.checkInDate,
-      checkOutDate: found.checkOutDate,
-      status: found.status,
-      totalAmount: 0,
-      paidAmount: 0,
-      channelName: null,
-    } as any
+    return found as any
   }, [checkOutReservationId, inHouseReservations])
 
   const closeDetails = () => {
@@ -186,7 +184,6 @@ export function InHouseListPage() {
 
     // Table Data
     const tableColumn = [
-      'Res.Id',
       'Guest Name',
       'Room',
       'Room Type',
@@ -196,14 +193,13 @@ export function InHouseListPage() {
       'Payment',
     ]
     const tableRows = filteredRows.map((r) => [
-      r.reservationId,
-      r.guestFullName || '-----',
+      r.guestName || '-----',
       r.roomNumber || '-----',
       r.roomTypeName || '-----',
       formatDateForDisplay(r.checkInDate),
       formatDateForDisplay(r.checkOutDate),
       r.status || '-----',
-      r.remainingBalance === 0 ? 'Fully Paid' : 'Unpaid',
+      r.paidAmount >= r.totalAmount ? 'Fully Paid' : 'Unpaid',
     ])
 
     autoTable(doc, {
@@ -334,127 +330,137 @@ export function InHouseListPage() {
         </div>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-100">
-        <div className="grid grid-cols-[0.9fr_1.2fr_0.9fr_0.9fr_0.9fr_0.6fr_0.8fr_0.9fr_0.7fr_0.7fr] bg-[#EAF2FF] px-5 py-3 text-[12px] font-bold text-slate-700">
-          <div>Res.Id</div>
+      <div className="mt-5 min-h-[430px] overflow-hidden rounded-2xl border border-slate-100 bg-white flex flex-col">
+        <div className="grid grid-cols-[1.35fr_0.95fr_0.95fr_0.95fr_0.85fr_0.95fr_0.8fr_0.75fr] bg-[#EAF2FF] px-5 py-3 text-[12px] font-bold text-slate-700">
           <div>Guest</div>
           <div>Room</div>
           <div>Check-in</div>
           <div>Check-out</div>
-          <div>Guests</div>
           <div>Status</div>
           <div>Payment</div>
           <div>Source</div>
           <div className="text-right">Action</div>
         </div>
 
-        {rows.map((r, idx) => {
-          const paymentLabel = r.remainingBalance === 0 ? 'Fully Paid' : 'Unpaid'
-          const isCheckInToday = r.checkInDate.startsWith(today)
-          const isCheckOutToday = r.checkOutDate.startsWith(today)
+        {rows.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
+            <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
+              <Search className="h-6 w-6" />
+            </div>
+            <h3 className="text-[15px] font-semibold text-slate-700">No in-house reservations found</h3>
+            <p className="mt-1 text-sm text-slate-500">Try adjusting your filters or search.</p>
+          </div>
+        ) : (
+          rows.map((r, idx) => {
+            const paymentLabel = r.paidAmount >= r.totalAmount ? 'Fully Paid' : 'Unpaid'
+            const isCheckInToday = r.checkInDate.startsWith(today)
+            const isCheckOutToday = r.checkOutDate.startsWith(today)
 
-          return (
-            <div
-              key={`${r.reservationId}-${idx}`}
-              className={[
-                'grid grid-cols-[0.9fr_1.2fr_0.9fr_0.9fr_0.9fr_0.6fr_0.8fr_0.9fr_0.7fr_0.7fr] items-center px-5 py-3 text-[13px]',
-                idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
-              ].join(' ')}
-            >
-              <div className="font-medium text-slate-700">{r.reservationId}</div>
-              <div className="flex items-center gap-2 text-slate-700">
-                <span className="truncate">{r.guestFullName || '-----'}</span>
-                <GuestDot name={r.guestFullName || 'G'} />
-              </div>
-              <div className="text-slate-600">
-                <div className="font-medium text-slate-700">{r.roomNumber || '-----'}</div>
-                <div className="text-[11px] text-slate-500">{r.roomTypeName || '-----'}</div>
-              </div>
-              <div className="text-slate-600">{formatDateForDisplay(r.checkInDate)}</div>
-              <div className="text-slate-600">{formatDateForDisplay(r.checkOutDate)}</div>
-              <div className="text-slate-600">----</div>
-              <div className="text-slate-600">{r.status || '-----'}</div>
-              <div className="text-slate-600">{paymentLabel}</div>
-              <div className="text-slate-600">-----</div>
-              <div className="flex justify-end gap-2">
-                {isCheckInToday && r.status !== 'CheckedIn' && r.status !== 'CheckedOut' ? (
-                  <button
-                    type="button"
-                    className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-emerald-700 px-3 text-[12px] font-semibold leading-none text-white"
-                    onClick={() => onOpenCheckIn(r.reservationId)}
-                  >
-                    <LogIn className="h-4 w-4" />
-                    check in
-                  </button>
-                ) : isCheckOutToday && r.status === 'CheckedIn' ? (
-                  <button
-                    type="button"
-                    className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white"
-                    onClick={() => {
-                      setCheckOutReservationId(r.reservationId)
-                      setCheckOutOpen(true)
-                    }}
-                  >
-                    check out
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="inline-flex h-7 items-center justify-center rounded-lg bg-[#0B4EA2] px-4 text-white transition-colors hover:bg-[#0a3f85]"
-                    aria-label="View"
-                    onClick={() => {
-                      setDetailsReservationId(r.reservationId)
-                      setDetailsOpen(true)
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
-                )}
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="inline-flex h-7 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200"
-                    aria-label="More"
-                    onClick={() => setOpenMenuForId((prev) => (prev === r.reservationId ? null : r.reservationId))}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                  {openMenuForId === r.reservationId ? (
-                    <div
-                      ref={menuRef}
-                      className="absolute right-0 top-9 z-10 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+            return (
+              <div
+                key={`${r.id}-${idx}`}
+                className={[
+                  'grid grid-cols-[1.35fr_0.95fr_0.95fr_0.95fr_0.85fr_0.95fr_0.8fr_0.75fr] items-center px-5 py-3 text-[13px]',
+                  idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
+                ].join(' ')}
+              >
+                <div className="flex items-center gap-2 text-slate-700">
+                  <span className="truncate">{r.guestName || '-----'}</span>
+                  <GuestDot name={r.guestName || 'G'} />
+                </div>
+                <div className="text-slate-600">
+                  <div className="font-medium text-slate-700">{r.roomNumber || '-----'}</div>
+                  <div className="text-[11px] text-slate-500">{r.roomTypeName || '-----'}</div>
+                </div>
+                <div className="text-slate-600">{formatDateForDisplay(r.checkInDate)}</div>
+                <div className="text-slate-600">{formatDateForDisplay(r.checkOutDate)}</div>
+                <div className="text-slate-600">{r.status || '-----'}</div>
+                <div className="text-slate-600">{paymentLabel}</div>
+                <div className="text-slate-600">-----</div>
+                <div className="flex justify-end gap-2">
+                  {isCheckInToday && r.status !== 'CheckedIn' && r.status !== 'CheckedOut' ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-emerald-700 px-3 text-[12px] font-semibold leading-none text-white"
+                      onClick={() => onOpenCheckIn(r.id)}
                     >
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                        onClick={() => setOpenMenuForId(null)}
+                      <LogIn className="h-4 w-4" />
+                      check in
+                    </button>
+                  ) : isCheckOutToday && r.status === 'CheckedIn' ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white"
+                      onClick={() => {
+                        setCheckOutReservationId(r.id)
+                        setCheckOutOpen(true)
+                      }}
+                    >
+                      check out
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inline-flex h-7 items-center justify-center rounded-lg bg-[#0B4EA2] px-4 text-white transition-colors hover:bg-[#0a3f85]"
+                      aria-label="View"
+                      onClick={() => {
+                        setDetailsReservationId(r.id)
+                        setDetailsOpen(true)
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  )}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="inline-flex h-7 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200"
+                      aria-label="More"
+                      onClick={() => setOpenMenuForId((prev) => (prev === r.id ? null : r.id))}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                    {openMenuForId === r.id ? (
+                      <div
+                        ref={menuRef}
+                        className="absolute right-0 top-9 z-10 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
                       >
-                        Cancel Reservation
-                      </button>
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                        onClick={() => setOpenMenuForId(null)}
-                      >
-                        Early Check out
-                      </button>
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                        onClick={() => setOpenMenuForId(null)}
-                      >
-                        Move Room
-                      </button>
-                    </div>
-                  ) : null}
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
+                          onClick={() => setOpenMenuForId(null)}
+                        >
+                          Cancel Reservation
+                        </button>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
+                          onClick={() => setOpenMenuForId(null)}
+                        >
+                          Early Check out
+                        </button>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
+                          onClick={() => {
+                            setOpenMenuForId(null)
+                            setMoveRoomReservationId(r.id)
+                            setMoveRoomOpen(true)
+                          }}
+                        >
+                          Move Room
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
       </div>
 
-      <div className="mt-5 flex items-center justify-end gap-3">
+      <div className="mt-5 flex items-center justify-end gap-3 pb-5">
         <button
           type="button"
           className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-50"
@@ -500,6 +506,15 @@ export function InHouseListPage() {
         open={extendStayOpen}
         onClose={closeExtendStay}
         reservationId={extendStayReservationId}
+      />
+
+      <MoveRoomPopup
+        open={moveRoomOpen}
+        onClose={() => {
+          setMoveRoomOpen(false)
+          setMoveRoomReservationId(null)
+        }}
+        reservationId={moveRoomReservationId}
       />
 
       <CheckInProcessPopup
