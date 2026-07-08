@@ -3,7 +3,7 @@ import { MoreVertical, Users, BadgeDollarSign } from 'lucide-react'
 import type { Room, RoomStatus } from '../utils/types'
 import { roomStatusTheme, roomStatusIcon } from '../utils/helpers'
 
-const STATUS_OPTIONS: RoomStatus[] = ['Clean', 'Dirty', 'In Progress', 'Maintenance']
+const STATUS_OPTIONS: RoomStatus[] = ['Available', 'Confirmed', 'CheckedIn', 'Dirty', 'Cleaning', 'Maintenance']
 
 interface RoomCardProps {
   room: Room
@@ -73,12 +73,6 @@ export function RoomCard({ room, onStatusChange }: RoomCardProps) {
             <Users className="h-3.5 w-3.5" /> Capacity:
           </span>
           <span className="font-semibold text-slate-700">{room.capacity === '---' ? '---' : `${room.capacity} guests`}</span>
-        </div>
-        <div className="flex items-center justify-between text-slate-500">
-          <span className="flex items-center gap-1.5">
-            <BadgeDollarSign className="h-3.5 w-3.5" /> Rate:
-          </span>
-          <span className="font-semibold text-slate-700">{room.rate === '---' ? '---' : `$${room.rate}/night`}</span>
         </div>
       </div>
 

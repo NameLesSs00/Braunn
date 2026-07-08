@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Sparkles, ClipboardList, Plus, Wrench, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { fetchHousekeepingRooms } from '../../features/housekeeping/housekeepingSlice'
+import { fetchAllRooms } from '../../features/housekeeping/housekeepingSlice'
+import { fetchRoomTypes } from '../../features/roomTypes/roomTypesSlice'
 import { fetchLostAndFoundItems } from '../../features/HKfeatures/lostAndFound/lostAndFoundSlice'
 
 // Components
@@ -18,7 +19,6 @@ import { ItemDetailsModal } from '../HKPages/foundsAndLost/components/modals/Ite
 import type { LostAndFoundReadDto } from '../../models/HKmodels/LostAndFound'
 
 // Utils
-import { ROOMS } from './utils/mockData'
 import { mapHousekeepingStatus } from './utils/helpers'
 import type { Room, RoomStatus, TabKey } from './utils/types'
 
@@ -28,11 +28,12 @@ export function HousekeepingPage() {
 
   // Redux & external data
   const dispatch = useAppDispatch()
-  const housekeepingRooms = useAppSelector((s: any) => s.housekeeping.rooms)
+  const pmsRooms = useAppSelector((s: any) => s.housekeeping.pmsRooms)
+  const roomTypes = useAppSelector((s: any) => s.roomTypes.items)
   const { items, totalCount, status: lostFoundStatus } = useAppSelector((state: any) => state.lostAndFound)
 
   // Room Status state
-  const [rooms, setRooms] = useState<Room[]>(ROOMS)
+  const [rooms, setRooms] = useState<Room[]>([])
 
   // Lost & Found filters
   const [searchQuery, setSearchQuery] = useState('')
@@ -45,7 +46,8 @@ export function HousekeepingPage() {
   // Fetch rooms when tab changes
   useEffect(() => {
     if (tab !== 'roomStatus') return
-    void dispatch(fetchHousekeepingRooms(undefined))
+    void dispatch(fetchAllRooms())
+    void dispatch(fetchRoomTypes())
   }, [dispatch, tab])
 
   // Fetch lost and found items when tab changes
@@ -66,33 +68,36 @@ export function HousekeepingPage() {
 
   // Sync redux data to local state
   useEffect(() => {
-    if (!housekeepingRooms || housekeepingRooms.length === 0) return
+    if (!pmsRooms || pmsRooms.length === 0) {
+      setRooms([])
+      return
+    }
 
     setRooms(
-      housekeepingRooms.map((r: any) => ({
-        id: r.roomId,
-        number: r.roomNumber,
-        type: r.roomTypeName,
-        floor: r.floor,
-        status: mapHousekeepingStatus(r.housekeepingStatus),
-        capacity: '---',
-        rate: '---',
-      })),
+      pmsRooms.map((r: any) => {
+        const typeMatch = roomTypes.find((rt: any) => rt.id === r.roomTypeId)
+        return {
+          id: r.id,
+          number: r.roomNumber,
+          type: r.roomTypeName,
+          floor: r.floor,
+          status: mapHousekeepingStatus(r.status),
+          capacity: typeMatch ? typeMatch.maxGuests : '---',
+        }
+      }),
     )
-  }, [housekeepingRooms])
+  }, [pmsRooms, roomTypes])
 
   // Calculate room statistics
   const stats = useMemo(() => ({
-    clean:       rooms.filter((r) => r.status === 'Clean').length,
+    available:   rooms.filter((r) => r.status === 'Available').length,
     dirty:       rooms.filter((r) => r.status === 'Dirty').length,
-    inProgress:  rooms.filter((r) => r.status === 'In Progress').length,
+    cleaning:    rooms.filter((r) => r.status === 'Cleaning').length,
     maintenance: rooms.filter((r) => r.status === 'Maintenance').length,
   }), [rooms])
 
   // Handle room status changes
   const handleStatusChange = (id: string, status: RoomStatus) => {
-    // In a real app, this would persist to backend
-    // For now, rooms array is not updated since it's mock data
     console.log(`Status change for room ${id}: ${status}`)
   }
 
@@ -110,9 +115,9 @@ export function HousekeepingPage() {
       {/* Stats cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          count={stats.clean}
-          label="Clean"
-          sub="Ready to occupy"
+          count={stats.available}
+          label="Available"
+          sub="Ready for guests"
           bg="border-emerald-200 bg-emerald-50"
           iconBg="bg-emerald-500 text-white"
           icon={<CheckCircle2 className="h-4 w-4 text-white" />}
@@ -130,8 +135,8 @@ export function HousekeepingPage() {
           subColor="text-rose-500"
         />
         <StatCard
-          count={stats.inProgress}
-          label="In Progress"
+          count={stats.cleaning}
+          label="Cleaning"
           sub="Being cleaned"
           bg="border-blue-200 bg-blue-50"
           iconBg="bg-blue-500 text-white"

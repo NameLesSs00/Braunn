@@ -2,7 +2,7 @@
  * Types for Housekeeping page components
  */
 
-export type RoomStatus = 'Clean' | 'Dirty' | 'In Progress' | 'Maintenance'
+export type RoomStatus = 'Available' | 'Confirmed' | 'CheckedIn' | 'Dirty' | 'Cleaning' | 'Maintenance' | string
 
 export type Room = {
   id: string
@@ -17,4 +17,4 @@ export type Room = {
 
 
 export type TabKey = 'roomStatus' | 'lostItems'
-export type StatusFilter = 'All Rooms' | 'Clean' | 'Dirty' | 'In Progress'
+export type StatusFilter = 'All Rooms' | 'Available' | 'Confirmed' | 'CheckedIn' | 'Dirty' | 'Cleaning' | 'Maintenance'

@@ -123,6 +123,8 @@ export interface PmsInHouseReservation {
 // ─── Folio endpoint types (GET /api/pms/reservations/{id}/folio) ───────────
 
 export interface FolioCharge {
+  chargeId?: string
+  reservationRoomId?: string
   roomNumber: string | null
   department: string
   description: string

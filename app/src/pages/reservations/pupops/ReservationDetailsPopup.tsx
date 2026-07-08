@@ -10,9 +10,15 @@ import { IconImage } from '../../../shared/ui/IconImage'
 import { InfoRow } from '../../../widgets/reservations/CheckInProcessModal/InfoRow'
 import { Step4Card } from '../../../widgets/reservations/NewReservationModal/steps/step4/Step4Card'
 import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
-import { MdMeetingRoom, MdDateRange } from 'react-icons/md'
+import { MdMeetingRoom, MdDateRange, MdAdd } from 'react-icons/md'
 import { LuClock, LuIdCard, LuReceipt, LuCreditCard, LuTag, LuUtensilsCrossed, LuConciergeBell } from 'react-icons/lu'
 import { FiLogIn } from 'react-icons/fi'
+
+import { getPmsReservationById } from '../../../shared/apis/PmsReservation'
+import { getAdditionalServices } from '../../../shared/apis/AdditionalServices'
+import { postFrontOfficeCharge } from '../../../shared/apis/FrontOfficeApi'
+import type { AdditionalService } from '../../../models/AdditionalService'
+import { useAppSelector } from '../../../shared/apis/hooks'
 
 type Props = {
   open: boolean
@@ -48,6 +54,29 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [reservationRoomId, setReservationRoomId] = useState<string | null>(null)
+  const [services, setServices] = useState<AdditionalService[]>([])
+  const [showAddService, setShowAddService] = useState(false)
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('')
+  const [isPostingCharge, setIsPostingCharge] = useState(false)
+  const [chargeError, setChargeError] = useState<string | null>(null)
+
+  const [chargeForm, setChargeForm] = useState({
+    department: 'RoomService',
+    description: '',
+    amount: 0,
+    taxAmount: 0,
+    externalReference: '',
+    sourceSystem: '',
+    paymentMode: 'PostToRoom',
+    paymentMethod: 'Card',
+    paymentAmount: 0,
+    paymentReference: '',
+    paymentDate: new Date().toISOString().substring(0, 16)
+  })
+
+  const currentShift = useAppSelector((s) => s.shift.currentShift)
+
   useEffect(() => {
     if (!open || !reservationId) return
 
@@ -57,9 +86,24 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
     setError(null)
     setFolio(null)
 
-    void getPmsReservationFolio(reservationId, controller.signal)
-      .then((res) => {
-        setFolio(res)
+    void Promise.all([
+      getPmsReservationFolio(reservationId, controller.signal),
+      getPmsReservationById(reservationId, controller.signal),
+      getAdditionalServices(controller.signal),
+    ])
+      .then(([folioRes, detailsRes, servicesRes]) => {
+        setFolio(folioRes)
+        if (detailsRes.reservationRoomIds && detailsRes.reservationRoomIds.length > 0) {
+          setReservationRoomId(detailsRes.reservationRoomIds[0])
+        } else if (detailsRes.reservationRooms && detailsRes.reservationRooms.length > 0) {
+          setReservationRoomId(detailsRes.reservationRooms[0].reservationRoomId)
+        } else if (folioRes.charges && folioRes.charges.length > 0) {
+          const chargeWithRoomId = folioRes.charges.find(c => c.reservationRoomId)
+          if (chargeWithRoomId && chargeWithRoomId.reservationRoomId) {
+            setReservationRoomId(chargeWithRoomId.reservationRoomId)
+          }
+        }
+        setServices(servicesRes.filter(s => s.isActive))
       })
       .catch((e: unknown) => {
         if (controller.signal.aborted) return
@@ -345,6 +389,266 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                   </div>
                 </Step4Card>
               )}
+
+              {/* ── Add Service (Post Charge) ── */}
+              <div className="rounded-xl border border-[#0B4EA2] bg-blue-50/30 p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-base font-bold text-[#0B4EA2]">Post a Charge (Add Service)</div>
+                    <div className="mt-1 text-sm text-slate-600">Add an additional service to this reservation's folio</div>
+                  </div>
+                  {!showAddService && (
+                    <button
+                      type="button"
+                      className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0B4EA2] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#093d81]"
+                      onClick={() => setShowAddService(true)}
+                    >
+                      <MdAdd className="h-5 w-5" />
+                      Add Service
+                    </button>
+                  )}
+                </div>
+
+                {showAddService && (
+                  <div className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                    {chargeError && (
+                      <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                        {chargeError}
+                      </div>
+                    )}
+                    {!reservationRoomId && (
+                      <div className="mb-4 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
+                        Warning: No Reservation Room ID found. You cannot post charges to this reservation.
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      <div className="space-y-2 lg:col-span-1">
+                        <label className="text-[12px] font-semibold text-slate-700">Select Service <span className="text-red-500">*</span></label>
+                        <select
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                          value={selectedServiceId}
+                          onChange={(e) => {
+                            const id = e.target.value
+                            setSelectedServiceId(id)
+                            const svc = services.find((s) => s.id === id)
+                            if (svc) {
+                              setChargeForm(prev => ({
+                                ...prev,
+                                description: svc.name,
+                                amount: svc.price
+                              }))
+                            }
+                          }}
+                          disabled={isPostingCharge}
+                        >
+                          <option value="" disabled>Select a service...</option>
+                          {services.map((svc) => (
+                            <option key={svc.id} value={svc.id}>{svc.name} — {formatMoney(svc.price, currency)}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Department</label>
+                        <input
+                          type="text"
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-500 outline-none"
+                          value={chargeForm.department}
+                          readOnly
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Description</label>
+                        <input
+                          type="text"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none"
+                          value={chargeForm.description}
+                          onChange={(e) => setChargeForm({...chargeForm, description: e.target.value})}
+                          disabled={isPostingCharge}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Amount</label>
+                        <input
+                          type="number"
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-500 outline-none"
+                          value={chargeForm.amount}
+                          readOnly
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Tax Amount</label>
+                        <input
+                          type="number"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none"
+                          value={chargeForm.taxAmount}
+                          onChange={(e) => setChargeForm({...chargeForm, taxAmount: Number(e.target.value)})}
+                          disabled={isPostingCharge}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">External Reference</label>
+                        <input
+                          type="text"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none"
+                          value={chargeForm.externalReference}
+                          onChange={(e) => setChargeForm({...chargeForm, externalReference: e.target.value})}
+                          disabled={isPostingCharge}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Source System</label>
+                        <input
+                          type="text"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none"
+                          value={chargeForm.sourceSystem}
+                          onChange={(e) => setChargeForm({...chargeForm, sourceSystem: e.target.value})}
+                          disabled={isPostingCharge}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Payment Mode</label>
+                        <select
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                          value={chargeForm.paymentMode}
+                          onChange={(e) => setChargeForm({...chargeForm, paymentMode: e.target.value})}
+                          disabled={isPostingCharge}
+                        >
+                          <option value="PostToRoom">PostToRoom</option>
+                          <option value="PayNow">PayNow</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Payment Method</label>
+                        <select
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                          value={chargeForm.paymentMethod}
+                          onChange={(e) => setChargeForm({...chargeForm, paymentMethod: e.target.value})}
+                          disabled={isPostingCharge || chargeForm.paymentMode === 'PostToRoom'}
+                        >
+                          <option value="Card">Card</option>
+                          <option value="Cash">Cash</option>
+                          <option value="Online">Online</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Payment Amount</label>
+                        <input
+                          type="number"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                          value={chargeForm.paymentMode === 'PostToRoom' ? 0 : chargeForm.paymentAmount}
+                          onChange={(e) => setChargeForm({...chargeForm, paymentAmount: Number(e.target.value)})}
+                          disabled={isPostingCharge || chargeForm.paymentMode === 'PostToRoom'}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Payment Reference</label>
+                        <input
+                          type="text"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none"
+                          value={chargeForm.paymentReference}
+                          onChange={(e) => setChargeForm({...chargeForm, paymentReference: e.target.value})}
+                          disabled={isPostingCharge}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Payment Date</label>
+                        <input
+                          type="datetime-local"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none"
+                          value={chargeForm.paymentDate}
+                          onChange={(e) => setChargeForm({...chargeForm, paymentDate: e.target.value})}
+                          disabled={isPostingCharge}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-5 flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
+                      <button
+                        type="button"
+                        className="h-10 rounded-xl px-5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+                        onClick={() => {
+                          setShowAddService(false)
+                          setSelectedServiceId('')
+                          setChargeError(null)
+                        }}
+                        disabled={isPostingCharge}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="h-10 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#093d81] disabled:opacity-60"
+                        disabled={isPostingCharge || !selectedServiceId || !reservationRoomId}
+                        title={!reservationRoomId ? 'No reservation room ID found' : ''}
+                        onClick={async () => {
+                          if (!reservationRoomId) {
+                            setChargeError('No reservation room ID found to post charge against.')
+                            return
+                          }
+                          
+                          if (chargeForm.paymentMode === 'PayNow' && chargeForm.paymentAmount !== chargeForm.amount) {
+                            setChargeError('Payment Amount must be equal to Amount when Payment Mode is PayNow.')
+                            return
+                          }
+                          
+                          const cashierUserId = localStorage.getItem('cashier_user_id') || ''
+                          const shiftId = currentShift?.id || ''
+                          
+                          setIsPostingCharge(true)
+                          setChargeError(null)
+                          
+                          try {
+                            const dateValue = chargeForm.paymentDate ? new Date(chargeForm.paymentDate).toISOString() : new Date().toISOString()
+                            
+                            const finalPaymentAmount = chargeForm.paymentMode === 'PostToRoom' ? 0 : chargeForm.paymentAmount
+
+                            await postFrontOfficeCharge(reservationRoomId, {
+                              department: chargeForm.department,
+                              description: chargeForm.description,
+                              amount: chargeForm.amount,
+                              taxAmount: chargeForm.taxAmount,
+                              externalReference: chargeForm.externalReference || undefined,
+                              sourceSystem: chargeForm.sourceSystem || undefined,
+                              paymentMode: chargeForm.paymentMode,
+                              paymentMethod: chargeForm.paymentMethod || undefined,
+                              paymentAmount: finalPaymentAmount,
+                              paymentReference: chargeForm.paymentReference || undefined,
+                              paymentDate: dateValue,
+                              cashierUserId,
+                              shiftId
+                            })
+                            
+                            // Success! Hide form and refresh folio
+                            setShowAddService(false)
+                            setSelectedServiceId('')
+                            
+                            // Re-fetch folio
+                            const updatedFolio = await getPmsReservationFolio(reservationId as string)
+                            setFolio(updatedFolio)
+                          } catch (e: any) {
+                            setChargeError(e.message || 'Failed to post charge.')
+                          } finally {
+                            setIsPostingCharge(false)
+                          }
+                        }}
+                      >
+                        {isPostingCharge ? 'Posting...' : 'Post Charge'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* ── Financial Summary ── */}
               <Step4Card title="Financial Summary" titleIconBgClassName="bg-emerald-100">

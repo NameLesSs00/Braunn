@@ -4,7 +4,7 @@ export type Room = {
   roomTypeId: string
   roomTypeName: string
   floor: number
-  status: number
+  status: string | number
 }
 
 export interface RoomAvailability {

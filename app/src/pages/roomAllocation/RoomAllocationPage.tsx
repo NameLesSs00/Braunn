@@ -41,33 +41,29 @@ export function RoomAllocationPage() {
   const dispatch = useAppDispatch()
   const pmsReservations = useAppSelector((s) => s.pms.reservations)
 
+  const today = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const defaultEndDate = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 7)
+    return d.toISOString().split('T')[0]
+  }, [])
+
   const [query, setQuery] = useState('')
   const [allocationStatus, setAllocationStatus] = useState<AllocationStatusFilter>('All status')
   const [floor, setFloor] = useState<FloorFilter>('All Floor')
   const [roomType, setRoomType] = useState<RoomTypeFilter>('All Types')
-  const [arrivalDate, setArrivalDate] = useState('')
+  const [arrivalDate, setArrivalDate] = useState(today)
+  const [departureDate, setDepartureDate] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 7)
+    return d.toISOString().split('T')[0]
+  })
   const [reservationStatus, setReservationStatus] = useState<ReservationStatusFilter>('All status')
 
-
-
-  const today = useMemo(() => new Date().toISOString().split('T')[0], [])
-
-  const computedDateRange = useMemo(() => {
-    if (arrivalDate) {
-      const d = new Date(arrivalDate)
-      d.setMonth(d.getMonth() + 1)
-      return {
-        startDate: arrivalDate,
-        endDate: d.toISOString().split('T')[0],
-      }
-    } else {
-      const d = new Date()
-      return {
-        startDate: today,
-        endDate: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0],
-      }
-    }
-  }, [arrivalDate, today])
+  const computedDateRange = useMemo(() => ({
+    startDate: arrivalDate || today,
+    endDate: departureDate || defaultEndDate,
+  }), [arrivalDate, departureDate, today, defaultEndDate])
 
   useEffect(() => {
     void dispatch(
@@ -106,7 +102,11 @@ export function RoomAllocationPage() {
     }
 
     if (arrivalDate) {
-      result = result.filter((r) => r.checkInDate.startsWith(arrivalDate))
+      result = result.filter((r) => r.checkInDate.slice(0, 10) >= arrivalDate)
+    }
+
+    if (departureDate) {
+      result = result.filter((r) => r.checkOutDate.slice(0, 10) <= departureDate)
     }
 
     if (floor !== 'All Floor') {
@@ -120,7 +120,7 @@ export function RoomAllocationPage() {
     }
 
     return result
-  }, [pmsReservations, query, allocationStatus, reservationStatus, arrivalDate, floor, roomType])
+  }, [pmsReservations, query, allocationStatus, reservationStatus, arrivalDate, departureDate, floor, roomType])
 
   const selectClass =
     'h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-9 text-sm text-slate-600 outline-none transition-all focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10'
@@ -142,16 +142,10 @@ export function RoomAllocationPage() {
 
         <div className="ml-auto flex items-center gap-4">
           <div className="text-sm font-semibold text-slate-700">{filteredRows.length} results</div>
-          <button
-            type="button"
-            className="h-11 rounded-xl border-2 border-[#0B4EA2] bg-white px-6 text-sm font-semibold text-[#0B4EA2] transition-colors hover:bg-slate-50"
-          >
-            Allocate All
-          </button>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
         <div className="space-y-1.5">
           <div className="text-[12px] font-semibold text-slate-700">Allocation Status</div>
           <div className="relative">
@@ -211,9 +205,22 @@ export function RoomAllocationPage() {
           <div className="relative">
             <input
               type="date"
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-4 pr-10 text-sm text-slate-600 outline-none transition-all focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-4 pr-4 text-sm text-slate-600 outline-none transition-all focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10"
               value={arrivalDate}
               onChange={(e) => setArrivalDate(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="text-[12px] font-semibold text-slate-700">Departure Date</div>
+          <div className="relative">
+            <input
+              type="date"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-4 pr-4 text-sm text-slate-600 outline-none transition-all focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10"
+              value={departureDate}
+              min={arrivalDate}
+              onChange={(e) => setDepartureDate(e.target.value)}
             />
           </div>
         </div>

@@ -45,14 +45,18 @@ function GuestDot({ name }: { name: string }) {
 
 export function InHouseListPage() {
   const dispatch = useAppDispatch()
-  const inHouseReservations = useAppSelector((s) => s.pms.reservations.filter(r => r.status === 'CheckedIn' || r.status === 'CheckedOut'))
+  const inHouseReservations = useAppSelector((s) => s.pms.reservations)
 
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [roomTypeFilter, setRoomTypeFilter] = useState('all')
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
-  const [checkInFrom, setCheckInFrom] = useState('')
-  const [checkInTo, setCheckInTo] = useState('')
+  const [checkInFrom, setCheckInFrom] = useState(() => new Date().toISOString().split('T')[0])
+  const [checkInTo, setCheckInTo] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 7)
+    return d.toISOString().split('T')[0]
+  })
 
   const [page, setPage] = useState(1)
   const pageSize = 8
@@ -79,12 +83,14 @@ export function InHouseListPage() {
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 
-  const computedDateRange = useMemo(() => {
-    const d = new Date()
-    const startDate = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0]
-    const endDate = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
-    return { startDate, endDate }
-  }, [])
+  const computedDateRange = useMemo(() => ({
+    startDate: checkInFrom || today,
+    endDate: checkInTo || (() => {
+      const d = new Date()
+      d.setDate(d.getDate() + 7)
+      return d.toISOString().split('T')[0]
+    })(),
+  }), [checkInFrom, checkInTo, today])
 
   useEffect(() => {
     void dispatch(fetchPmsReservations(computedDateRange))
@@ -119,13 +125,11 @@ export function InHouseListPage() {
     }
 
     if (checkInFrom) {
-      const d = new Date(checkInFrom)
-      result = result.filter((r) => new Date(r.checkInDate) >= d)
+      result = result.filter((r) => r.checkInDate.slice(0, 10) >= checkInFrom)
     }
 
     if (checkInTo) {
-      const d = new Date(checkInTo)
-      result = result.filter((r) => new Date(r.checkInDate) <= d)
+      result = result.filter((r) => r.checkInDate.slice(0, 10) <= checkInTo)
     }
 
     return result
@@ -470,7 +474,7 @@ export function InHouseListPage() {
           <ChevronLeft className="h-4 w-4" />
         </button>
 
-        {[1, 2, 3].map((p) => (
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
           <button
             key={p}
             type="button"
@@ -478,8 +482,7 @@ export function InHouseListPage() {
               'inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold',
               safePage === p ? 'bg-[#0B4EA2] text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50',
             ].join(' ')}
-            onClick={() => setPage(Math.min(p, totalPages))}
-            disabled={p > totalPages}
+            onClick={() => setPage(p)}
           >
             {p}
           </button>
