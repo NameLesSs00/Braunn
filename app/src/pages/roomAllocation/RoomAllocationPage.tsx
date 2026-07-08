@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Search } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
 import { fetchPmsReservations } from '../../features/pms/pmsSlice'
+import { routes } from '../../shared/lib/routes'
 
 import type { PmsReservation } from '../../models/PmsReservation'
 
@@ -139,6 +140,14 @@ export function RoomAllocationPage() {
             <Search className="h-4 w-4" />
           </div>
         </div>
+
+        <button
+          type="button"
+          className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-[#0B4EA2] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#093d81] active:scale-[0.98]"
+          onClick={() => navigate(routes.roomAllocationGroup)}
+        >
+          Allocate All
+        </button>
 
         <div className="ml-auto flex items-center gap-4">
           <div className="text-sm font-semibold text-slate-700">{filteredRows.length} results</div>

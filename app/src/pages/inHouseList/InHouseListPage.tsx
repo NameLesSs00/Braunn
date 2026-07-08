@@ -132,12 +132,20 @@ export function InHouseListPage() {
       result = result.filter((r) => r.checkInDate.slice(0, 10) <= checkInTo)
     }
 
+    if (paymentStatusFilter !== 'all') {
+      if (paymentStatusFilter === 'Fully paid') {
+        result = result.filter((r) => r.paidAmount >= r.totalAmount)
+      } else if (paymentStatusFilter === 'deposit paid') {
+        result = result.filter((r) => r.paidAmount > 0 && r.paidAmount < r.totalAmount)
+      }
+    }
+
     return result
-  }, [inHouseReservations, query, statusFilter, roomTypeFilter, checkInFrom, checkInTo])
+  }, [inHouseReservations, query, statusFilter, roomTypeFilter, checkInFrom, checkInTo, paymentStatusFilter])
 
   useEffect(() => {
     setPage(1)
-  }, [query, statusFilter, roomTypeFilter, checkInFrom, checkInTo])
+  }, [query, statusFilter, roomTypeFilter, checkInFrom, checkInTo, paymentStatusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
   const safePage = Math.min(page, totalPages)
@@ -174,6 +182,10 @@ export function InHouseListPage() {
   const onOpenCheckIn = (reservationId: string) => {
     setCheckInReservationId(reservationId)
     setCheckInOpen(true)
+  }
+
+  const refreshInHouseReservations = () => {
+    void dispatch(fetchPmsReservations(computedDateRange))
   }
 
   const handleExportPdf = () => {
@@ -503,6 +515,7 @@ export function InHouseListPage() {
         onClose={closeDetails}
         reservationId={detailsReservationId}
         onOpenExtendStay={onOpenExtendStay}
+        onPaymentSuccess={refreshInHouseReservations}
       />
 
       <ExtendStayPopup
@@ -536,6 +549,7 @@ export function InHouseListPage() {
           setCheckOutReservationId(null)
         }}
         reservation={checkOutReservation}
+        onSuccess={refreshInHouseReservations}
       />
     </div>
   )

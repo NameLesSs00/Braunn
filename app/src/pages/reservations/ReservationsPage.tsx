@@ -192,6 +192,10 @@ export function ReservationsPage() {
     setCheckInOpen(true)
   }
 
+  const refreshReservations = () => {
+    void dispatch(fetchPmsReservations({ startDate: checkInFrom, endDate: checkInTo }))
+  }
+
   return (
     <div className="space-y-6">
       <ReservationDetailsPopup
@@ -199,6 +203,7 @@ export function ReservationsPage() {
         onClose={closeDetails}
         reservationId={detailsReservationId}
         onOpenExtendStay={onOpenExtendStay}
+        onPaymentSuccess={refreshReservations}
       />
 
       <ExtendStayPopup
@@ -235,6 +240,7 @@ export function ReservationsPage() {
           setCheckOutReservationId(null)
         }}
         reservation={checkOutReservation}
+        onSuccess={refreshReservations}
       />
 
       <OtaReservationModal open={otaOpen} onClose={() => setOtaOpen(false)} />

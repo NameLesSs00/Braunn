@@ -40,6 +40,63 @@ export function getPmsReservationFolio(id: string, signal?: AbortSignal) {
   }).then((r) => unwrapApiResponse<PmsReservationFolio>(r))
 }
 
+export type ReservationPaymentMethod = 'Card' | 'Cash' | 'Online'
+export type ReservationPaymentType = 'Deposit' | 'Payment'
+
+export interface CreateReservationPaymentParams {
+  amount: number
+  currency?: string | null
+  paymentMethod: ReservationPaymentMethod
+  paymentReference?: string | null
+  paymentDate?: string | null
+  paymentType: ReservationPaymentType
+  method: ReservationPaymentMethod
+  reference?: string | null
+}
+
+export function createReservationPayment(id: string, payload: CreateReservationPaymentParams, signal?: AbortSignal) {
+  return apiRequest<unknown>({
+    method: 'POST',
+    path: `reservations/${id}/finance/payments`,
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<unknown>(r))
+}
+
+export interface CheckOutPmsReservationParams {
+  reservationId: string
+}
+
+export interface CheckOutPmsReservationResult {
+  message?: string | null
+  roomNumber?: string | null
+  finalZeroBalance: boolean
+  actualCheckOutTime: string
+}
+
+export function checkOutPmsReservation(params: CheckOutPmsReservationParams, signal?: AbortSignal) {
+  return apiRequest<CheckOutPmsReservationResult>({
+    method: 'POST',
+    path: `${basePath}/check-out`,
+    body: params,
+    signal,
+  }).then((r) => unwrapApiResponse<CheckOutPmsReservationResult>(r))
+}
+
+export interface CheckOutReservationRoomParams {
+  notes?: string | null
+  checkedOutByUserId?: string | null
+}
+
+export function checkOutReservationRoom(reservationRoomId: string, payload: CheckOutReservationRoomParams, signal?: AbortSignal) {
+  return apiRequest<unknown>({
+    method: 'POST',
+    path: `stay/reservation-rooms/${reservationRoomId}/check-out`,
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<unknown>(r))
+}
+
 export interface PmsCheckInParams {
   reservationId: string
   roomNumber: string

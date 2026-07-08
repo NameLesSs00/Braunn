@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
-import { InfoRow } from '../../../widgets/reservations/CheckInProcessModal/InfoRow'
-import { Step4Card } from '../../../widgets/reservations/NewReservationModal/steps/step4/Step4Card'
-import { getPmsReservationById } from '../../../shared/apis/PmsReservation'
-import type { PmsReservation, PmsReservationDetails } from '../../../models/PmsReservation'
+import type { PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
+import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
 
 type Props = {
   reservation: PmsReservation
+  details: PmsReservationDetails | null
+  folio: PmsReservationFolio | null
+  guestCount: number
   onNext: () => void
   onBack: () => void
 }
@@ -26,30 +26,18 @@ function formatDate(iso?: string) {
   return d.toLocaleDateString('en-US')
 }
 
-export function Step1Verification({ reservation, onNext, onBack }: Props) {
-  const [details, setDetails] = useState<PmsReservationDetails | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    getPmsReservationById(reservation.id, controller.signal)
-      .then(setDetails)
-      .catch((e: unknown) => {
-        if (e instanceof Error && e.name === 'AbortError') return
-        // non-abort errors: just leave details null, component will show what it can
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [reservation.id])
-
-  const nights = calcNights(reservation.checkInDate, reservation.checkOutDate)
+export function Step1Verification({ reservation, details, folio, guestCount, onNext, onBack }: Props) {
+  const checkInDate = folio?.checkInDate || details?.checkInDate || reservation.checkInDate
+  const checkOutDate = folio?.checkOutDate || details?.checkOutDate || reservation.checkOutDate
+  const nights = folio?.numberOfNights || calcNights(checkInDate, checkOutDate)
+  const currency = folio?.currency || details?.finance?.currency || reservation.currency || 'EUR'
+  const grandTotal = folio?.grandTotal ?? details?.finance?.grandTotal ?? reservation.totalAmount
+  const paidAmount = folio?.paidAmount ?? details?.finance?.paidAmount ?? reservation.paidAmount
+  const remainingBalance = folio?.remainingBalance ?? details?.finance?.remainingBalance ?? reservation.remainingAmount ?? Math.max(0, grandTotal - paidAmount)
   
   // Late checkout check (mock logic: if today > scheduled checkout date)
   const today = new Date().toISOString().split('T')[0]
-  const isLate = reservation.checkOutDate < today
+  const isLate = checkOutDate.slice(0, 10) < today
 
   return (
     <div className="space-y-8">
@@ -69,15 +57,19 @@ export function Step1Verification({ reservation, onNext, onBack }: Props) {
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="text-[11px] text-slate-500">Name</div>
-                <div className="text-[13px] font-semibold text-slate-800">{reservation.guestName}</div>
+                <div className="text-[13px] font-semibold text-slate-800">{folio?.guestName || details?.guest?.fullName || reservation.guestName}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[11px] text-slate-500">ID Number</div>
-                <div className="text-[13px] font-semibold text-slate-800">{details?.guest.idNumber || '-----'}</div>
+                <div className="text-[13px] font-semibold text-slate-800">{details?.guest?.idNumber || '-----'}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[11px] text-slate-500">Phone</div>
-                <div className="text-[13px] font-semibold text-slate-800">{details?.guest.phone || '-----'}</div>
+                <div className="text-[13px] font-semibold text-slate-800">{details?.guest?.phone || '-----'}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[11px] text-slate-500">Email</div>
+                <div className="text-[13px] font-semibold text-slate-800">{details?.guest?.email || '-----'}</div>
               </div>
             </div>
           </div>
@@ -88,22 +80,45 @@ export function Step1Verification({ reservation, onNext, onBack }: Props) {
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="text-[11px] text-slate-500">Room Number</div>
-                <div className="text-[13px] font-semibold text-slate-800">{reservation.roomNumber} ({reservation.roomTypeName})</div>
+                <div className="text-[13px] font-semibold text-slate-800">{folio?.roomNumber || reservation.roomNumber || '-----'} ({folio?.roomTypeName || reservation.roomTypeName || '-----'})</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[11px] text-slate-500">Check-in Date</div>
-                <div className="text-[13px] font-semibold text-slate-800">{formatDate(reservation.checkInDate)}</div>
+                <div className="text-[13px] font-semibold text-slate-800">{formatDate(checkInDate)}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[11px] text-slate-500">Scheduled Check-out</div>
-                <div className="text-[13px] font-semibold text-slate-800">{formatDate(reservation.checkOutDate)}</div>
+                <div className="text-[13px] font-semibold text-slate-800">{formatDate(checkOutDate)}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-[11px] text-slate-500">Total Nights</div>
                 <div className="text-[13px] font-semibold text-slate-800">{nights} nights</div>
               </div>
+              <div className="space-y-1">
+                <div className="text-[11px] text-slate-500">Guests</div>
+                <div className="text-[13px] font-semibold text-slate-800">{guestCount}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[11px] text-slate-500">Booking Source</div>
+                <div className="text-[13px] font-semibold text-slate-800">{folio?.channelName || details?.bookingSource || reservation.channelName || '-----'}</div>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:grid-cols-3">
+        <div>
+          <div className="text-[11px] text-slate-500">Grand Total</div>
+          <div className="mt-1 text-[14px] font-bold text-slate-800">{formatMoney(grandTotal, currency)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-slate-500">Paid Amount</div>
+          <div className="mt-1 text-[14px] font-bold text-emerald-600">{formatMoney(paidAmount, currency)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-slate-500">Remaining Balance</div>
+          <div className="mt-1 text-[14px] font-bold text-orange-600">{formatMoney(remainingBalance, currency)}</div>
         </div>
       </div>
 

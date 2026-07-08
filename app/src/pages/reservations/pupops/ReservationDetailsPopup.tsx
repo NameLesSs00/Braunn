@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { Modal } from '../../../shared/ui/Modal'
 
-import { getPmsReservationFolio } from '../../../shared/apis/PmsReservation'
+import { createReservationPayment, getPmsReservationFolio } from '../../../shared/apis/PmsReservation'
 
 import type { PmsReservationFolio } from '../../../models/PmsReservation'
 
@@ -25,7 +25,12 @@ type Props = {
   onClose: () => void
   reservationId: string | null
   onOpenExtendStay: (reservationId: string) => void
+  onPaymentSuccess?: () => void | Promise<void>
 }
+
+const PAYMENT_METHODS = ['Card', 'Cash', 'Online'] as const
+const PAYMENT_TYPES = ['Deposit', 'Payment'] as const
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'EGP', 'SAR', 'AED', 'JOD', 'KWD'] as const
 
 function formatDisplayDate(value?: string | null) {
   if (!value) return '—'
@@ -49,7 +54,7 @@ function PaymentStatusBadge({ status }: { status: string }) {
   )
 }
 
-export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenExtendStay }: Props) {
+export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenExtendStay, onPaymentSuccess }: Props) {
   const [folio, setFolio] = useState<PmsReservationFolio | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,6 +65,19 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
   const [selectedServiceId, setSelectedServiceId] = useState<string>('')
   const [isPostingCharge, setIsPostingCharge] = useState(false)
   const [chargeError, setChargeError] = useState<string | null>(null)
+
+  const [showPay, setShowPay] = useState(false)
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [paymentForm, setPaymentForm] = useState({
+    amount: 0,
+    currency: 'EUR',
+    paymentMethod: 'Card',
+    paymentReference: '',
+    paymentDate: new Date().toISOString().substring(0, 16),
+    paymentType: 'Payment',
+    method: 'Card',
+  })
 
   const [chargeForm, setChargeForm] = useState({
     department: 'RoomService',
@@ -77,6 +95,28 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
 
   const currentShift = useAppSelector((s) => s.shift.currentShift)
 
+  const loadReservationDetails = useCallback(async (id: string, signal?: AbortSignal) => {
+    const [folioRes, detailsRes, servicesRes] = await Promise.all([
+      getPmsReservationFolio(id, signal),
+      getPmsReservationById(id, signal),
+      getAdditionalServices(signal),
+    ])
+
+    setFolio(folioRes)
+    setReservationRoomId(null)
+    if (detailsRes.reservationRoomIds && detailsRes.reservationRoomIds.length > 0) {
+      setReservationRoomId(detailsRes.reservationRoomIds[0])
+    } else if (detailsRes.reservationRooms && detailsRes.reservationRooms.length > 0) {
+      setReservationRoomId(detailsRes.reservationRooms[0].reservationRoomId)
+    } else if (folioRes.charges && folioRes.charges.length > 0) {
+      const chargeWithRoomId = folioRes.charges.find(c => c.reservationRoomId)
+      if (chargeWithRoomId && chargeWithRoomId.reservationRoomId) {
+        setReservationRoomId(chargeWithRoomId.reservationRoomId)
+      }
+    }
+    setServices(servicesRes.filter(s => s.isActive))
+  }, [])
+
   useEffect(() => {
     if (!open || !reservationId) return
 
@@ -86,25 +126,7 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
     setError(null)
     setFolio(null)
 
-    void Promise.all([
-      getPmsReservationFolio(reservationId, controller.signal),
-      getPmsReservationById(reservationId, controller.signal),
-      getAdditionalServices(controller.signal),
-    ])
-      .then(([folioRes, detailsRes, servicesRes]) => {
-        setFolio(folioRes)
-        if (detailsRes.reservationRoomIds && detailsRes.reservationRoomIds.length > 0) {
-          setReservationRoomId(detailsRes.reservationRoomIds[0])
-        } else if (detailsRes.reservationRooms && detailsRes.reservationRooms.length > 0) {
-          setReservationRoomId(detailsRes.reservationRooms[0].reservationRoomId)
-        } else if (folioRes.charges && folioRes.charges.length > 0) {
-          const chargeWithRoomId = folioRes.charges.find(c => c.reservationRoomId)
-          if (chargeWithRoomId && chargeWithRoomId.reservationRoomId) {
-            setReservationRoomId(chargeWithRoomId.reservationRoomId)
-          }
-        }
-        setServices(servicesRes.filter(s => s.isActive))
-      })
+    void loadReservationDetails(reservationId, controller.signal)
       .catch((e: unknown) => {
         if (controller.signal.aborted) return
         setError(e instanceof Error ? e.message : 'Failed to load reservation details')
@@ -115,13 +137,57 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
       })
 
     return () => controller.abort()
-  }, [open, reservationId])
+  }, [loadReservationDetails, open, reservationId])
 
   const currency = folio?.currency || '€'
 
+  useEffect(() => {
+    if (!folio) return
+    setPaymentForm(prev => ({
+      ...prev,
+      amount: Math.max(0, folio.remainingBalance || 0),
+      currency: folio.currency || prev.currency || 'EUR',
+      paymentDate: new Date().toISOString().substring(0, 16),
+    }))
+    setPaymentError(null)
+  }, [folio])
+
+  const handleSubmitPayment = async () => {
+    if (!reservationId) return
+    if (!Number.isFinite(paymentForm.amount) || paymentForm.amount <= 0) {
+      setPaymentError('Payment amount must be greater than 0.')
+      return
+    }
+
+    setIsSubmittingPayment(true)
+    setPaymentError(null)
+
+    try {
+      const paymentDate = paymentForm.paymentDate ? new Date(paymentForm.paymentDate).toISOString() : new Date().toISOString()
+      await createReservationPayment(reservationId, {
+        amount: Number(paymentForm.amount),
+        currency: paymentForm.currency || null,
+        paymentMethod: paymentForm.paymentMethod as 'Card' | 'Cash' | 'Online',
+        paymentReference: paymentForm.paymentReference || null,
+        paymentDate,
+        paymentType: paymentForm.paymentType as 'Deposit' | 'Payment',
+        method: paymentForm.method as 'Card' | 'Cash' | 'Online',
+        reference: paymentForm.paymentReference || null,
+      })
+
+      setShowPay(false)
+      await loadReservationDetails(reservationId)
+      await onPaymentSuccess?.()
+    } catch (e: unknown) {
+      setPaymentError(e instanceof Error ? e.message : 'Failed to submit payment.')
+    } finally {
+      setIsSubmittingPayment(false)
+    }
+  }
+
   return (
     <Modal open={open} onClose={onClose} lockScroll>
-      <div className="flex h-[calc(100vh-2rem)] w-[94vw] max-w-6xl flex-col overflow-y-auto rounded-2xl bg-white shadow-xl">
+      <div className="relative flex h-[calc(100vh-2rem)] w-[94vw] max-w-6xl flex-col overflow-y-auto rounded-2xl bg-white shadow-xl">
         {/* ── Header ── */}
         <div className="flex items-center justify-between bg-[#0B4EA2] px-8 py-5">
           <div className="flex items-center gap-3">
@@ -633,9 +699,9 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                             setShowAddService(false)
                             setSelectedServiceId('')
                             
-                            // Re-fetch folio
-                            const updatedFolio = await getPmsReservationFolio(reservationId as string)
-                            setFolio(updatedFolio)
+                            if (reservationId) {
+                              await loadReservationDetails(reservationId)
+                            }
                           } catch (e: any) {
                             setChargeError(e.message || 'Failed to post charge.')
                           } finally {
@@ -723,6 +789,126 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
               </Step4Card>
 
               {/* ── Footer Actions ── */}
+              {showPay && (
+                <div className="rounded-xl border border-[#0B4EA2] bg-blue-50/30 p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-base font-bold text-[#0B4EA2]">Pay Reservation</div>
+                      <div className="mt-1 text-sm text-slate-600">Record a payment against this reservation's balance</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                    {paymentError && (
+                      <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                        {paymentError}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Amount <span className="text-red-500">*</span></label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none focus:border-[#0B4EA2]"
+                          value={paymentForm.amount}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: Number(e.target.value) }))}
+                          disabled={isSubmittingPayment}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Currency</label>
+                        <select
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                          value={paymentForm.currency}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, currency: e.target.value }))}
+                          disabled={isSubmittingPayment}
+                        >
+                          {CURRENCIES.map((item) => (
+                            <option key={item} value={item}>{item}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Payment Method</label>
+                        <select
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                          value={paymentForm.paymentMethod}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethod: e.target.value, method: e.target.value }))}
+                          disabled={isSubmittingPayment}
+                        >
+                          {PAYMENT_METHODS.map((item) => (
+                            <option key={item} value={item}>{item}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Payment Type</label>
+                        <select
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
+                          value={paymentForm.paymentType}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentType: e.target.value }))}
+                          disabled={isSubmittingPayment}
+                        >
+                          {PAYMENT_TYPES.map((item) => (
+                            <option key={item} value={item}>{item}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Payment Date</label>
+                        <input
+                          type="datetime-local"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none focus:border-[#0B4EA2]"
+                          value={paymentForm.paymentDate}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentDate: e.target.value }))}
+                          disabled={isSubmittingPayment}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-semibold text-slate-700">Payment Reference</label>
+                        <input
+                          type="text"
+                          className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none focus:border-[#0B4EA2]"
+                          value={paymentForm.paymentReference}
+                          onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentReference: e.target.value }))}
+                          disabled={isSubmittingPayment}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
+                      <button
+                        type="button"
+                        className="h-10 rounded-xl px-5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+                        onClick={() => {
+                          setShowPay(false)
+                          setPaymentError(null)
+                        }}
+                        disabled={isSubmittingPayment}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="h-10 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#093d81] disabled:opacity-60"
+                        onClick={handleSubmitPayment}
+                        disabled={isSubmittingPayment}
+                      >
+                        {isSubmittingPayment ? 'Paying...' : 'Pay'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-4 border-t border-slate-200 pt-6 md:flex-row md:items-center md:justify-between">
                 <button
                   type="button"
@@ -733,6 +919,20 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                 </button>
 
                 <div className="flex flex-col gap-3 md:flex-row">
+                  <button
+                    type="button"
+                    className="h-12 rounded-xl border border-[#0B4EA2] px-12 text-sm font-semibold text-[#0B4EA2]"
+                    onClick={() => {
+                      setPaymentError(null)
+                      setShowPay(true)
+                    }}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <IconImage src={LuCreditCard} alt="" className="h-4 w-4 opacity-80" />
+                      Pay
+                    </span>
+                  </button>
+
                   <button
                     type="button"
                     className="h-12 rounded-xl border border-[#0B4EA2] px-12 text-sm font-semibold text-[#0B4EA2]"

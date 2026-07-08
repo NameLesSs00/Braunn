@@ -25,6 +25,7 @@ const titleByPath: Record<string, string> = {
   [routes.servicesRequests]: 'Services & Requests',
   [routes.inHouseList]: 'In House list',
   [routes.roomAllocation]: 'Room Allocation',
+  [routes.roomAllocationGroup]: 'Room Allocation',
   [routes.salesRevenue.dashboard]: 'Sales & Revenue',
   [routes.salesRevenue.rateCalendar]: 'Sales & Revenue',
   [routes.salesRevenue.roomTypes]: 'Sales & Revenue',

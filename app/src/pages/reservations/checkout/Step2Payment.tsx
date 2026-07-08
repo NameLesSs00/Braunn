@@ -1,14 +1,19 @@
-import { useEffect, useState, useMemo } from 'react'
-import { getPmsReservationById } from '../../../shared/apis/PmsReservation'
-import type { PmsReservation, PmsReservationDetails } from '../../../models/PmsReservation'
+import type { PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
+import type { CheckoutPaymentData } from './CheckOutProcessPopup'
 import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
-import { ChevronDown, Plus } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 
 type Props = {
   reservation: PmsReservation
+  details: PmsReservationDetails | null
+  folio: PmsReservationFolio | null
+  guestCount: number
+  paymentData: CheckoutPaymentData
+  paymentError: string | null
+  submitting: boolean
   onNext: () => void
   onBack: () => void
-  onPaymentChange: (data: { method?: string; amount?: string }) => void
+  onPaymentChange: (data: Partial<CheckoutPaymentData>) => void
 }
 
 function calcNights(checkIn?: string, checkOut?: string) {
@@ -20,31 +25,20 @@ function calcNights(checkIn?: string, checkOut?: string) {
   return Math.max(1, diff)
 }
 
-export function Step2Payment({ reservation, onNext, onBack, onPaymentChange }: Props) {
-  const [details, setDetails] = useState<PmsReservationDetails | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getPmsReservationById(reservation.id)
-      .then((res) => {
-        setDetails(res)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [reservation.id])
-
-  const currency = details?.finance?.currency || '$'
-
-  // Mock data for display based on the image
-  const nights = calcNights(reservation.checkInDate, reservation.checkOutDate)
-  const roomCharge = reservation.totalAmount || 480
-  const depositPaid = reservation.paidAmount || 120
-  const tax = 20
-  const lateFee = 0
-  const additionalCharges = 0
-  
-  const remainingBalance = roomCharge - depositPaid
-  const totalAmount = remainingBalance + tax + lateFee + additionalCharges
+export function Step2Payment({ reservation, details, folio, guestCount, paymentData, paymentError, submitting, onNext, onBack, onPaymentChange }: Props) {
+  const currency = folio?.currency || details?.finance?.currency || reservation.currency || 'EUR'
+  const nights = folio?.numberOfNights || calcNights(folio?.checkInDate || reservation.checkInDate, folio?.checkOutDate || reservation.checkOutDate)
+  const roomCharge = folio?.totals?.roomChargesTotal ?? folio?.totalRoomRate ?? details?.finance?.baseRoomAmount ?? reservation.totalAmount
+  const depositPaid = folio?.paidAmount ?? details?.finance?.paidAmount ?? reservation.paidAmount
+  const tax = folio?.totals?.taxTotal ?? details?.finance?.taxAmount ?? 0
+  const serviceCharges = folio?.totals?.serviceChargesTotal ?? details?.finance?.servicesTotal ?? 0
+  const mealCharges = folio?.totals?.mealChargesTotal ?? details?.finance?.mealPlansTotal ?? 0
+  const packageCharges = folio?.totals?.packageChargesTotal ?? 0
+  const manualCharges = folio?.totals?.manualChargesTotal ?? 0
+  const discounts = folio?.totalDiscounts ?? details?.finance?.discountAmount ?? 0
+  const remainingBalance = folio?.remainingBalance ?? details?.finance?.remainingBalance ?? reservation.remainingAmount ?? Math.max(0, roomCharge + serviceCharges + mealCharges + packageCharges + manualCharges + tax - discounts - depositPaid)
+  const grandTotal = folio?.grandTotal ?? details?.finance?.grandTotal ?? reservation.totalAmount
+  const hasBalance = remainingBalance > 0
 
   return (
     <div className="space-y-6">
@@ -52,60 +46,157 @@ export function Step2Payment({ reservation, onNext, onBack, onPaymentChange }: P
         <div className="space-y-4">
           {/* Summary Rows */}
           <SummaryRow label="Number of Night :" value={`${nights}`} amount={formatMoney(roomCharge, currency)} />
-          <SummaryRow label="Number of Guest" value="1" />
-          <SummaryRow label="Adult :" value="1" amount={formatMoney(roomCharge, currency)} />
+          <SummaryRow label="Number of Guest" value={`${guestCount}`} />
+          <SummaryRow label="Room Type" value={folio?.roomTypeName || reservation.roomTypeName || '-----'} />
           
           <div className="my-4 h-px bg-slate-100" />
           
           <SummaryRow label="Total Room Charges" amount={formatMoney(roomCharge, currency)} />
-          <SummaryRow label="Deposit Paid" amount={formatMoney(depositPaid, currency)} amountClassName="text-emerald-500" />
-          <SummaryRow label="Remaining Balance" amount={formatMoney(remainingBalance, currency)} />
-          <SummaryRow label="Late Check-out Fee" amount={formatMoney(lateFee, currency)} labelClassName="text-orange-600" amountClassName="text-orange-600" />
-          <SummaryRow label="Additional Charges" amount={formatMoney(additionalCharges, currency)} subtext="No services" />
+          <SummaryRow label="Service Charges" amount={formatMoney(serviceCharges, currency)} subtext={folio?.services?.length ? `${folio.services.length} service(s)` : 'No services'} />
+          <SummaryRow label="Meal Charges" amount={formatMoney(mealCharges, currency)} subtext={folio?.mealPlans?.length ? `${folio.mealPlans.length} meal plan(s)` : 'No meal plans'} />
+          <SummaryRow label="Package Charges" amount={formatMoney(packageCharges, currency)} />
+          <SummaryRow label="Manual Charges" amount={formatMoney(manualCharges, currency)} />
           <SummaryRow label="Taxes" amount={formatMoney(tax, currency)} />
+          <SummaryRow label="Discounts" amount={`-${formatMoney(discounts, currency)}`} amountClassName="text-emerald-500" />
+          <SummaryRow label="Amount Paid" amount={formatMoney(depositPaid, currency)} amountClassName="text-emerald-500" />
+          <SummaryRow label="Remaining Balance" amount={formatMoney(remainingBalance, currency)} amountClassName={hasBalance ? 'text-orange-600' : 'text-emerald-600'} />
           
           <div className="my-4 h-px bg-slate-100" />
           
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-slate-800">Total Amount:</span>
-            <span className="text-lg font-bold text-slate-800">{formatMoney(totalAmount, currency)}</span>
+            <span className="text-sm font-bold text-slate-800">Grand Total:</span>
+            <span className="text-lg font-bold text-slate-800">{formatMoney(grandTotal, currency)}</span>
           </div>
         </div>
       </div>
 
       {/* Payment Form */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {paymentError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
+          {paymentError}
+        </div>
+      )}
+
+      {!hasBalance ? (
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-6 py-5">
+          <div className="text-sm font-bold text-emerald-700">Fully Paid</div>
+          <div className="mt-1 text-[13px] text-emerald-700">
+            This reservation has no remaining balance. You can continue to confirmation.
+          </div>
+        </div>
+      ) : (
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-2">
-          <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Payment Method *</label>
+          <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Amount *</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Enter amount"
+            className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition-all focus:border-[#0B4EA2] focus:bg-white"
+            value={paymentData.amount}
+            onChange={(e) => onPaymentChange({ amount: e.target.value })}
+            disabled={!hasBalance || submitting}
+          />
+          <div className="text-[11px] font-medium text-slate-400">Remaining: {formatMoney(remainingBalance, currency)}</div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Currency</label>
           <div className="relative">
-            <select 
+            <select
               className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition-all focus:border-[#0B4EA2] focus:bg-white"
-              onChange={(e) => onPaymentChange({ method: e.target.value })}
+              value={paymentData.currency}
+              onChange={(e) => onPaymentChange({ currency: e.target.value })}
+              disabled={!hasBalance || submitting}
             >
-              <option value="">Select Payment</option>
-              <option value="cash">Cash</option>
-              <option value="card">Credit Card</option>
+              <option value="EUR">EUR</option>
+              <option value="USD">USD</option>
+              <option value="GBP">GBP</option>
+              <option value="EGP">EGP</option>
+              <option value="SAR">SAR</option>
+              <option value="AED">AED</option>
+              <option value="JOD">JOD</option>
+              <option value="KWD">KWD</option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Paid amount</label>
-          <input 
-            type="text" 
-            placeholder="Enter amount" 
+          <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Payment Method *</label>
+          <div className="relative">
+            <select 
+              className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition-all focus:border-[#0B4EA2] focus:bg-white"
+              value={paymentData.paymentMethod}
+              onChange={(e) => onPaymentChange({ paymentMethod: e.target.value as CheckoutPaymentData['paymentMethod'], method: e.target.value as CheckoutPaymentData['method'] })}
+              disabled={!hasBalance || submitting}
+            >
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="Online">Online</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Payment Type</label>
+          <div className="relative">
+            <select
+              className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition-all focus:border-[#0B4EA2] focus:bg-white"
+              value={paymentData.paymentType}
+              onChange={(e) => onPaymentChange({ paymentType: e.target.value as CheckoutPaymentData['paymentType'] })}
+              disabled={!hasBalance || submitting}
+            >
+              <option value="Deposit">Deposit</option>
+              <option value="Payment">Payment</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Method</label>
+          <div className="relative">
+            <select
+              className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition-all focus:border-[#0B4EA2] focus:bg-white"
+              value={paymentData.method}
+              onChange={(e) => onPaymentChange({ method: e.target.value as CheckoutPaymentData['method'] })}
+              disabled={!hasBalance || submitting}
+            >
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="Online">Online</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Payment Date</label>
+          <input
+            type="datetime-local"
             className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition-all focus:border-[#0B4EA2] focus:bg-white"
-            onChange={(e) => onPaymentChange({ amount: e.target.value })}
+            value={paymentData.paymentDate}
+            onChange={(e) => onPaymentChange({ paymentDate: e.target.value })}
+            disabled={!hasBalance || submitting}
           />
-          <div className="text-[11px] font-medium text-slate-400">Remaining: {formatMoney(totalAmount, currency)}</div>
+        </div>
+
+        <div className="space-y-2 lg:col-span-3">
+          <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Payment Reference</label>
+          <input
+            type="text"
+            placeholder="Optional reference"
+            className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition-all focus:border-[#0B4EA2] focus:bg-white"
+            value={paymentData.paymentReference}
+            onChange={(e) => onPaymentChange({ paymentReference: e.target.value })}
+            disabled={!hasBalance || submitting}
+          />
         </div>
       </div>
-
-      <button className="flex items-center gap-2 text-sm font-bold text-[#0B4EA2] hover:underline">
-        <Plus className="h-4 w-4" />
-        Add Other Payment Method
-      </button>
+      )}
 
       {/* Footer Buttons */}
       <div className="flex items-center justify-between pt-6">
@@ -119,9 +210,10 @@ export function Step2Payment({ reservation, onNext, onBack, onPaymentChange }: P
         <button
           type="button"
           onClick={onNext}
-          className="h-12 rounded-xl bg-[#0B4EA2] px-12 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#093d81]"
+          disabled={submitting}
+          className="h-12 rounded-xl bg-[#0B4EA2] px-12 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#093d81] disabled:opacity-60"
         >
-          Proceed to confirmation
+          {submitting ? 'Processing payment...' : hasBalance ? 'Pay and continue' : 'Proceed to confirmation'}
         </button>
       </div>
     </div>

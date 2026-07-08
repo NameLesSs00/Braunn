@@ -1,12 +1,15 @@
 import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
-import type { PmsReservation, PmsReservationDetails } from '../../../models/PmsReservation'
+import type { PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
+import type { CheckoutPaymentData } from './CheckOutProcessPopup'
 import { CheckCircle2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { getPmsReservationById } from '../../../shared/apis/PmsReservation'
 
 type Props = {
   reservation: PmsReservation
-  paymentData: { method: string; amount: string }
+  details: PmsReservationDetails | null
+  folio: PmsReservationFolio | null
+  guestCount: number
+  paymentData: CheckoutPaymentData
+  completing: boolean
   onNext: () => void
   onBack: () => void
 }
@@ -18,22 +21,19 @@ function formatDate(iso?: string) {
   return d.toLocaleDateString('en-US')
 }
 
-export function Step3Confirm({ reservation, paymentData, onNext, onBack }: Props) {
-  const [details, setDetails] = useState<PmsReservationDetails | null>(null)
-
-  useEffect(() => {
-    getPmsReservationById(reservation.id).then((res) => setDetails(res)).catch(() => {})
-  }, [reservation.id])
-
-  const currency = details?.finance?.currency || '$'
-
-  const roomCharge = reservation.totalAmount || 480
-  const depositPaid = reservation.paidAmount || 120
-  const tax = 20
-  const lateFee = 0
-  const additionalCharges = 0
-  const remainingBalance = roomCharge - depositPaid
-  const totalAmount = remainingBalance + tax + lateFee + additionalCharges
+export function Step3Confirm({ reservation, details, folio, guestCount, paymentData, completing, onNext, onBack }: Props) {
+  const currency = folio?.currency || details?.finance?.currency || reservation.currency || 'EUR'
+  const roomCharge = folio?.totals?.roomChargesTotal ?? folio?.totalRoomRate ?? details?.finance?.baseRoomAmount ?? reservation.totalAmount
+  const paidAmount = folio?.paidAmount ?? details?.finance?.paidAmount ?? reservation.paidAmount
+  const tax = folio?.totals?.taxTotal ?? details?.finance?.taxAmount ?? 0
+  const serviceCharges = folio?.totals?.serviceChargesTotal ?? details?.finance?.servicesTotal ?? 0
+  const mealCharges = folio?.totals?.mealChargesTotal ?? details?.finance?.mealPlansTotal ?? 0
+  const packageCharges = folio?.totals?.packageChargesTotal ?? 0
+  const manualCharges = folio?.totals?.manualChargesTotal ?? 0
+  const discounts = folio?.totalDiscounts ?? details?.finance?.discountAmount ?? 0
+  const remainingBalance = folio?.remainingBalance ?? details?.finance?.remainingBalance ?? reservation.remainingAmount ?? 0
+  const grandTotal = folio?.grandTotal ?? details?.finance?.grandTotal ?? reservation.totalAmount
+  const checkoutAmount = Number(paymentData.amount) || 0
 
   return (
     <div className="space-y-6">
@@ -48,19 +48,27 @@ export function Step3Confirm({ reservation, paymentData, onNext, onBack }: Props
         <div className="grid grid-cols-2 gap-y-4">
           <div className="space-y-1">
             <div className="text-[11px] text-slate-500">Guest Name</div>
-            <div className="text-[13px] font-semibold text-slate-800">{reservation.guestName}</div>
+            <div className="text-[13px] font-semibold text-slate-800">{folio?.guestName || details?.guest?.fullName || reservation.guestName}</div>
           </div>
           <div className="space-y-1">
             <div className="text-[11px] text-slate-500">Room Number</div>
-            <div className="text-[13px] font-semibold text-slate-800">{reservation.roomNumber}</div>
+            <div className="text-[13px] font-semibold text-slate-800">{folio?.roomNumber || reservation.roomNumber || '-----'}</div>
           </div>
           <div className="space-y-1">
             <div className="text-[11px] text-slate-500">Check-in Date</div>
-            <div className="text-[13px] font-semibold text-slate-800">{formatDate(reservation.checkInDate)}</div>
+            <div className="text-[13px] font-semibold text-slate-800">{formatDate(folio?.checkInDate || reservation.checkInDate)}</div>
           </div>
           <div className="space-y-1">
             <div className="text-[11px] text-slate-500">Check-out Date</div>
-            <div className="text-[13px] font-semibold text-slate-800">{formatDate(reservation.checkOutDate)}</div>
+            <div className="text-[13px] font-semibold text-slate-800">{formatDate(folio?.checkOutDate || reservation.checkOutDate)}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-[11px] text-slate-500">Guests</div>
+            <div className="text-[13px] font-semibold text-slate-800">{guestCount}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-[11px] text-slate-500">Payment Status</div>
+            <div className="text-[13px] font-semibold text-slate-800">{folio?.paymentStatus || details?.finance?.paymentStatus || '-----'}</div>
           </div>
         </div>
       </div>
@@ -69,28 +77,56 @@ export function Step3Confirm({ reservation, paymentData, onNext, onBack }: Props
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <h4 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-400">Payment Summary</h4>
         <div className="space-y-4">
-          <SummaryRow label="Number of Night :" value="1" amount={formatMoney(roomCharge, currency)} />
-          <SummaryRow label="Number of Guest" value="1" />
-          <SummaryRow label="Adult :" value="1" amount={formatMoney(roomCharge, currency)} />
+          <SummaryRow label="Number of Night :" value={`${folio?.numberOfNights || '-----'}`} amount={formatMoney(roomCharge, currency)} />
+          <SummaryRow label="Number of Guest" value={`${guestCount}`} />
+          <SummaryRow label="Room Type" value={folio?.roomTypeName || reservation.roomTypeName || '-----'} />
           
           <div className="my-4 h-px bg-slate-100" />
           
           <SummaryRow label="Total Room Charges" amount={formatMoney(roomCharge, currency)} />
-          <SummaryRow label="Deposit Paid" amount={formatMoney(depositPaid, currency)} amountClassName="text-emerald-500" />
-          <SummaryRow label="Remaining Balance" amount={formatMoney(remainingBalance, currency)} />
-          <SummaryRow label="Late Check-out Fee" amount={formatMoney(lateFee, currency)} labelClassName="text-orange-600" amountClassName="text-orange-600" />
-          <SummaryRow label="Additional Charges" amount={formatMoney(additionalCharges, currency)} subtext="No services" />
+          <SummaryRow label="Service Charges" amount={formatMoney(serviceCharges, currency)} subtext={folio?.services?.length ? `${folio.services.length} service(s)` : 'No services'} />
+          <SummaryRow label="Meal Charges" amount={formatMoney(mealCharges, currency)} subtext={folio?.mealPlans?.length ? `${folio.mealPlans.length} meal plan(s)` : 'No meal plans'} />
+          <SummaryRow label="Package Charges" amount={formatMoney(packageCharges, currency)} />
+          <SummaryRow label="Manual Charges" amount={formatMoney(manualCharges, currency)} />
           <SummaryRow label="Taxes" amount={formatMoney(tax, currency)} />
+          <SummaryRow label="Discounts" amount={`-${formatMoney(discounts, currency)}`} amountClassName="text-emerald-500" />
+          <SummaryRow label="Amount Paid" amount={formatMoney(paidAmount, currency)} amountClassName="text-emerald-500" />
+          <SummaryRow label="Remaining Balance" amount={formatMoney(remainingBalance, currency)} amountClassName={remainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'} />
           
           <div className="my-4 h-px bg-slate-100" />
+
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-bold text-slate-800">Grand Total</span>
+            <span className="text-sm font-extrabold text-slate-800">{formatMoney(grandTotal, currency)}</span>
+          </div>
           
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-bold text-slate-800">Amount Paid at Check-out</span>
-            <span className="text-sm font-extrabold text-slate-800">{formatMoney(totalAmount, currency)}</span>
+            <span className="text-sm font-extrabold text-slate-800">{formatMoney(checkoutAmount, currency)}</span>
           </div>
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-slate-500 font-medium uppercase tracking-wider">Payment Method</span>
-            <span className="font-bold text-slate-700">{paymentData.method || 'cash'}</span>
+            <span className="font-bold text-slate-700">{paymentData.paymentMethod}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 font-medium uppercase tracking-wider">Method</span>
+            <span className="font-bold text-slate-700">{paymentData.method}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 font-medium uppercase tracking-wider">Payment Type</span>
+            <span className="font-bold text-slate-700">{paymentData.paymentType}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 font-medium uppercase tracking-wider">Currency</span>
+            <span className="font-bold text-slate-700">{paymentData.currency}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 font-medium uppercase tracking-wider">Payment Date</span>
+            <span className="font-bold text-slate-700">{paymentData.paymentDate || '-----'}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 font-medium uppercase tracking-wider">Reference</span>
+            <span className="font-bold text-slate-700">{paymentData.paymentReference || '-----'}</span>
           </div>
         </div>
       </div>
@@ -102,12 +138,6 @@ export function Step3Confirm({ reservation, paymentData, onNext, onBack }: Props
           <CheckCircle2 className="h-5 w-5" />
           Room in Good Condition
         </div>
-      </div>
-
-      {/* Notice */}
-      <div className="flex items-start gap-3 rounded-xl bg-blue-50 px-5 py-4 text-[12px] text-blue-700">
-        <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-blue-700 font-bold">i</div>
-        <span>After completing check-out, the room will be marked as "Cleaning" and the reservation will be marked as "Checked Out".</span>
       </div>
 
       {/* Footer Buttons */}
@@ -122,10 +152,11 @@ export function Step3Confirm({ reservation, paymentData, onNext, onBack }: Props
         <button
           type="button"
           onClick={onNext}
-          className="flex h-12 items-center gap-2 rounded-xl bg-[#0B4EA2] px-10 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#093d81]"
+          disabled={completing}
+          className="flex h-12 items-center gap-2 rounded-xl bg-[#0B4EA2] px-10 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#093d81] disabled:opacity-60"
         >
           <CheckCircle2 className="h-4 w-4" />
-          Complete Check-Out
+          {completing ? 'Completing...' : 'Complete Check-Out'}
         </button>
       </div>
     </div>
