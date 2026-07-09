@@ -1,18 +1,33 @@
-import { useState, type ReactNode } from 'react'
-import { FaBed , FaBuilding ,FaRegCalendar , FaRegClock  } from "react-icons/fa";
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { FaBed , FaBuilding , FaHome, FaRegCalendar , FaRegClock  } from "react-icons/fa";
 import { FaArrowTrendUp } from "react-icons/fa6";
 import { IconImage } from '../../shared/ui/IconImage'
 
 import { CheckInTodayModal } from './modals/CheckInTodayModal'
 import { CheckOutTodayModal } from './modals/CheckOutTodayModal'
+import { InHouseMonthModal } from './modals/InHouseMonthModal'
 import { SearchReservationModal } from './modals/SearchReservationModal'
 import { IconType } from 'react-icons'
-import { NewReservationModal } from '../../widgets/reservations/NewReservationModal/NewReservationModal'
 import { FiLogIn } from "react-icons/fi";
 import { CgLogOut } from "react-icons/cg";
 import { GoSearch } from "react-icons/go";
+import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
+import { fetchDailyDashboard } from '../../features/dashboard/dashboardSlice'
 
-import { MdAddCircleOutline } from "react-icons/md";
+function localIsoDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function formatAmount(amount: number) {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
 interface StatCardProps {
   title: string
   value: string
@@ -78,11 +93,32 @@ function QuickAction({ title, iconSrc, onClick, iconClassName = '' }: QuickActio
 }
 
 export function DashboardPage() {
+  const dispatch = useAppDispatch()
+  const daily = useAppSelector((state) => state.dashboard.daily)
+  const dashboardStatus = useAppSelector((state) => state.dashboard.status)
+  const dashboardError = useAppSelector((state) => state.dashboard.error)
+  const [now, setNow] = useState(() => new Date())
   const [checkInTodayOpen, setCheckInTodayOpen] = useState(false)
   const [checkOutTodayOpen, setCheckOutTodayOpen] = useState(false)
-  const [newReservationOpen, setNewReservationOpen] = useState(false)
+  const [inHouseMonthOpen, setInHouseMonthOpen] = useState(false)
   const [searchReservationOpen, setSearchReservationOpen] = useState(false)
-  //to be removed
+
+  const dashboardDate = useMemo(() => localIsoDate(now), [now])
+  const loading = dashboardStatus === 'loading'
+  const revenueTotal = useMemo(
+    () => daily?.revenueByPaymentMethod?.reduce((total, item) => total + item.amount, 0) ?? 0,
+    [daily]
+  )
+
+  useEffect(() => {
+    const request = dispatch(fetchDailyDashboard(dashboardDate))
+    return () => request.abort()
+  }, [dashboardDate, dispatch])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   return (
     <>
@@ -92,11 +128,16 @@ export function DashboardPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <IconImage src={FaRegCalendar} alt="Calendar" className="h-4 w-4" />
-              Sunday , December 21.2025
+              {now.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              })}
             </div>
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
               <IconImage src={FaRegClock} alt="Clock" className="h-4 w-4" />
-              12:01:34 PM
+              {now.toLocaleTimeString('en-US')}
             </div>
           </div>
 
@@ -106,42 +147,46 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {dashboardStatus === 'failed' ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+          {dashboardError || 'Unable to load dashboard data.'}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         <StatCard
           title="Available Room"
-          value="20"
+          value={loading ? '—' : String(daily?.availableRooms.total ?? 0)}
           iconBgClassName="bg-emerald-100"
           icon={FaBed}
         >
           
-          <div className="grid grid-cols-2 gap-y-2">
-            <div>Single 6</div>
-            <div>Double 3</div>
-            <div>Trible 2</div>
-            <div>Suite 4</div>
-            <div>Deluxe 7</div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+            {(daily?.availableRooms.byRoomType ?? []).map((roomType) => (
+              <div key={roomType.roomTypeId}>{roomType.roomTypeName || 'Unknown'} {roomType.count}</div>
+            ))}
           </div>
         </StatCard>
 
         <StatCard
           title="Occupied Rooms"
-          value="5"
+          value={loading ? '—' : String(daily?.occupiedRooms.total ?? 0)}
           iconBgClassName="bg-indigo-100"
           icon={FaBuilding}
         >
-          <div className="grid grid-cols-2 gap-y-2">
-            <div>Single 2</div>
-            <div>Double 1</div>
-            <div>Trible 0</div>
-            <div>Suite 0</div>
-            <div>Deluxe 2</div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+            {(daily?.occupiedRooms.byRoomType ?? []).map((roomType) => (
+              <div key={roomType.roomTypeId}>{roomType.roomTypeName || 'Unknown'} {roomType.count}</div>
+            ))}
           </div>
         </StatCard>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-lg font-semibold text-[#B07A20]">30</div>
+              <div className="text-lg font-semibold text-[#B07A20]">
+                {loading ? '—' : (daily?.actualCheckIns ?? 0) + (daily?.actualCheckOuts ?? 0)}
+              </div>
               <div className="mt-1 text-sm font-semibold text-slate-800">Today&apos;s</div>
             </div>
             <div className="grid h-10 w-10 place-items-center rounded-full bg-amber-50">
@@ -151,12 +196,20 @@ export function DashboardPage() {
 
           <div className="mt-4 space-y-3 text-sm text-slate-600">
             <div className="flex items-center justify-between">
-              <div>Check-ins</div>
-              <div className="font-semibold text-slate-800">15</div>
+              <div>Expected Check-ins</div>
+              <div className="font-semibold text-slate-800">{daily?.expectedCheckIns ?? 0}</div>
             </div>
             <div className="flex items-center justify-between">
-              <div>Check-Out</div>
-              <div className="font-semibold text-slate-800">15</div>
+              <div>Actual Check-ins</div>
+              <div className="font-semibold text-emerald-700">{daily?.actualCheckIns ?? 0}</div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>Expected Check-outs</div>
+              <div className="font-semibold text-slate-800">{daily?.expectedCheckOuts ?? 0}</div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>Actual Check-outs</div>
+              <div className="font-semibold text-indigo-700">{daily?.actualCheckOuts ?? 0}</div>
             </div>
           </div>
         </div>
@@ -164,7 +217,9 @@ export function DashboardPage() {
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-lg font-semibold text-[#9A1E1E]">$2,270</div>
+              <div className="text-lg font-semibold text-[#9A1E1E]">
+                {loading ? '—' : formatAmount(revenueTotal)}
+              </div>
               <div className="mt-1 text-sm font-semibold text-slate-800">Total Revenue</div>
             </div>
             <div className="grid h-10 w-10 place-items-center rounded-full bg-rose-50">
@@ -173,13 +228,15 @@ export function DashboardPage() {
           </div>
 
           <div className="mt-4 space-y-3 text-sm text-slate-600">
+            {(daily?.revenueByPaymentMethod ?? []).map((payment) => (
+              <div key={payment.paymentMethod ?? 'Unknown'} className="flex items-center justify-between">
+                <div>{payment.paymentMethod || 'Unknown'}</div>
+                <div className="font-semibold text-slate-800">{formatAmount(payment.amount)}</div>
+              </div>
+            ))}
             <div className="flex items-center justify-between">
-              <div>Cash</div>
-              <div className="font-semibold text-slate-800">$1500</div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>Bank transfer</div>
-              <div className="font-semibold text-slate-800">$770</div>
+              <div>Refunds</div>
+              <div className="font-semibold text-rose-700">{formatAmount(daily?.refundsTotal ?? 0)}</div>
             </div>
           </div>
         </div>
@@ -205,11 +262,11 @@ export function DashboardPage() {
             }}
           />
           <QuickAction
-            title="Add booking"
-            iconSrc={MdAddCircleOutline}
+            title="In House list"
+            iconSrc={FaHome}
             iconClassName="text-blue-500"
             onClick={() => {
-              setNewReservationOpen(true)
+              setInHouseMonthOpen(true)
             }}
           />
           <QuickAction
@@ -226,7 +283,7 @@ export function DashboardPage() {
 
       <CheckInTodayModal open={checkInTodayOpen} onClose={() => setCheckInTodayOpen(false)} />
       <CheckOutTodayModal open={checkOutTodayOpen} onClose={() => setCheckOutTodayOpen(false)} />
-      <NewReservationModal open={newReservationOpen} onClose={() => setNewReservationOpen(false)} />
+      <InHouseMonthModal open={inHouseMonthOpen} onClose={() => setInHouseMonthOpen(false)} />
       <SearchReservationModal open={searchReservationOpen} onClose={() => setSearchReservationOpen(false)} />
     </>
   )

@@ -88,7 +88,7 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
   return (
     <>
     <Modal open={open} onClose={onClose} lockScroll={false}>
-      <div className="w-[94vw] max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="w-[94vw] max-w-2xl overflow-hidden rounded-2xl bg-white shadow-xl">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-[#0B4EA2] px-6 py-4">
           <div>
             <div className="text-sm font-semibold text-white">Room {room?.number ?? ''}</div>
@@ -193,11 +193,11 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
                 </div>
                 <div>
                   <div className="text-[11px] text-[#0B4EA2]">Check-out</div>
-                  <div className="font-semibold">{formatUsDate(block?.end)}</div>
+                  <div className="font-semibold">{formatUsDate(block?.checkOutDate ?? block?.end)}</div>
                 </div>
                 <div>
                   <div className="text-[11px] text-[#0B4EA2]">Check-in</div>
-                  <div className="font-semibold">{formatUsDate(block?.start)}</div>
+                  <div className="font-semibold">{formatUsDate(block?.checkInDate ?? block?.start)}</div>
                 </div>
                 <div>
                   <div className="text-[11px] text-[#0B4EA2]">Rate</div>
@@ -273,11 +273,11 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
       </div>
     </Modal>
 
-    <CheckInProcessPopup
-      open={checkInOpen}
-      onClose={() => setCheckInOpen(false)}
-      reservationId={block?.id ?? null}
-    />
+      <CheckInProcessPopup
+        open={checkInOpen}
+        onClose={() => setCheckInOpen(false)}
+        reservationId={block?.reservationId ?? null}
+      />
 
     <MoveRoomStep1Popup
       open={moveRoomOpen}

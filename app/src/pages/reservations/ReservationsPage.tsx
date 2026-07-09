@@ -5,7 +5,8 @@ import { IoSearchSharp } from "react-icons/io5";
 
 import { IconImage } from '../../shared/ui/IconImage'
 import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
-import { fetchPmsReservations } from '../../features/pms/pmsSlice'
+import { getPmsReservations } from '../../shared/apis/PmsReservation'
+import { fetchReservationsTable } from '../../features/pms/pmsSlice'
 import type { PmsReservation } from '../../models/PmsReservation'
 import { ReservationDetailsPopup } from './pupops/ReservationDetailsPopup'
 import { ExtendStayPopup } from './pupops/ExtendStayPopup'
@@ -13,6 +14,9 @@ import { CheckInProcessPopup } from './pupops/CheckInProcessPopup'
 import { CheckOutProcessPopup } from './checkout/CheckOutProcessPopup'
 import { OtaReservationModal } from '../../widgets/reservations/OtaReservationModal/OtaReservationModal'
 import { MoveRoomPopup } from './pupops/MoveRoomPopup'
+import { ExportInHouseListPopup } from '../inHouseList/ExportInHouseListPopup'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const getLocalYYYYMMDD = (d: Date = new Date()) => {
   const year = d.getFullYear()
@@ -23,18 +27,22 @@ const getLocalYYYYMMDD = (d: Date = new Date()) => {
 const today = getLocalYYYYMMDD()
 const lastDayOfMonth = getLocalYYYYMMDD(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0))
 
+interface ReservationsFilters {
+  query: string
+  statusFilter: string
+  roomTypeFilter: string
+  paymentStatusFilter: string
+  checkInFrom: string
+  checkInTo: string
+}
+
+let reservationsFiltersCache: ReservationsFilters | null = null
+
 function formatDateForDisplay(isoDate: string): string {
   if (!isoDate) return '—'
   const d = new Date(isoDate)
   if (Number.isNaN(d.getTime())) return isoDate
   return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  const first = parts[0]?.[0] ?? ''
-  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : ''
-  return (first + last).toUpperCase() || 'G'
 }
 
 function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (page: number) => void }) {
@@ -79,16 +87,26 @@ function Pagination({ page, pages, onChange }: { page: number; pages: number; on
 
 export function ReservationsPage() {
   const dispatch = useAppDispatch()
-  const pmsReservations = useAppSelector((s) => s.pms.reservations)
+  const pmsReservations = useAppSelector((s) => s.pms.reservationsTableRows)
+  const reservationsLoading = useAppSelector((s) => s.pms.reservationsTableStatus === 'loading')
+  const initialFilters = useMemo<ReservationsFilters>(() => reservationsFiltersCache ?? {
+    query: '',
+    statusFilter: '',
+    roomTypeFilter: 'all',
+    paymentStatusFilter: 'all',
+    checkInFrom: today,
+    checkInTo: lastDayOfMonth,
+  }, [])
 
-  const [checkInFrom, setCheckInFrom] = useState(today)
-  const [checkInTo, setCheckInTo] = useState(lastDayOfMonth)
+  const [checkInFrom, setCheckInFrom] = useState(initialFilters.checkInFrom)
+  const [checkInTo, setCheckInTo] = useState(initialFilters.checkInTo)
 
   useEffect(() => {
-    void dispatch(fetchPmsReservations({ startDate: checkInFrom, endDate: checkInTo }))
+    const request = dispatch(fetchReservationsTable({ startDate: checkInFrom, endDate: checkInTo }))
+    return () => request.abort()
   }, [dispatch, checkInFrom, checkInTo])
 
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialFilters.query)
   const [openMenuForId, setOpenMenuForId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
@@ -107,13 +125,25 @@ export function ReservationsPage() {
   const [moveRoomOpen, setMoveRoomOpen] = useState(false)
   const [moveRoomReservationId, setMoveRoomReservationId] = useState<string | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<string>('')
-  const [roomTypeFilter, setRoomTypeFilter] = useState('all')
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<string>(initialFilters.statusFilter)
+  const [roomTypeFilter, setRoomTypeFilter] = useState(initialFilters.roomTypeFilter)
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState(initialFilters.paymentStatusFilter)
 
   const [otaOpen, setOtaOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const [page, setPage] = useState(1)
   const perPage = 6
+
+  useEffect(() => {
+    reservationsFiltersCache = {
+      query,
+      statusFilter,
+      roomTypeFilter,
+      paymentStatusFilter,
+      checkInFrom,
+      checkInTo,
+    }
+  }, [query, statusFilter, roomTypeFilter, paymentStatusFilter, checkInFrom, checkInTo])
 
   useEffect(() => {
     if (!openMenuForId) return
@@ -193,7 +223,76 @@ export function ReservationsPage() {
   }
 
   const refreshReservations = () => {
-    void dispatch(fetchPmsReservations({ startDate: checkInFrom, endDate: checkInTo }))
+    void dispatch(fetchReservationsTable({ startDate: checkInFrom, endDate: checkInTo }))
+  }
+
+  const exportReservations = async (from: string, to: string) => {
+    let exportRows = await getPmsReservations({ startDate: from, endDate: to })
+    const normalizedQuery = query.trim().toLowerCase()
+
+    if (normalizedQuery) {
+      exportRows = exportRows.filter((reservation) =>
+        [reservation.guestName, reservation.id, reservation.roomTypeName]
+          .some((value) => (value ?? '').toLowerCase().includes(normalizedQuery))
+      )
+    }
+    if (statusFilter) {
+      exportRows = exportRows.filter((reservation) => reservation.status === statusFilter)
+    }
+    if (roomTypeFilter !== 'all') {
+      exportRows = exportRows.filter((reservation) =>
+        reservation.roomTypeName?.toLowerCase().includes(roomTypeFilter.toLowerCase())
+      )
+    }
+    if (paymentStatusFilter === 'Fully paid') {
+      exportRows = exportRows.filter((reservation) => reservation.paidAmount >= reservation.totalAmount)
+    } else if (paymentStatusFilter === 'deposit paid') {
+      exportRows = exportRows.filter((reservation) =>
+        reservation.paidAmount > 0 && reservation.paidAmount < reservation.totalAmount
+      )
+    }
+
+    const doc = new jsPDF()
+    doc.setFontSize(18)
+    doc.text('Reservations List', 14, 20)
+    doc.setFontSize(11)
+    doc.setTextColor(100)
+    doc.text(`Date range: ${from} to ${to}`, 14, 29)
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 36)
+
+    autoTable(doc, {
+      startY: 44,
+      head: [[
+        'Guest',
+        'Room',
+        'Room Type',
+        'Check-in',
+        'Check-out',
+        'Status',
+        'Payment',
+        'Source',
+      ]],
+      body: exportRows.map((reservation) => [
+        reservation.guestName || '-----',
+        reservation.roomNumber || '-----',
+        reservation.roomTypeName || '-----',
+        formatDateForDisplay(reservation.checkInDate),
+        formatDateForDisplay(reservation.checkOutDate),
+        reservation.status || '-----',
+        reservation.paidAmount >= reservation.totalAmount
+          ? 'Fully Paid'
+          : reservation.paidAmount > 0
+            ? 'Deposit Paid'
+            : 'Unpaid',
+        reservation.channelName || reservation.bookingSource || '-----',
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [11, 78, 162], textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [244, 249, 255] },
+      styles: { fontSize: 8, cellPadding: 2.5 },
+    })
+
+    doc.save(`Reservations_${from}_to_${to}.pdf`)
   }
 
   return (
@@ -202,6 +301,7 @@ export function ReservationsPage() {
         open={detailsOpen}
         onClose={closeDetails}
         reservationId={detailsReservationId}
+        reservationStatus={pmsReservations.find((reservation) => reservation.id === detailsReservationId)?.status}
         onOpenExtendStay={onOpenExtendStay}
         onPaymentSuccess={refreshReservations}
       />
@@ -229,7 +329,7 @@ export function ReservationsPage() {
         }}
         reservationId={checkInReservationId}
         onSuccess={() => {
-          void dispatch(fetchPmsReservations({ startDate: checkInFrom, endDate: checkInTo }))
+          void dispatch(fetchReservationsTable({ startDate: checkInFrom, endDate: checkInTo }))
         }}
       />
 
@@ -244,6 +344,16 @@ export function ReservationsPage() {
       />
 
       <OtaReservationModal open={otaOpen} onClose={() => setOtaOpen(false)} />
+
+      <ExportInHouseListPopup
+        open={exportOpen}
+        initialFrom={checkInFrom}
+        initialTo={checkInTo}
+        onClose={() => setExportOpen(false)}
+        onExport={exportReservations}
+        title="Export Reservations List"
+        subject="reservations list"
+      />
 
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -343,6 +453,7 @@ export function ReservationsPage() {
           </button> */}
           <button
             type="button"
+            onClick={() => setExportOpen(true)}
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"
           >
             <Download className="h-4 w-4" />
@@ -352,12 +463,11 @@ export function ReservationsPage() {
       </div>
 
       <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
-        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_.7fr_.9fr_1fr_.8fr_1.2fr] bg-[#EAF2FF] px-6 py-3 text-[12px] font-semibold text-slate-700">
+        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_.9fr_1fr_.8fr_1.2fr] bg-[#EAF2FF] px-6 py-3 text-[12px] font-semibold text-slate-700">
           <div>Guest</div>
           <div>Room</div>
           <div>Check-in</div>
           <div>Check-out</div>
-          <div>Guests</div>
           <div>Status</div>
           <div>Payment</div>
           <div>Source</div>
@@ -365,7 +475,12 @@ export function ReservationsPage() {
         </div>
 
         <div className="min-h-[360px] flex flex-col">
-          {pageRows.length === 0 ? (
+          {reservationsLoading ? (
+            <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
+              <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#0B4EA2]/20 border-t-[#0B4EA2]" />
+              <p className="mt-3 text-sm font-medium text-slate-500">Loading reservations...</p>
+            </div>
+          ) : pageRows.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
               <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
                 <IoSearchSharp className="h-6 w-6" />
@@ -378,22 +493,21 @@ export function ReservationsPage() {
               const statusLabel = row.status
             const paymentLabel = row.paidAmount >= row.totalAmount ? 'Fully Paid' : row.paidAmount > 0 ? 'deposit paid' : 'Unpaid'
 
-            const isCheckInToday = row.checkInDate.startsWith(today)
-            const isCheckOutToday = row.checkOutDate.startsWith(today)
-
+            const isCheckInToday = row.checkInDate?.startsWith(today) ?? false
+            const isCheckOutDue =
+              row.status === 'CheckedIn' &&
+              Boolean(row.checkOutDate) &&
+              row.checkOutDate.slice(0, 10) <= today
             return (
               <div
                 key={row.id}
                 className={[
-                  'grid grid-cols-[1.5fr_1fr_1fr_1fr_.7fr_.9fr_1fr_.8fr_1.2fr] items-center px-6 py-3 text-[12px] text-slate-700',
+                  'grid grid-cols-[1.5fr_1fr_1fr_1fr_.9fr_1fr_.8fr_1.2fr] items-center px-6 py-3 text-[12px] text-slate-700',
                   idx % 2 === 1 ? 'bg-[#F4F9FF]' : 'bg-white',
                 ].join(' ')}
               >
                 <div className="flex items-center gap-3">
                   <div className="font-medium text-slate-800">{row.guestName}</div>
-                  <div className="grid h-6 w-6 place-items-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
-                    {initials(row.guestName)}
-                  </div>
                 </div>
 
                 <div>
@@ -409,7 +523,6 @@ export function ReservationsPage() {
 
                 <div>{formatDateForDisplay(row.checkInDate)}</div>
                 <div>{formatDateForDisplay(row.checkOutDate)}</div>
-                <div>----</div>
                 <div>{statusLabel}</div>
                 <div>{paymentLabel}</div>
                 <div>{row.channelName || '—'}</div>
@@ -425,31 +538,32 @@ export function ReservationsPage() {
                       <LogIn className="h-4 w-4" />
                       check in
                     </button>
-                  ) : isCheckOutToday && row.status === 'CheckedIn' ? (
-                    // Check out button (rose)
-                    <button
-                      type="button"
-                      className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white"
-                      onClick={() => {
-                        setCheckOutReservationId(row.id)
-                        setCheckOutOpen(true)
-                      }}
-                    >
-                      check out
-                    </button>
                   ) : (
-                    // Default view action
-                    <button
-                      type="button"
-                      className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-md bg-[#0B4EA2] px-3 text-[12px] font-semibold leading-none text-white"
-                      onClick={() => {
-                        setDetailsReservationId(row.id)
-                        setDetailsOpen(true)
-                      }}
-                      aria-label="View"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
+                    <>
+                      {isCheckOutDue ? (
+                        <button
+                          type="button"
+                          className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white"
+                          onClick={() => {
+                            setCheckOutReservationId(row.id)
+                            setCheckOutOpen(true)
+                          }}
+                        >
+                          check out
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-md bg-[#0B4EA2] px-3 text-[12px] font-semibold leading-none text-white"
+                        onClick={() => {
+                          setDetailsReservationId(row.id)
+                          setDetailsOpen(true)
+                        }}
+                        aria-label="View"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </>
                   )}
 
                   <button
@@ -474,13 +588,19 @@ export function ReservationsPage() {
                       >
                         cancel Reservation
                       </button>
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                        onClick={() => setOpenMenuForId(null)}
-                      >
-                        Early Check out
-                      </button>
+                      {row.status === 'CheckedIn' && !isCheckOutDue ? (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
+                          onClick={() => {
+                            setOpenMenuForId(null)
+                            setCheckOutReservationId(row.id)
+                            setCheckOutOpen(true)
+                          }}
+                        >
+                          Early Check out
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"

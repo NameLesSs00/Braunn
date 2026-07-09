@@ -19,7 +19,8 @@ export function getPmsReservations(params: GetPmsReservationsParams, signal?: Ab
     return data.map((item) => ({
       ...item,
       guestName: item.guest?.fullName || '',
-      channelName: item.bookingSource || null
+      roomNumber: item.roomNumber || null,
+      channelName: item.bookingSource || item.channelName || null
     })) as PmsReservation[]
   })
 }

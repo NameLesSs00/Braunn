@@ -4,7 +4,8 @@ import { routes } from '../../../shared/lib/routes'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { useNewReservationModal } from '../../layout/DashboardLayout/NewReservationModalContext'
 import { setDraft } from '../../../features/reservations/draftSlice'
-import { Notification, removeNotification } from '../../../features/notifications/notificationsSlice'
+import { Notification, removeNotification, removeReservationDraftNotification } from '../../../features/notifications/notificationsSlice'
+import { getSavedReservationDraft } from '../../../features/reservations/reservationDraftStorage'
 
 import { IconImage } from '../../../shared/ui/IconImage'
 import { ShiftCloseModal } from '../../../features/shiftClose'
@@ -59,12 +60,25 @@ export function Header({ title, onAddReservationClick }: Props) {
 
   const handleNotificationClick = (notification: Notification) => {
     if (notification.type === 'reservation_draft') {
-      dispatch(setDraft(notification.draft))
-      openNewReservation()
+      if (!notification.draftId) return
+
+      const savedDraft = getSavedReservationDraft(notification.draftId)
+      if (!savedDraft) {
+        dispatch(removeReservationDraftNotification(notification.draftId))
+        setNotificationsOpen(false)
+        return
+      }
+
+      dispatch(setDraft(savedDraft.draft))
+      openNewReservation({
+        draftId: savedDraft.id,
+        step: savedDraft.step,
+        step4Page: savedDraft.step4Page,
+      })
     } else if (notification.type === 'shift_start') {
       setShiftStartOpen(true)
+      dispatch(removeNotification(notification.id))
     }
-    dispatch(removeNotification(notification.id))
     setNotificationsOpen(false)
   }
 

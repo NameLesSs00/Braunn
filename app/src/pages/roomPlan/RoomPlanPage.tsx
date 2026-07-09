@@ -7,16 +7,12 @@ import { IconImage } from '../../shared/ui/IconImage'
 
 import { RoomPlanDetailsPopup } from './popups/RoomPlanDetailsPopup'
 import { RoomPlanEmptyCellPopup } from './popups/RoomPlanEmptyCellPopup'
-import { RoomPlanReservationReviewPopup } from './popups/RoomPlanReservationReviewPopup'
 import { RoomPlanServiceBlockPopup } from './popups/RoomPlanServiceBlockPopup'
+import { ReservationDetailsPopup } from '../reservations/pupops/ReservationDetailsPopup'
 
 import {
-  makeMockBlocks,
-  makeMockRooms,
-  type BookingType,
-  type HousekeepingStatus,
-  type RoomView,
   type RoomPlanBlock,
+  type RoomPlanRoom,
   type RoomStatus,
   type RoomType,
 } from './roomPlanMock'
@@ -24,6 +20,8 @@ import {
 import { useNewReservationModal } from '../../widgets/layout/DashboardLayout/NewReservationModalContext'
 import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
 import { fetchRoomTypes } from '../../features/roomTypes/roomTypesSlice'
+import { fetchRoomPlan } from '../../features/roomPlan/roomPlanSlice'
+import type { RoomPlanBookingType, RoomPlanRoomStatus } from '../../models/RoomPlan'
 
 type SelectOption<T extends string> = {
   value: T
@@ -72,6 +70,23 @@ function monthTitle(d: Date) {
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
+function toUiRoomStatus(currentStatus?: string | null, housekeepingStatus?: string | null): RoomStatus {
+  const status = `${currentStatus ?? ''} ${housekeepingStatus ?? ''}`.replace(/[\s_-]/g, '').toLowerCase()
+  if (status.includes('maintenance')) return 'maintained'
+  if (status.includes('cleaning')) return 'cleaning'
+  if (status.includes('dirty')) return 'dirty'
+  if (status.includes('checkedin') || status.includes('occupied')) return 'checked_in'
+  if (status.includes('confirmed') || status.includes('reserved')) return 'confirmed'
+  return 'available'
+}
+
+function toInclusiveBlockEnd(start: string, checkout: string) {
+  const checkoutDate = parseIsoDate(checkout)
+  if (!checkoutDate) return start
+  const inclusiveEnd = isoDate(addDays(checkoutDate, -1))
+  return inclusiveEnd < start ? start : inclusiveEnd
+}
+
 function RoomStatusDot({ status }: { status: RoomStatus }) {
   const colorClassName: Record<RoomStatus, string> = {
     confirmed: 'bg-[#F5A524]',
@@ -79,10 +94,15 @@ function RoomStatusDot({ status }: { status: RoomStatus }) {
     available: 'bg-white border border-slate-300',
     cleaning: 'bg-[#8B8FA6]',
     maintained: 'bg-[#FF6B6B]',
-    dirty: 'bg-[#CBD5E1]',
+    dirty: 'bg-pink-500',
   }
 
-  return <span className={['inline-block h-3 w-3 rounded', colorClassName[status]].join(' ')} />
+  return (
+    <span
+      className={['inline-block h-3 w-3 rounded', colorClassName[status]].join(' ')}
+      title={status.replace('_', ' ')}
+    />
+  )
 }
 
 function SelectControl<T extends string>({
@@ -117,7 +137,19 @@ function SelectControl<T extends string>({
   )
 }
 
-function DateControl({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function DateControl({
+  label,
+  value,
+  onChange,
+  minDate,
+  maxDate,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  minDate?: string
+  maxDate?: string
+}) {
   const showLabel = Boolean(label.trim())
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -177,6 +209,9 @@ function DateControl({ label, value, onChange }: { label: string; value: string;
 
         {open ? (
           <div className="absolute right-0 top-full z-50 mt-2 w-[300px] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+            <div className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-center text-[11px] font-semibold text-[#0B4EA2]">
+              Maximum room-plan range: 10 days
+            </div>
             <div className="mb-3 flex items-center justify-between">
               <button
                 type="button"
@@ -217,13 +252,19 @@ function DateControl({ label, value, onChange }: { label: string; value: string;
                 const d = new Date(month.getFullYear(), month.getMonth(), day)
                 const iso = isoDate(d)
                 const active = value === iso
+                const disabled = Boolean((minDate && iso < minDate) || (maxDate && iso > maxDate))
                 return (
                   <button
                     key={iso}
                     type="button"
+                    disabled={disabled}
                     className={[
                       'h-9 w-9 rounded-xl text-sm font-semibold transition-colors',
-                      active ? 'bg-[#0B4EA2] text-white' : 'text-slate-700 hover:bg-slate-100',
+                      disabled
+                        ? 'cursor-not-allowed bg-slate-50 text-slate-300'
+                        : active
+                          ? 'bg-[#0B4EA2] text-white'
+                          : 'text-slate-700 hover:bg-slate-100',
                     ].join(' ')}
                     onClick={() => {
                       onChange(iso)
@@ -253,7 +294,7 @@ function dayIndexWithinRange(rangeStart: Date, dayIso: string) {
   return diff
 }
 
-function blockTheme(type: RoomPlanBlock['type']) {
+function blockTheme(type: RoomPlanBlock['type'], roomStatus?: RoomStatus) {
   if (type === 'cleaning') {
     return {
       bg: 'bg-slate-100',
@@ -273,9 +314,23 @@ function blockTheme(type: RoomPlanBlock['type']) {
   }
 
   return {
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-    text: 'text-slate-800',
+    bg:
+      roomStatus === 'confirmed'
+        ? 'bg-amber-50'
+        : roomStatus === 'maintained'
+          ? 'bg-rose-50'
+          : roomStatus === 'cleaning'
+            ? 'bg-slate-100'
+            : 'bg-emerald-50',
+    border:
+      roomStatus === 'confirmed'
+        ? 'border-amber-300'
+        : roomStatus === 'maintained'
+          ? 'border-rose-300'
+          : roomStatus === 'cleaning'
+            ? 'border-slate-300'
+            : 'border-emerald-300',
+    text: roomStatus === 'maintained' ? 'text-rose-700' : 'text-slate-800',
     icons: { primary: 'text-[#F5A524]', secondary: 'text-[#0B4EA2]' },
   }
 }
@@ -286,35 +341,31 @@ export function RoomPlanPage() {
 
   const dispatch = useAppDispatch()
   const roomTypes = useAppSelector((s) => s.roomTypes.items)
+  const roomPlanData = useAppSelector((s) => s.roomPlan.data)
+  const roomPlanStatus = useAppSelector((s) => s.roomPlan.status)
+  const roomPlanError = useAppSelector((s) => s.roomPlan.error)
 
   useEffect(() => {
     void dispatch(fetchRoomTypes())
   }, [dispatch])
 
-  useEffect(() => {
-    console.log('fetchRoomTypes -> items', roomTypes)
-  }, [roomTypes])
-
-  const allRooms = useMemo(() => makeMockRooms(24), [])
-
   const [search, setSearch] = useState('')
-  const [roomType, setRoomType] = useState<'all' | RoomType>('all')
-  const [roomStatus, setRoomStatus] = useState<'all' | RoomStatus>('all')
+  const [roomType, setRoomType] = useState<'all' | string>('all')
+  const [roomStatus, setRoomStatus] = useState<'all' | RoomPlanRoomStatus>('all')
   const [floor, setFloor] = useState<'all' | string>('all')
-  const [bookingType, setBookingType] = useState<'all' | BookingType>('all')
-  const [roomView, setRoomView] = useState<'all' | RoomView>('all')
+  const [bookingType, setBookingType] = useState<'all' | RoomPlanBookingType>('all')
 
-  const [fromDateIso, setFromDateIso] = useState(() => isoDate(new Date(2026, 0, 1)))
-  const [toDateIso, setToDateIso] = useState(() => isoDate(addDays(new Date(2026, 0, 1), 6)))
+  const [fromDateIso, setFromDateIso] = useState(() => isoDate(new Date()))
+  const [toDateIso, setToDateIso] = useState(() => isoDate(addDays(new Date(), 6)))
 
-  const fromDate = useMemo(() => parseIsoDate(fromDateIso) ?? new Date(2026, 0, 1), [fromDateIso])
+  const fromDate = useMemo(() => parseIsoDate(fromDateIso) ?? new Date(), [fromDateIso])
   const toDate = useMemo(() => parseIsoDate(toDateIso) ?? addDays(fromDate, 6), [toDateIso, fromDate])
 
   const rangeStart = useMemo(() => startOfDay(fromDate), [fromDate])
   const rangeEnd = useMemo(() => startOfDay(toDate), [toDate])
   const dayCount = useMemo(() => {
     const diff = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86400000)
-    return clamp(diff + 1, 1, 31)
+    return clamp(diff + 1, 1, 10)
   }, [rangeEnd, rangeStart])
 
   const rangeDays = useMemo(() => Array.from({ length: dayCount }).map((_, i) => addDays(rangeStart, i)), [dayCount, rangeStart])
@@ -324,9 +375,9 @@ export function RoomPlanPage() {
   const [roomPopupBlockId, setRoomPopupBlockId] = useState<string | null>(null)
   const [roomPopupMode, setRoomPopupMode] = useState<'check_in' | 'check_out'>('check_in')
 
-  const [reviewPopupOpen, setReviewPopupOpen] = useState(false)
-  const [reviewRoomId, setReviewRoomId] = useState<string | null>(null)
-  const [reviewBlockId, setReviewBlockId] = useState<string | null>(null)
+  const [reservationDetailsOpen, setReservationDetailsOpen] = useState(false)
+  const [reservationDetailsId, setReservationDetailsId] = useState<string | null>(null)
+  const [reservationDetailsStatus, setReservationDetailsStatus] = useState<string | null>(null)
 
   const [emptyPopupOpen, setEmptyPopupOpen] = useState(false)
   const [emptyPopupRoomId, setEmptyPopupRoomId] = useState<string | null>(null)
@@ -340,9 +391,46 @@ export function RoomPlanPage() {
 
   const [selection, setSelection] = useState<{ roomId: string; start: string; end: string; isValid: boolean } | null>(null)
   const [isSelecting, setIsSelecting] = useState(false)
-  const [clickedOnExistingSelection, setClickedOnExistingSelection] = useState(false)
 
-  const blocks = useMemo(() => makeMockBlocks(allRooms, rangeStart), [allRooms, rangeStart])
+  useEffect(() => {
+    const request = dispatch(fetchRoomPlan({
+      from: fromDateIso,
+      to: toDateIso,
+      roomTypeId: roomType === 'all' ? undefined : roomType,
+      floor: floor === 'all' ? undefined : floor,
+      roomStatus: roomStatus === 'all' ? undefined : roomStatus,
+      bookingType: bookingType === 'all' ? undefined : bookingType,
+    }))
+    return () => request.abort()
+  }, [bookingType, dispatch, floor, fromDateIso, roomStatus, roomType, toDateIso])
+
+  const allRooms = useMemo<RoomPlanRoom[]>(() => (roomPlanData?.rooms ?? []).map((room) => ({
+    id: room.roomId,
+    number: room.roomNumber ?? '-----',
+    type: (room.roomTypeName?.toLowerCase() ?? 'unknown') as RoomType,
+    status: toUiRoomStatus(room.currentRoomStatus, room.housekeepingStatus),
+    floor: room.floor ?? '-----',
+    bookingType: bookingType === 'all' ? '' : bookingType,
+    housekeeping: (room.housekeepingStatus ?? '').toLowerCase() === 'dirty' ? 'dirty' : 'clean',
+    view: 'city_view',
+  })), [bookingType, roomPlanData])
+
+  const blocks = useMemo<RoomPlanBlock[]>(() => (roomPlanData?.rooms ?? []).flatMap((room) =>
+    (room.blocks ?? []).map((block) => ({
+      id: block.reservationRoomId || block.reservationId,
+      reservationId: block.reservationId,
+      reservationStatus:
+        room.days?.find((day) => day.reservationId === block.reservationId)?.reservationStatus ?? block.status,
+      roomId: room.roomId,
+      type: 'reservation',
+      title: block.guestName || block.displayText || 'Reservation',
+      subtitle: `${block.checkInDate} - ${block.checkOutDate}`,
+      checkInDate: block.checkInDate,
+      checkOutDate: block.checkOutDate,
+      start: block.startDate,
+      end: toInclusiveBlockEnd(block.startDate, block.endDate),
+    }))
+  ), [roomPlanData])
 
   const roomById = useMemo(() => {
     const m = new Map<string, (typeof allRooms)[number]>()
@@ -358,9 +446,6 @@ export function RoomPlanPage() {
 
   const popupRoom = roomPopupRoomId ? roomById.get(roomPopupRoomId) : undefined
   const popupBlock = roomPopupBlockId ? blockById.get(roomPopupBlockId) : undefined
-
-  const reviewRoom = reviewRoomId ? roomById.get(reviewRoomId) : undefined
-  const reviewBlock = reviewBlockId ? blockById.get(reviewBlockId) : undefined
 
   const emptyRoom = emptyPopupRoomId ? roomById.get(emptyPopupRoomId) : undefined
   const emptyDate = useMemo(() => {
@@ -401,43 +486,32 @@ export function RoomPlanPage() {
     setServicePopupOpen(true)
   }
 
-  const roomTypeOptions: SelectOption<'all' | RoomType>[] = [
-    { value: 'all', label: 'All type' },
-    { value: 'single', label: 'single' },
-    { value: 'double', label: 'double' },
-    { value: 'suite', label: 'Suite' },
-    { value: 'deluxe', label: 'deluxe' },
-  ]
+  const roomTypeOptions = useMemo<SelectOption<'all' | string>[]>(() => [
+    { value: 'all', label: 'All types' },
+    ...roomTypes.map((type) => ({ value: type.id, label: type.name })),
+  ], [roomTypes])
 
-  const roomStatusOptions: SelectOption<'all' | RoomStatus>[] = [
+  const roomStatusOptions: SelectOption<'all' | RoomPlanRoomStatus>[] = [
     { value: 'all', label: 'All status' },
-    { value: 'available', label: 'available' },
-    { value: 'confirmed', label: 'confirmed' },
-    { value: 'checked_in', label: 'checked in' },    
-    { value: 'cleaning', label: 'Cleaning' },
-    { value: 'dirty', label: 'Dirty' },
-    { value: 'maintained', label: 'Maintained' }
+    { value: 'Available', label: 'Available' },
+    { value: 'Confirmed', label: 'Confirmed' },
+    { value: 'CheckedIn', label: 'Checked In' },
+    { value: 'Dirty', label: 'Dirty' },
+    { value: 'Cleaning', label: 'Cleaning' },
+    { value: 'Maintenance', label: 'Maintenance' },
   ]
 
-  const bookingTypeOptions: SelectOption<'all' | BookingType>[] = [
+  const bookingTypeOptions: SelectOption<'all' | RoomPlanBookingType>[] = [
     { value: 'all', label: 'All type' },
-    { value: 'standard', label: 'standard' },
-    { value: 'corporates', label: 'corporates' },
-    { value: 'discounted', label: 'discounted' },
+    { value: 'Direct', label: 'Direct' },
+    { value: 'OTA', label: 'OTA' },
+    { value: 'Corporate', label: 'Corporate' },
   ]
 
-  const roomViewOptions: SelectOption<'all' | RoomView>[] = [
-    { value: 'all', label: 'All view' },
-    { value: 'sea_view', label: 'Sea View' },
-    { value: 'pool_view', label: 'Pool View' },
-    { value: 'city_view', label: 'City View' },
-    { value: 'garden_view', label: 'Garden View' },
+  const floorOptions: SelectOption<'all' | string>[] = [
+    { value: 'all', label: 'All floors' },
+    ...['1', '2', '3', '4', '5'].map((value) => ({ value, label: `Floor ${value}` })),
   ]
-
-  const floorOptions = useMemo<SelectOption<'all' | string>[]>(() => {
-    const floors = Array.from(new Set(allRooms.map((r) => r.floor))).sort((a, b) => Number(a) - Number(b))
-    return [{ value: 'all', label: 'All floor' }, ...floors.map((f) => ({ value: f, label: f }))]
-  }, [allRooms])
 
   const filteredRooms = useMemo(() => {
     let result = allRooms
@@ -447,28 +521,8 @@ export function RoomPlanPage() {
       result = result.filter((r) => r.number.toLowerCase().includes(q))
     }
 
-    if (roomType !== 'all') {
-      result = result.filter((r) => r.type === roomType)
-    }
-
-    if (roomStatus !== 'all') {
-      result = result.filter((r) => r.status === roomStatus)
-    }
-
-    if (floor !== 'all') {
-      result = result.filter((r) => r.floor === floor)
-    }
-
-    if (bookingType !== 'all') {
-      result = result.filter((r) => r.bookingType === bookingType)
-    }
-
-    if (roomView !== 'all') {
-      result = result.filter((r) => r.view === roomView)
-    }
-
     return result
-  }, [allRooms, bookingType, floor, roomView, roomStatus, roomType, search])
+  }, [allRooms, search])
 
   const blocksByRoomId = useMemo(() => {
     const m = new Map<string, RoomPlanBlock[]>()
@@ -503,18 +557,13 @@ export function RoomPlanPage() {
   }
 
   const handlePointerDown = (roomId: string, isoDay: string) => {
-    if (isDaySelected(roomId, isoDay) && selection && selection.isValid) {
-      setClickedOnExistingSelection(true)
-      setIsSelecting(true)
-      return
-    }
-    setClickedOnExistingSelection(false)
-    setSelection({ roomId, start: isoDay, end: isoDay, isValid: true })
+    const invalid = isSelectionInvalid(roomId, isoDay, isoDay)
+    setSelection({ roomId, start: isoDay, end: isoDay, isValid: !invalid })
     setIsSelecting(true)
   }
 
   const handlePointerEnter = (roomId: string, isoDay: string) => {
-    if (isSelecting && !clickedOnExistingSelection && selection && selection.roomId === roomId) {
+    if (isSelecting && selection && selection.roomId === roomId) {
       const invalid = isSelectionInvalid(roomId, selection.start, isoDay)
       setSelection({ ...selection, end: isoDay, isValid: !invalid })
     }
@@ -522,25 +571,27 @@ export function RoomPlanPage() {
 
   useEffect(() => {
     const handlePointerUp = () => {
-      if (clickedOnExistingSelection && selection && selection.isValid) {
+      if (isSelecting && selection?.isValid) {
         const [s, e] = selection.start < selection.end ? [selection.start, selection.end] : [selection.end, selection.start]
         openEmptyPopup(selection.roomId, s, e)
-      } else if (isSelecting && selection) {
-        if (!selection.isValid) {
-          setSelection(null)
-        } else if (selection.start === selection.end) {
-          openEmptyPopup(selection.roomId, selection.start)
-          setSelection(null)
-        }
       }
+      setSelection(null)
       setIsSelecting(false)
-      setClickedOnExistingSelection(false)
+    }
+
+    const handlePointerCancel = () => {
+      setSelection(null)
+      setIsSelecting(false)
     }
 
     if (isSelecting) {
       window.addEventListener('pointerup', handlePointerUp)
+      window.addEventListener('pointercancel', handlePointerCancel)
     }
-    return () => window.removeEventListener('pointerup', handlePointerUp)
+    return () => {
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerCancel)
+    }
   }, [isSelecting, selection])
 
   const selectionRange = useMemo(() => {
@@ -564,9 +615,11 @@ export function RoomPlanPage() {
           setRoomPopupBlockId(null)
         }}
         onViewReservation={() => {
-          setReviewRoomId(roomPopupRoomId)
-          setReviewBlockId(roomPopupBlockId)
-          setReviewPopupOpen(true)
+          if (!popupBlock?.reservationId) return
+          setRoomPopupOpen(false)
+          setReservationDetailsId(popupBlock.reservationId)
+          setReservationDetailsStatus(popupBlock.reservationStatus ?? null)
+          setReservationDetailsOpen(true)
         }}
         room={popupRoom}
         block={popupBlock}
@@ -574,15 +627,15 @@ export function RoomPlanPage() {
         mode={roomPopupMode}
       />
 
-      <RoomPlanReservationReviewPopup
-        open={reviewPopupOpen}
+      <ReservationDetailsPopup
+        open={reservationDetailsOpen}
         onClose={() => {
-          setReviewPopupOpen(false)
-          setReviewRoomId(null)
-          setReviewBlockId(null)
+          setReservationDetailsOpen(false)
+          setReservationDetailsId(null)
+          setReservationDetailsStatus(null)
         }}
-        room={reviewRoom}
-        block={reviewBlock}
+        reservationId={reservationDetailsId}
+        reservationStatus={reservationDetailsStatus}
       />
 
       <RoomPlanEmptyCellPopup
@@ -632,12 +685,11 @@ export function RoomPlanPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-7">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
           <SelectControl label="Room Type" value={roomType} onChange={setRoomType} options={roomTypeOptions} />
           <SelectControl label="Room Status" value={roomStatus} onChange={setRoomStatus} options={roomStatusOptions} />
           <SelectControl label="Floor" value={floor} onChange={setFloor} options={floorOptions} />
           <SelectControl label="Booking Type" value={bookingType} onChange={setBookingType} options={bookingTypeOptions} />
-          <SelectControl label="Room View" value={roomView} onChange={setRoomView} options={roomViewOptions} />
           <DateControl
             label="From"
             value={fromDateIso}
@@ -647,18 +699,26 @@ export function RoomPlanPage() {
               setFromDateIso(next)
               if (nextFrom && currentTo && startOfDay(currentTo).getTime() < startOfDay(nextFrom).getTime()) {
                 setToDateIso(next)
+              } else if (nextFrom && currentTo && startOfDay(currentTo).getTime() > addDays(startOfDay(nextFrom), 9).getTime()) {
+                setToDateIso(isoDate(addDays(nextFrom, 9)))
               }
             }}
           />
           <DateControl
             label="To"
             value={toDateIso}
+            minDate={fromDateIso}
+            maxDate={isoDate(addDays(fromDate, 9))}
             onChange={(next) => {
               const currentFrom = parseIsoDate(fromDateIso)
               const nextTo = parseIsoDate(next)
-              setToDateIso(next)
               if (currentFrom && nextTo && startOfDay(nextTo).getTime() < startOfDay(currentFrom).getTime()) {
+                setToDateIso(next)
                 setFromDateIso(next)
+              } else if (currentFrom && nextTo && startOfDay(nextTo).getTime() > addDays(startOfDay(currentFrom), 9).getTime()) {
+                setToDateIso(isoDate(addDays(currentFrom, 9)))
+              } else {
+                setToDateIso(next)
               }
             }}
           />
@@ -681,6 +741,10 @@ export function RoomPlanPage() {
             <div className="flex items-center gap-2">
               <RoomStatusDot status="cleaning" />
               Cleaning
+            </div>
+            <div className="flex items-center gap-2">
+              <RoomStatusDot status="dirty" />
+              Dirty
             </div>
             <div className="flex items-center gap-2">
               <RoomStatusDot status="maintained" />
@@ -706,24 +770,23 @@ export function RoomPlanPage() {
         const cleanCount = filteredRooms.filter((r) => r.housekeeping === 'clean').length
         const dirtyCount = filteredRooms.filter((r) => r.housekeeping === 'dirty').length
 
-        const maintenanceRoomIds = new Set(blocks.filter((b) => b.type === 'maintenance').map((b) => b.roomId))
-        const cleaningRoomIds = new Set(blocks.filter((b) => b.type === 'cleaning').map((b) => b.roomId))
-
-        const maintenanceCount = filteredRooms.filter((r) => maintenanceRoomIds.has(r.id)).length
-        const cleaningCount = filteredRooms.filter((r) => cleaningRoomIds.has(r.id)).length
+        const maintenanceCount = filteredRooms.filter((r) => r.status === 'maintained').length
+        const cleaningCount = filteredRooms.filter((r) => r.status === 'cleaning').length
 
         const roomOpsMeta: Array<{ key: string; label: string; count: number; color: string; bg: string; dot: string }> = [
           { key: 'clean', label: 'Clean', count: cleanCount, color: 'text-emerald-700', bg: 'bg-emerald-50', dot: 'bg-emerald-600' },
           { key: 'dirty', label: 'Dirty', count: dirtyCount, color: 'text-rose-700', bg: 'bg-rose-50', dot: 'bg-rose-600' },
-          { key: 'maintenance', label: 'Maintenance', count: maintenanceCount, color: 'text-amber-800', bg: 'bg-amber-50', dot: 'bg-amber-500' },
+          { key: 'maintenance', label: 'Maintenance', count: maintenanceCount, color: 'text-rose-700', bg: 'bg-rose-50', dot: 'bg-rose-500' },
           { key: 'cleaning', label: 'Cleaning', count: cleaningCount, color: 'text-slate-700', bg: 'bg-slate-100', dot: 'bg-slate-500' },
         ]
 
         const activeFilters: string[] = []
-        if (roomStatus !== 'all') activeFilters.push(`Status: ${roomStatus.replace('_', ' ')}`)
+        if (roomType !== 'all') {
+          activeFilters.push(`Room Type: ${roomTypes.find((type) => type.id === roomType)?.name ?? roomType}`)
+        }
+        if (roomStatus !== 'all') activeFilters.push(`Status: ${roomStatus}`)
         if (floor !== 'all') activeFilters.push(`Floor: ${floor}`)
         if (bookingType !== 'all') activeFilters.push(`Booking: ${bookingType}`)
-        if (roomView !== 'all') activeFilters.push(`Room View: ${roomView.replace('_', ' ')}`)
         if (search.trim()) activeFilters.push(`Search: "${search.trim()}"`)
 
         return (
@@ -842,7 +905,17 @@ export function RoomPlanPage() {
         </div>
 
         <div>
-          {filteredRooms.length > 0 ? (
+          {roomPlanStatus === 'loading' ? (
+            <div className="flex min-h-[320px] flex-col items-center justify-center text-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#0B4EA2]/20 border-t-[#0B4EA2]" />
+              <p className="mt-3 text-sm font-medium text-slate-500">Loading room plan...</p>
+            </div>
+          ) : roomPlanStatus === 'failed' ? (
+            <div className="px-6 py-14 text-center">
+              <p className="text-sm font-semibold text-rose-600">Unable to load the room plan</p>
+              <p className="mt-1 text-xs text-slate-500">{roomPlanError}</p>
+            </div>
+          ) : filteredRooms.length > 0 ? (
             <div>
               {filteredRooms.map((room, idx) => {
                 const roomBlocks = blocksByRoomId.get(room.id) ?? []
@@ -907,14 +980,14 @@ export function RoomPlanPage() {
                         const span = Math.max(1, endIdx - startIdx + 1)
                         const singleDay = span === 1
 
-                        const theme = blockTheme(b.type)
+                        const theme = blockTheme(b.type, room.status)
                         const isServiceBlock = b.type === 'maintenance' || b.type === 'cleaning'
 
                         return (
                           <div
                             key={b.id}
                             className={[
-                              'absolute top-1 z-10 h-[44px] overflow-hidden rounded-lg border px-3 py-1',
+                              'group absolute top-1 z-10 h-[44px] overflow-hidden rounded-lg border px-3 py-1',
                               theme.icons ? 'pr-10' : '',
                               singleDay ? 'py-2' : '',
                               theme.bg,
@@ -935,7 +1008,7 @@ export function RoomPlanPage() {
                             }
                           >
                             {theme.icons ? (
-                              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                              <div className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
                                 <button
                                   type="button"
                                   className={[

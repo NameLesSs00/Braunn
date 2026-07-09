@@ -174,7 +174,7 @@ export function MoveRoomStep1Popup({ open, onClose, onContinue, room, block }: P
     setAvailableOnly(false)
   }, [open])
 
-  const checkoutLabel = block?.end ? formatDate(block.end) : ''
+  const checkoutLabel = block?.checkOutDate || block?.end ? formatDate(block?.checkOutDate ?? block?.end) : ''
 
   const handleContinue = () => {
     onContinue({
@@ -192,7 +192,7 @@ export function MoveRoomStep1Popup({ open, onClose, onContinue, room, block }: P
 
   return (
     <Modal open={open} onClose={onClose} lockScroll closeOnBackdrop={false}>
-      <div className="flex w-[94vw] max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="flex w-[94vw] max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         {/* ── Header ── */}
         <div className="flex items-start justify-between gap-4 bg-[#0B4EA2] px-6 py-4">
           <div>
@@ -229,7 +229,7 @@ export function MoveRoomStep1Popup({ open, onClose, onContinue, room, block }: P
                 />
                 <DetailRow
                   label="Check-in Date"
-                  value={formatDate(block?.start)}
+                  value={formatDate(block?.checkInDate ?? block?.start)}
                 />
                 <DetailRow
                   label="Room view"
@@ -237,7 +237,7 @@ export function MoveRoomStep1Popup({ open, onClose, onContinue, room, block }: P
                 />
                 <DetailRow
                   label="Check-out Date"
-                  value={formatDate(block?.end)}
+                  value={formatDate(block?.checkOutDate ?? block?.end)}
                 />
                 <DetailRow
                   label="Number of Guests"

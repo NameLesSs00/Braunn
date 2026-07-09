@@ -1,8 +1,15 @@
+import type { SavedReservationStep, SavedReservationStep4Page } from '../../../features/reservations/reservationDraftStorage'
 import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
 
+export type OpenNewReservationOptions = {
+  draftId?: string | null
+  step?: SavedReservationStep
+  step4Page?: SavedReservationStep4Page
+}
+
 type NewReservationModalContextValue = {
-  openNewReservation: () => void
+  openNewReservation: (options?: OpenNewReservationOptions) => void
 }
 
 const NewReservationModalContext = createContext<NewReservationModalContextValue | null>(null)

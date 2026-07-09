@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   ChevronDown,
   ChevronLeft,
@@ -11,14 +12,16 @@ import {
 } from 'lucide-react'
 
 import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
-import { fetchPmsReservations } from '../../features/pms/pmsSlice'
+import { getPmsReservations } from '../../shared/apis/PmsReservation'
+import { fetchInHouseListReservations } from '../../features/pms/pmsSlice'
+import type { PmsReservation } from '../../models/PmsReservation'
 import { ReservationDetailsPopup } from '../reservations/pupops/ReservationDetailsPopup'
 import { ExtendStayPopup } from '../reservations/pupops/ExtendStayPopup'
 import { CheckInProcessPopup } from '../reservations/pupops/CheckInProcessPopup'
-import { CheckOutProcessPopup } from '../reservations/checkout/CheckOutProcessPopup'
 import { MoveRoomPopup } from '../reservations/pupops/MoveRoomPopup'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { ExportInHouseListPopup } from './ExportInHouseListPopup'
 
 function formatDateForDisplay(isoDate: string): string {
   if (!isoDate) return '-----'
@@ -27,36 +30,84 @@ function formatDateForDisplay(isoDate: string): string {
   return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 }
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  const first = parts[0]?.[0] ?? ''
-  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : ''
-  return (first + last).toUpperCase() || 'G'
+function formatDateInput(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
-function GuestDot({ name }: { name: string }) {
-  const letter = initials(name)[0] || 'G'
-  return (
-    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">
-      {letter}
-    </span>
-  )
+function getCurrentMonthRange() {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+  return {
+    startDate: formatDateInput(start),
+    endDate: formatDateInput(end),
+  }
+}
+
+const inHouseFiltersStorageKey = 'in-house-list-page-filters'
+
+interface InHouseFilters {
+  query: string
+  statusFilter: string
+  roomTypeFilter: string
+  paymentStatusFilter: string
+  checkInFrom: string
+  checkInTo: string
+}
+
+function getSavedInHouseFilters(defaults: InHouseFilters): InHouseFilters {
+  try {
+    const saved = sessionStorage.getItem(inHouseFiltersStorageKey)
+    if (!saved) return defaults
+
+    const filters = { ...defaults, ...JSON.parse(saved) }
+    if (filters.statusFilter === 'CheckedOut' || filters.statusFilter === 'Cancelled') {
+      filters.statusFilter = ''
+    }
+    return filters
+  } catch {
+    return defaults
+  }
+}
+
+function isCurrentInHouseReservation(reservation: PmsReservation) {
+  const status = (reservation.status ?? '').replace(/[\s_-]/g, '').toLowerCase()
+  return status !== 'checkedout' && status !== 'cancelled' && status !== 'canceled'
 }
 
 export function InHouseListPage() {
   const dispatch = useAppDispatch()
-  const inHouseReservations = useAppSelector((s) => s.pms.reservations)
+  const [searchParams] = useSearchParams()
+  const inHouseReservations = useAppSelector((s) => s.pms.inHouseListRows)
+  const inHouseLoading = useAppSelector((s) => s.pms.inHouseListStatus === 'loading')
+  const monthRange = useMemo(() => getCurrentMonthRange(), [])
+  const shouldUseMonthRange = searchParams.get('range') === 'month'
+  const initialFilters = useMemo(() => {
+    const defaultStartDate = shouldUseMonthRange ? monthRange.startDate : formatDateInput(new Date())
+    const defaultEndDate = shouldUseMonthRange
+      ? monthRange.endDate
+      : formatDateInput(new Date(new Date().setDate(new Date().getDate() + 7)))
 
-  const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [roomTypeFilter, setRoomTypeFilter] = useState('all')
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
-  const [checkInFrom, setCheckInFrom] = useState(() => new Date().toISOString().split('T')[0])
-  const [checkInTo, setCheckInTo] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() + 7)
-    return d.toISOString().split('T')[0]
-  })
+    return getSavedInHouseFilters({
+      query: '',
+      statusFilter: '',
+      roomTypeFilter: 'all',
+      paymentStatusFilter: 'all',
+      checkInFrom: defaultStartDate,
+      checkInTo: defaultEndDate,
+    })
+  }, [monthRange.endDate, monthRange.startDate, shouldUseMonthRange])
+
+  const [query, setQuery] = useState(initialFilters.query)
+  const [statusFilter, setStatusFilter] = useState(initialFilters.statusFilter)
+  const [roomTypeFilter, setRoomTypeFilter] = useState(initialFilters.roomTypeFilter)
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState(initialFilters.paymentStatusFilter)
+  const [checkInFrom, setCheckInFrom] = useState(initialFilters.checkInFrom)
+  const [checkInTo, setCheckInTo] = useState(initialFilters.checkInTo)
 
   const [page, setPage] = useState(1)
   const pageSize = 8
@@ -72,16 +123,27 @@ export function InHouseListPage() {
   const [checkInOpen, setCheckInOpen] = useState(false)
   const [checkInReservationId, setCheckInReservationId] = useState<string | null>(null)
 
-  const [checkOutOpen, setCheckOutOpen] = useState(false)
-  const [checkOutReservationId, setCheckOutReservationId] = useState<string | null>(null)
-
   const [extendStayOpen, setExtendStayOpen] = useState(false)
   const [extendStayReservationId, setExtendStayReservationId] = useState<string | null>(null)
 
   const [moveRoomOpen, setMoveRoomOpen] = useState(false)
   const [moveRoomReservationId, setMoveRoomReservationId] = useState<string | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
+
+  useEffect(() => {
+    const filters: InHouseFilters = {
+      query,
+      statusFilter,
+      roomTypeFilter,
+      paymentStatusFilter,
+      checkInFrom,
+      checkInTo,
+    }
+
+    sessionStorage.setItem(inHouseFiltersStorageKey, JSON.stringify(filters))
+  }, [query, statusFilter, roomTypeFilter, paymentStatusFilter, checkInFrom, checkInTo])
 
   const computedDateRange = useMemo(() => ({
     startDate: checkInFrom || today,
@@ -93,7 +155,8 @@ export function InHouseListPage() {
   }), [checkInFrom, checkInTo, today])
 
   useEffect(() => {
-    void dispatch(fetchPmsReservations(computedDateRange))
+    const request = dispatch(fetchInHouseListReservations(computedDateRange))
+    return () => request.abort()
   }, [dispatch, computedDateRange])
 
   useEffect(() => {
@@ -107,12 +170,13 @@ export function InHouseListPage() {
   }, [openMenuForId])
 
   const filteredRows = useMemo(() => {
-    let result = [...inHouseReservations]
+    let result = inHouseReservations.filter(isCurrentInHouseReservation)
     const q = query.trim().toLowerCase()
 
     if (q) {
       result = result.filter((r) =>
-        [r.guestName, r.id, r.roomTypeName].some((v) => (v ?? '').toLowerCase().includes(q))
+        [r.guestName, r.id, r.roomNumber, r.roomTypeName, r.channelName, r.bookingSource]
+          .some((v) => (v ?? '').toLowerCase().includes(q))
       )
     }
 
@@ -155,14 +219,6 @@ export function InHouseListPage() {
     return filteredRows.slice(start, start + pageSize)
   }, [filteredRows, safePage])
 
-  const checkOutReservation = useMemo(() => {
-    if (!checkOutReservationId) return null
-    const found = inHouseReservations.find((r) => r.id === checkOutReservationId)
-    if (!found) return null
-
-    return found as any
-  }, [checkOutReservationId, inHouseReservations])
-
   const closeDetails = () => {
     setDetailsOpen(false)
     setDetailsReservationId(null)
@@ -185,10 +241,10 @@ export function InHouseListPage() {
   }
 
   const refreshInHouseReservations = () => {
-    void dispatch(fetchPmsReservations(computedDateRange))
+    void dispatch(fetchInHouseListReservations(computedDateRange))
   }
 
-  const handleExportPdf = () => {
+  const handleExportPdf = (exportRows: PmsReservation[], from: string, to: string) => {
     const doc = new jsPDF()
 
     // Title
@@ -207,8 +263,9 @@ export function InHouseListPage() {
       'Check-out',
       'Status',
       'Payment',
+      'Source',
     ]
-    const tableRows = filteredRows.map((r) => [
+    const tableRows = exportRows.map((r) => [
       r.guestName || '-----',
       r.roomNumber || '-----',
       r.roomTypeName || '-----',
@@ -216,6 +273,7 @@ export function InHouseListPage() {
       formatDateForDisplay(r.checkOutDate),
       r.status || '-----',
       r.paidAmount >= r.totalAmount ? 'Fully Paid' : 'Unpaid',
+      r.channelName || r.bookingSource || '-----',
     ])
 
     autoTable(doc, {
@@ -228,7 +286,12 @@ export function InHouseListPage() {
       styles: { fontSize: 9, cellPadding: 3 },
     })
 
-    doc.save(`InHouseList_${new Date().toISOString().split('T')[0]}.pdf`)
+    doc.save(`InHouseList_${from}_to_${to}.pdf`)
+  }
+
+  const exportInHouseList = async (from: string, to: string) => {
+    const exportRows = await getPmsReservations({ startDate: from, endDate: to })
+    handleExportPdf(exportRows.filter(isCurrentInHouseReservation), from, to)
   }
 
   const selectClass =
@@ -266,8 +329,6 @@ export function InHouseListPage() {
               <option value="">All status</option>
               <option value="Confirmed">Confirmed</option>
               <option value="CheckedIn">Checked In</option>
-              <option value="CheckedOut">Checked Out</option>
-              <option value="Cancelled">Cancelled</option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           </div>
@@ -337,7 +398,7 @@ export function InHouseListPage() {
         <div className="flex items-end justify-end">
           <button
             type="button"
-            onClick={handleExportPdf}
+            onClick={() => setExportOpen(true)}
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"
           >
             <Download className="h-4 w-4" />
@@ -358,7 +419,12 @@ export function InHouseListPage() {
           <div className="text-right">Action</div>
         </div>
 
-        {rows.length === 0 ? (
+        {inHouseLoading ? (
+          <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#0B4EA2]/20 border-t-[#0B4EA2]" />
+            <p className="mt-3 text-sm font-medium text-slate-500">Loading in-house reservations...</p>
+          </div>
+        ) : rows.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
             <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
               <Search className="h-6 w-6" />
@@ -370,8 +436,6 @@ export function InHouseListPage() {
           rows.map((r, idx) => {
             const paymentLabel = r.paidAmount >= r.totalAmount ? 'Fully Paid' : 'Unpaid'
             const isCheckInToday = r.checkInDate.startsWith(today)
-            const isCheckOutToday = r.checkOutDate.startsWith(today)
-
             return (
               <div
                 key={`${r.id}-${idx}`}
@@ -382,7 +446,6 @@ export function InHouseListPage() {
               >
                 <div className="flex items-center gap-2 text-slate-700">
                   <span className="truncate">{r.guestName || '-----'}</span>
-                  <GuestDot name={r.guestName || 'G'} />
                 </div>
                 <div className="text-slate-600">
                   <div className="font-medium text-slate-700">{r.roomNumber || '-----'}</div>
@@ -392,7 +455,9 @@ export function InHouseListPage() {
                 <div className="text-slate-600">{formatDateForDisplay(r.checkOutDate)}</div>
                 <div className="text-slate-600">{r.status || '-----'}</div>
                 <div className="text-slate-600">{paymentLabel}</div>
-                <div className="text-slate-600">-----</div>
+                <div className="truncate text-slate-600" title={r.channelName || r.bookingSource || undefined}>
+                  {r.channelName || r.bookingSource || '-----'}
+                </div>
                 <div className="flex justify-end gap-2">
                   {isCheckInToday && r.status !== 'CheckedIn' && r.status !== 'CheckedOut' ? (
                     <button
@@ -402,17 +467,6 @@ export function InHouseListPage() {
                     >
                       <LogIn className="h-4 w-4" />
                       check in
-                    </button>
-                  ) : isCheckOutToday && r.status === 'CheckedIn' ? (
-                    <button
-                      type="button"
-                      className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white"
-                      onClick={() => {
-                        setCheckOutReservationId(r.id)
-                        setCheckOutOpen(true)
-                      }}
-                    >
-                      check out
                     </button>
                   ) : (
                     <button
@@ -441,20 +495,6 @@ export function InHouseListPage() {
                         ref={menuRef}
                         className="absolute right-0 top-9 z-10 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
                       >
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                          onClick={() => setOpenMenuForId(null)}
-                        >
-                          Cancel Reservation
-                        </button>
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                          onClick={() => setOpenMenuForId(null)}
-                        >
-                          Early Check out
-                        </button>
                         <button
                           type="button"
                           className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
@@ -514,6 +554,7 @@ export function InHouseListPage() {
         open={detailsOpen}
         onClose={closeDetails}
         reservationId={detailsReservationId}
+        reservationStatus={inHouseReservations.find((reservation) => reservation.id === detailsReservationId)?.status}
         onOpenExtendStay={onOpenExtendStay}
         onPaymentSuccess={refreshInHouseReservations}
       />
@@ -542,14 +583,12 @@ export function InHouseListPage() {
         reservationId={checkInReservationId}
       />
 
-      <CheckOutProcessPopup
-        open={checkOutOpen}
-        onClose={() => {
-          setCheckOutOpen(false)
-          setCheckOutReservationId(null)
-        }}
-        reservation={checkOutReservation}
-        onSuccess={refreshInHouseReservations}
+      <ExportInHouseListPopup
+        open={exportOpen}
+        initialFrom={checkInFrom}
+        initialTo={checkInTo}
+        onClose={() => setExportOpen(false)}
+        onExport={exportInHouseList}
       />
     </div>
   )

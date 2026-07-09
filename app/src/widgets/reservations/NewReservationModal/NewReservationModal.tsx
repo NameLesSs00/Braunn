@@ -1,9 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Swal from 'sweetalert2'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { updateDraft, resetDraft } from '../../../features/reservations/draftSlice'
-import { addNotification } from '../../../features/notifications/notificationsSlice'
+import { removeReservationDraftNotification, upsertReservationDraftNotification } from '../../../features/notifications/notificationsSlice'
+import {
+  hasMeaningfulReservationData,
+  removeSavedReservationDraft,
+  saveReservationDraft,
+  type SavedReservationStep,
+  type SavedReservationStep4Page,
+} from '../../../features/reservations/reservationDraftStorage'
 import { createLocalReservation } from '../../../features/localReservations/localReservationsSlice'
 import type { CreateLocalReservationRequest } from '../../../models/LocalReservation'
 import { createOptionalReservation } from '../../../features/reservations/optionalReservationsSlice'
@@ -22,6 +29,10 @@ import { computePricing } from './steps/step4/pricing'
 
 type Props = {
   open: boolean
+  activeDraftId: string | null
+  initialStep: SavedReservationStep
+  initialStep4Page: SavedReservationStep4Page
+  onActiveDraftIdChange: (draftId: string | null) => void
   onClose: () => void
 }
 
@@ -29,7 +40,14 @@ type Step = 1 | 2 | 3 | 4
 
 type Step4Page = 1 | 2
 
-export function NewReservationModal({ open, onClose }: Props) {
+export function NewReservationModal({
+  open,
+  activeDraftId,
+  initialStep,
+  initialStep4Page,
+  onActiveDraftIdChange,
+  onClose,
+}: Props) {
   const dispatch = useAppDispatch()
   const draft = useAppSelector((state) => state.reservationDraft)
   const localAriState = useAppSelector((state) => state.localAri)
@@ -45,29 +63,83 @@ export function NewReservationModal({ open, onClose }: Props) {
   const [successOpen, setSuccessOpen] = useState(false)
   const [finalConfirmationOpen, setFinalConfirmationOpen] = useState(false)
 
+  useEffect(() => {
+    if (!open) return
+    setStep(initialStep)
+    setStep4Page(initialStep4Page)
+  }, [open, initialStep, initialStep4Page])
+
+  useEffect(() => {
+    if (!open) return
+
+    if (!hasMeaningfulReservationData(draft)) {
+      return
+    }
+
+    const savedDraft = saveReservationDraft({
+      id: activeDraftId,
+      draft,
+      step,
+      step4Page,
+    })
+
+    if (savedDraft.id !== activeDraftId) {
+      onActiveDraftIdChange(savedDraft.id)
+    }
+  }, [activeDraftId, dispatch, draft, onActiveDraftIdChange, open, step, step4Page])
+
   const handleUpdateDraft = (patch: any) => {
     dispatch(updateDraft(patch))
   }
 
-  const handleClose = () => {
-    // Only reset the draft if we've successfully finished the reservation process
-    if (step === 4 && step4Page === 2) {
-      dispatch(resetDraft())
-      setStep(1)
-      setStep4Page(1)
-    } else {
-      // Otherwise, save it as a notification and keep the state for resume
-      if (draft.firstName || draft.surName) {
-        dispatch(
-          addNotification({
-            type: 'reservation_draft',
-            firstName: draft.firstName,
-            surName: draft.surName,
-            draft: draft,
-          }),
-        )
-      }
+  const removeActiveSavedDraft = () => {
+    if (!activeDraftId) return
+    removeSavedReservationDraft(activeDraftId)
+    dispatch(removeReservationDraftNotification(activeDraftId))
+    onActiveDraftIdChange(null)
+  }
+
+  const resetModalProgress = () => {
+    setStep(1)
+    setStep4Page(1)
+  }
+
+  const finishReservationDraft = () => {
+    removeActiveSavedDraft()
+    dispatch(resetDraft())
+    resetModalProgress()
+  }
+
+  const restartReservationDraft = () => {
+    removeActiveSavedDraft()
+    dispatch(resetDraft())
+    resetModalProgress()
+  }
+
+  const handleClose = (options?: { skipSave?: boolean }) => {
+    if (options?.skipSave) {
+      onClose()
+      return
     }
+
+    if (step === 4 && step4Page === 2) {
+      finishReservationDraft()
+    } else if (hasMeaningfulReservationData(draft)) {
+      const savedDraft = saveReservationDraft({
+        id: activeDraftId,
+        draft,
+        step,
+        step4Page,
+      })
+
+      onActiveDraftIdChange(savedDraft.id)
+      dispatch(upsertReservationDraftNotification(savedDraft))
+    } else {
+      removeActiveSavedDraft()
+      dispatch(resetDraft())
+      resetModalProgress()
+    }
+
     onClose()
   }
 
@@ -129,7 +201,15 @@ export function NewReservationModal({ open, onClose }: Props) {
 
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={restartReservationDraft}
+                className="h-9 rounded-full border border-white/40 px-5 text-sm font-semibold text-white/90 hover:bg-white/10"
+              >
+                Reset
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleClose()}
                 className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10"
                 aria-label="Close"
               >
@@ -234,6 +314,9 @@ export function NewReservationModal({ open, onClose }: Props) {
 
                     dispatch(createOptionalReservation(payload)).unwrap()
                       .then(() => {
+                        removeActiveSavedDraft()
+                        dispatch(resetDraft())
+                        resetModalProgress()
                         setSuccessOpen(true)
                       })
                       .catch((err) => {
@@ -431,7 +514,7 @@ export function NewReservationModal({ open, onClose }: Props) {
             className="w-full rounded-2xl bg-[#0B4EA2] py-4 text-[15px] font-bold text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#093d81] hover:shadow-blue-900/30 active:scale-[0.98]"
             onClick={() => {
               setSuccessOpen(false)
-              onClose()
+              handleClose({ skipSave: true })
             }}
           >
             Close

@@ -2,7 +2,7 @@ export type RoomType = 'single' | 'double' | 'suite' | 'deluxe'
 
 export type RoomStatus = 'available' | 'confirmed' | 'checked_in' | 'maintained' | 'cleaning' | 'dirty'
 
-export type BookingType = 'standard' | 'corporates' | 'discounted'
+export type BookingType = '' | 'Direct' | 'OTA' | 'Corporate'
 
 export type HousekeepingStatus = 'clean' | 'dirty'
 
@@ -23,10 +23,14 @@ export type RoomPlanBlockType = 'reservation' | 'cleaning' | 'maintenance'
 
 export type RoomPlanBlock = {
   id: string
+  reservationId?: string
+  reservationStatus?: string | null
   roomId: string
   type: RoomPlanBlockType
   title: string
   subtitle?: string
+  checkInDate?: string
+  checkOutDate?: string
   start: string // ISO date (YYYY-MM-DD)
   end: string // ISO date (YYYY-MM-DD), inclusive
 }
@@ -49,7 +53,7 @@ const seededRand = (seed: number) => {
 export function makeMockRooms(total: number): RoomPlanRoom[] {
   const types: RoomType[] = ['single', 'double', 'suite', 'deluxe']
   const statuses: RoomStatus[] = ['available', 'confirmed', 'checked_in', 'maintained', 'cleaning', 'dirty']
-  const bookingTypes: BookingType[] = ['standard', 'corporates', 'discounted']
+  const bookingTypes: BookingType[] = ['Direct', 'OTA', 'Corporate']
   const housekeeping: HousekeepingStatus[] = ['clean', 'dirty']
   const views: RoomView[] = ['sea_view', 'pool_view', 'city_view', 'garden_view']
 

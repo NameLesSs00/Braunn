@@ -12,7 +12,6 @@ import { Step4Card } from '../../../widgets/reservations/NewReservationModal/ste
 import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
 import { MdMeetingRoom, MdDateRange, MdAdd } from 'react-icons/md'
 import { LuClock, LuIdCard, LuReceipt, LuCreditCard, LuTag, LuUtensilsCrossed, LuConciergeBell } from 'react-icons/lu'
-import { FiLogIn } from 'react-icons/fi'
 
 import { getPmsReservationById } from '../../../shared/apis/PmsReservation'
 import { getAdditionalServices } from '../../../shared/apis/AdditionalServices'
@@ -24,7 +23,8 @@ type Props = {
   open: boolean
   onClose: () => void
   reservationId: string | null
-  onOpenExtendStay: (reservationId: string) => void
+  reservationStatus?: string | null
+  onOpenExtendStay?: (reservationId: string) => void
   onPaymentSuccess?: () => void | Promise<void>
 }
 
@@ -54,7 +54,35 @@ function PaymentStatusBadge({ status }: { status: string }) {
   )
 }
 
-export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenExtendStay, onPaymentSuccess }: Props) {
+function ReservationStatusBadge({ status }: { status: string }) {
+  const normalized = status.replace(/[\s_-]/g, '').toLowerCase()
+  const className =
+    normalized === 'checkedin'
+      ? 'bg-emerald-100 text-emerald-700'
+      : normalized === 'checkedout' || normalized === 'completed'
+        ? 'bg-slate-100 text-slate-700'
+        : normalized === 'cancelled' || normalized === 'canceled'
+          ? 'bg-rose-100 text-rose-700'
+          : normalized === 'confirmed' || normalized === 'reserved' || normalized === 'definite'
+            ? 'bg-blue-100 text-[#0B4EA2]'
+            : 'bg-amber-100 text-amber-700'
+
+  const label = status.replace(/([a-z])([A-Z])/g, '$1 $2')
+  return (
+    <span className={`inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold ${className}`}>
+      {label}
+    </span>
+  )
+}
+
+export function ReservationDetailsPopup({
+  open,
+  onClose,
+  reservationId,
+  reservationStatus,
+  onOpenExtendStay,
+  onPaymentSuccess,
+}: Props) {
   const [folio, setFolio] = useState<PmsReservationFolio | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -195,6 +223,7 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
             {folio && (
               <PaymentStatusBadge status={folio.paymentStatus} />
             )}
+            {reservationStatus ? <ReservationStatusBadge status={reservationStatus} /> : null}
           </div>
           <button
             type="button"
@@ -933,9 +962,9 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                     </span>
                   </button>
 
-                  <button
+                  {onOpenExtendStay ? <button
                     type="button"
-                    className="h-12 rounded-xl border border-[#0B4EA2] px-12 text-sm font-semibold text-[#0B4EA2]"
+                    className="h-12 rounded-xl bg-[#0B4EA2] px-12 text-sm font-semibold text-white transition-colors hover:bg-[#093d81]"
                     onClick={() => {
                       if (!reservationId) return
                       onOpenExtendStay(reservationId)
@@ -945,18 +974,7 @@ export function ReservationDetailsPopup({ open, onClose, reservationId, onOpenEx
                       <IconImage src={LuClock} alt="" className="h-4 w-4 opacity-80" />
                       Extend Stay
                     </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="h-12 rounded-xl bg-[#0B4EA2] px-12 text-sm font-semibold text-white"
-                    onClick={() => {}}
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <IconImage src={FiLogIn} alt="" className="h-4 w-4 opacity-95" />
-                      Check-in Guest
-                    </span>
-                  </button>
+                  </button> : null}
                 </div>
               </div>
 

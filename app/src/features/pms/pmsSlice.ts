@@ -6,10 +6,16 @@ type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
 
 interface PmsState {
   reservations: PmsReservation[]
+  reservationsTableRows: PmsReservation[]
+  inHouseListRows: PmsReservation[]
+  roomAllocationRows: PmsReservation[]
   checkInsByDate: PmsCheckInByDate[]
   inHouseReservations: PmsInHouseReservation[]
   selected: PmsReservationDetails | null
   status: AsyncStatus
+  reservationsTableStatus: AsyncStatus
+  inHouseListStatus: AsyncStatus
+  roomAllocationStatus: AsyncStatus
   checkInsStatus: AsyncStatus
   inHouseStatus: AsyncStatus
   detailStatus: AsyncStatus
@@ -19,10 +25,16 @@ interface PmsState {
 
 const initialState: PmsState = {
   reservations: [],
+  reservationsTableRows: [],
+  inHouseListRows: [],
+  roomAllocationRows: [],
   checkInsByDate: [],
   inHouseReservations: [],
   selected: null,
   status: 'idle',
+  reservationsTableStatus: 'idle',
+  inHouseListStatus: 'idle',
+  roomAllocationStatus: 'idle',
   checkInsStatus: 'idle',
   inHouseStatus: 'idle',
   detailStatus: 'idle',
@@ -41,6 +53,24 @@ export const fetchPmsReservations = createAsyncThunk(
     }
   }
 )
+
+function createPageReservationsThunk(type: string) {
+  return createAsyncThunk(
+    type,
+    async (params: api.GetPmsReservationsParams, thunkApi) => {
+      try {
+        return await api.getPmsReservations(params, thunkApi.signal)
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'Failed to load PMS reservations'
+        return thunkApi.rejectWithValue(message)
+      }
+    }
+  )
+}
+
+export const fetchReservationsTable = createPageReservationsThunk('pms/fetchReservationsTable')
+export const fetchInHouseListReservations = createPageReservationsThunk('pms/fetchInHouseListReservations')
+export const fetchRoomAllocationReservations = createPageReservationsThunk('pms/fetchRoomAllocationReservations')
 
 export const fetchPmsReservationById = createAsyncThunk(
   'pms/fetchReservationById',
@@ -132,6 +162,54 @@ const pmsSlice = createSlice({
       })
       .addCase(fetchPmsReservations.rejected, (state, action) => {
         state.status = 'failed'
+        state.error = (action.payload as string) || action.error.message || 'Unknown error'
+      })
+
+      .addCase(fetchReservationsTable.pending, (state) => {
+        state.reservationsTableStatus = 'loading'
+        state.reservationsTableRows = []
+        state.error = null
+      })
+      .addCase(fetchReservationsTable.fulfilled, (state, action) => {
+        state.reservationsTableStatus = 'succeeded'
+        state.reservationsTableRows = action.payload
+      })
+      .addCase(fetchReservationsTable.rejected, (state, action) => {
+        if (action.meta.aborted) return
+        state.reservationsTableStatus = 'failed'
+        state.reservationsTableRows = []
+        state.error = (action.payload as string) || action.error.message || 'Unknown error'
+      })
+
+      .addCase(fetchInHouseListReservations.pending, (state) => {
+        state.inHouseListStatus = 'loading'
+        state.inHouseListRows = []
+        state.error = null
+      })
+      .addCase(fetchInHouseListReservations.fulfilled, (state, action) => {
+        state.inHouseListStatus = 'succeeded'
+        state.inHouseListRows = action.payload
+      })
+      .addCase(fetchInHouseListReservations.rejected, (state, action) => {
+        if (action.meta.aborted) return
+        state.inHouseListStatus = 'failed'
+        state.inHouseListRows = []
+        state.error = (action.payload as string) || action.error.message || 'Unknown error'
+      })
+
+      .addCase(fetchRoomAllocationReservations.pending, (state) => {
+        state.roomAllocationStatus = 'loading'
+        state.roomAllocationRows = []
+        state.error = null
+      })
+      .addCase(fetchRoomAllocationReservations.fulfilled, (state, action) => {
+        state.roomAllocationStatus = 'succeeded'
+        state.roomAllocationRows = action.payload
+      })
+      .addCase(fetchRoomAllocationReservations.rejected, (state, action) => {
+        if (action.meta.aborted) return
+        state.roomAllocationStatus = 'failed'
+        state.roomAllocationRows = []
         state.error = (action.payload as string) || action.error.message || 'Unknown error'
       })
 

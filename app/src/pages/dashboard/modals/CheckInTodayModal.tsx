@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { Ban, ChevronsRight, MoreHorizontal, X } from 'lucide-react'
+import { Ban, ChevronLeft, ChevronRight, ChevronsRight, MoreHorizontal, X } from 'lucide-react'
 
 import { IconImage } from '../../../shared/ui/IconImage'
 import { Modal } from '../../../shared/ui/Modal'
@@ -18,13 +18,6 @@ function formatDateForDisplay(isoDate: string): string {
   return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 }
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  const first = parts[0]?.[0] ?? ''
-  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : ''
-  return (first + last).toUpperCase() || 'G'
-}
-
 type Props = {
   open: boolean
   onClose: () => void
@@ -37,6 +30,8 @@ export function CheckInTodayModal({ open, onClose }: Props) {
   const [query, setQuery] = useState('')
   const [openMenuForId, setOpenMenuForId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
+
+  const [page, setPage] = useState(1)
 
   const [checkInOpen, setCheckInOpen] = useState(false)
   const [checkInReservationId, setCheckInReservationId] = useState<string | null>(null)
@@ -53,7 +48,12 @@ export function CheckInTodayModal({ open, onClose }: Props) {
     if (!open) return
     setQuery('')
     setOpenMenuForId(null)
+    setPage(1)
   }, [open])
+
+  useEffect(() => {
+    setPage(1)
+  }, [query])
 
   useEffect(() => {
     if (!openMenuForId) return
@@ -80,9 +80,17 @@ export function CheckInTodayModal({ open, onClose }: Props) {
     return result
   }, [pmsCheckIns, query])
 
+  const PAGE_SIZE = 8
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const rows = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE
+    return filteredRows.slice(start, start + PAGE_SIZE)
+  }, [filteredRows, safePage])
+
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="flex h-[calc(100vh-2rem)] w-[94vw] max-w-6xl flex-col overflow-y-auto rounded-2xl bg-white shadow-xl">
+      <div className="flex h-[calc(100vh-2rem)] w-[94vw] max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
         <CheckInProcessPopup
           open={checkInOpen}
           onClose={() => {
@@ -92,9 +100,10 @@ export function CheckInTodayModal({ open, onClose }: Props) {
           reservationId={checkInReservationId}
         />
 
-        <div className="flex items-center justify-between bg-[#0B4EA2] px-8 py-5">
+        <div className="flex items-center justify-between bg-[#0B4EA2] px-8 py-5 flex-shrink-0">
           <div>
-            <div className="text-lg font-semibold text-white">check in Today</div>
+            <div className="text-lg font-semibold text-white">Check In Today</div>
+            <div className="text-sm text-white/70 mt-0.5">{filteredRows.length} arrivals</div>
           </div>
           <button
             type="button"
@@ -106,25 +115,24 @@ export function CheckInTodayModal({ open, onClose }: Props) {
           </button>
         </div>
 
-        <div className="flex-1 px-8 py-8">
-          <div className="mx-auto w-full max-w-6xl">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-              <div className="relative w-full max-w-xl">
-                <input
-                  className="h-11 w-full rounded-full bg-[#F3F5FF] px-6 pr-12 text-sm text-slate-700 outline-none placeholder:text-slate-400"
-                  placeholder="Search by Guest Name ,ID..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-                <div className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 opacity-70">
-                  <IconImage src={IoSearchSharp} alt="Search" className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="text-sm font-semibold text-slate-600">{filteredRows.length} results</div>
+        <div className="shrink-0 px-8 pb-4 pt-6">
+          <div className="relative w-full max-w-xl">
+            <input
+              className="h-11 w-full rounded-full bg-[#F3F5FF] px-6 pr-12 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+              placeholder="Search by Guest Name, ID..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <div className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 opacity-70">
+              <IconImage src={IoSearchSharp} alt="Search" className="h-4 w-4" />
             </div>
+          </div>
+        </div>
 
-            <div className="overflow-hidden rounded-xl border border-slate-200">
-              <div className="grid grid-cols-[1.4fr_.8fr_1fr_1fr_.7fr_.9fr_1fr_.8fr_1.2fr] bg-[#EAF2FF] px-6 py-3 text-[12px] font-semibold text-slate-700">
+        {/* Table */}
+        <div className="flex min-h-0 flex-1 px-8 pb-2">
+          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
+            <div className="grid grid-cols-[1.4fr_.8fr_1fr_1fr_.7fr_.9fr_1fr_.8fr_1.2fr] rounded-t-2xl bg-[#EAF2FF] px-6 py-3 text-[12px] font-semibold text-slate-700">
                 <div>Guest</div>
                 <div>Room</div>
                 <div>Check-in</div>
@@ -136,8 +144,11 @@ export function CheckInTodayModal({ open, onClose }: Props) {
                 <div className="text-center">Action</div>
               </div>
 
-              <div className="divide-y divide-slate-100">
-                {filteredRows.map((row: PmsCheckInByDate, idx) => {
+            <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
+              {rows.length === 0 ? (
+                <div className="flex h-full items-center justify-center py-16 text-center text-sm text-slate-500">No arrivals found</div>
+              ) : (
+                rows.map((row: PmsCheckInByDate, idx) => {
                   const paymentLabel = row.remainingBalance === 0 ? 'Fully Paid' : 'Unpaid'
 
                   return (
@@ -150,9 +161,6 @@ export function CheckInTodayModal({ open, onClose }: Props) {
                     >
                       <div className="flex items-center gap-3">
                         <div className="font-medium text-slate-800">{row.guestFullName}</div>
-                        <div className="grid h-6 w-6 place-items-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
-                          {initials(row.guestFullName)}
-                        </div>
                       </div>
                       <div>
                         {row.roomNumber && row.roomNumber !== 'Pending' ? (
@@ -196,7 +204,7 @@ export function CheckInTodayModal({ open, onClose }: Props) {
                         {openMenuForId === row.reservationId ? (
                           <div
                             ref={menuRef}
-                            className="absolute right-0 top-10 z-10 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                            className="absolute right-0 top-10 z-50 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
                           >
                             <button
                               type="button"
@@ -204,7 +212,7 @@ export function CheckInTodayModal({ open, onClose }: Props) {
                               onClick={() => setOpenMenuForId(null)}
                             >
                               <Ban className="h-4 w-4 text-slate-500" />
-                              cancel Reservation
+                              Cancel Reservation
                             </button>
                             <button
                               type="button"
@@ -227,11 +235,50 @@ export function CheckInTodayModal({ open, onClose }: Props) {
                       </div>
                     </div>
                   )
-                })}
-              </div>
+                })
+              )}
             </div>
           </div>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex h-12 shrink-0 items-center justify-end gap-3 border-t border-slate-100 px-8">
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={[
+                  'inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold',
+                  safePage === p
+                    ? 'bg-[#0B4EA2] text-white'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50',
+                ].join(' ')}
+                onClick={() => setPage(p)}
+              >
+                {p}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
     </Modal>
   )

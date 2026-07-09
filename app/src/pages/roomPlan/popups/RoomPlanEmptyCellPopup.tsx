@@ -39,7 +39,7 @@ export function RoomPlanEmptyCellPopup({ open, onClose, room, date, endDate, onA
 
   return (
     <Modal open={open} onClose={onClose} lockScroll={false}>
-      <div className="relative w-[94vw] max-w-xl translate-y-10 overflow-y-auto rounded-2xl bg-white shadow-xl max-h-[calc(100vh-6rem)]">
+      <div className="relative w-[94vw] max-w-2xl translate-y-10 overflow-y-auto rounded-2xl bg-white shadow-xl max-h-[calc(100vh-6rem)]">
         <div className="flex items-center justify-between bg-[#0B4EA2] px-6 py-4">
           <div>
             <div className="text-lg font-semibold text-white">Room {room?.number ?? '—'}</div>

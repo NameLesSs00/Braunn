@@ -51,6 +51,8 @@ import { laundryIssuesReducer } from '../features/Laundryfeatures/laundryIssues/
 import { laundryPurchasesReducer } from '../features/Laundryfeatures/laundryPurchases/laundryPurchasesSlice';
 import corporateContractReducer from '../features/corporateContracts/corporateContractSlice';
 import otaReservationDraftReducer from '../features/reservations/otaReservationDraftSlice';
+import { roomPlanReducer } from '../features/roomPlan/roomPlanSlice'
+import { dashboardReducer } from '../features/dashboard/dashboardSlice'
 
 export const store = configureStore({
   reducer: {
@@ -106,6 +108,8 @@ export const store = configureStore({
     laundryPurchases: laundryPurchasesReducer,
     corporateContract: corporateContractReducer,
     otaReservationDraft: otaReservationDraftReducer,
+    roomPlan: roomPlanReducer,
+    dashboard: dashboardReducer,
   },
 })
 

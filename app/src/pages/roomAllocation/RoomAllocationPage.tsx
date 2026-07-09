@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Search } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
-import { fetchPmsReservations } from '../../features/pms/pmsSlice'
+import { fetchRoomAllocationReservations } from '../../features/pms/pmsSlice'
 import { routes } from '../../shared/lib/routes'
 
 import type { PmsReservation } from '../../models/PmsReservation'
@@ -11,6 +11,27 @@ type AllocationStatusFilter = 'All status' | 'Allocated' | 'Not Allocated'
 type ReservationStatusFilter = 'All status' | 'Confirmed' | 'Cancelled' | 'Checked in' | 'Checked out'
 type FloorFilter = 'All Floor' | '1' | '2' | '3' | '4' | '5'
 type RoomTypeFilter = 'All Types' | 'Single' | 'Double' | 'Triple' | 'Suite' | 'Deluxe'
+
+const roomAllocationFiltersStorageKey = 'room-allocation-page-filters'
+
+interface RoomAllocationFilters {
+  query: string
+  allocationStatus: AllocationStatusFilter
+  floor: FloorFilter
+  roomType: RoomTypeFilter
+  arrivalDate: string
+  departureDate: string
+  reservationStatus: ReservationStatusFilter
+}
+
+function getSavedRoomAllocationFilters(defaults: RoomAllocationFilters): RoomAllocationFilters {
+  try {
+    const saved = sessionStorage.getItem(roomAllocationFiltersStorageKey)
+    return saved ? { ...defaults, ...JSON.parse(saved) } : defaults
+  } catch {
+    return defaults
+  }
+}
 
 function formatDateForDisplay(isoDate: string): string {
   if (!isoDate) return '—'
@@ -28,19 +49,11 @@ function getDifferenceInDays(date1: string, date2: string): number {
   return diffDays
 }
 
-function GuestDot({ name }: { name: string }) {
-  const letter = (name.trim()[0] ?? 'G').toUpperCase()
-  return (
-    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700">
-      {letter}
-    </span>
-  )
-}
-
 export function RoomAllocationPage() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const pmsReservations = useAppSelector((s) => s.pms.reservations)
+  const pmsReservations = useAppSelector((s) => s.pms.roomAllocationRows)
+  const roomAllocationLoading = useAppSelector((s) => s.pms.roomAllocationStatus === 'loading')
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
   const defaultEndDate = useMemo(() => {
@@ -48,18 +61,37 @@ export function RoomAllocationPage() {
     d.setDate(d.getDate() + 7)
     return d.toISOString().split('T')[0]
   }, [])
+  const initialFilters = useMemo(() => getSavedRoomAllocationFilters({
+    query: '',
+    allocationStatus: 'All status',
+    floor: 'All Floor',
+    roomType: 'All Types',
+    arrivalDate: today,
+    departureDate: defaultEndDate,
+    reservationStatus: 'All status',
+  }), [defaultEndDate, today])
 
-  const [query, setQuery] = useState('')
-  const [allocationStatus, setAllocationStatus] = useState<AllocationStatusFilter>('All status')
-  const [floor, setFloor] = useState<FloorFilter>('All Floor')
-  const [roomType, setRoomType] = useState<RoomTypeFilter>('All Types')
-  const [arrivalDate, setArrivalDate] = useState(today)
-  const [departureDate, setDepartureDate] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() + 7)
-    return d.toISOString().split('T')[0]
-  })
-  const [reservationStatus, setReservationStatus] = useState<ReservationStatusFilter>('All status')
+  const [query, setQuery] = useState(initialFilters.query)
+  const [allocationStatus, setAllocationStatus] = useState<AllocationStatusFilter>(initialFilters.allocationStatus)
+  const [floor, setFloor] = useState<FloorFilter>(initialFilters.floor)
+  const [roomType, setRoomType] = useState<RoomTypeFilter>(initialFilters.roomType)
+  const [arrivalDate, setArrivalDate] = useState(initialFilters.arrivalDate)
+  const [departureDate, setDepartureDate] = useState(initialFilters.departureDate)
+  const [reservationStatus, setReservationStatus] = useState<ReservationStatusFilter>(initialFilters.reservationStatus)
+
+  useEffect(() => {
+    const filters: RoomAllocationFilters = {
+      query,
+      allocationStatus,
+      floor,
+      roomType,
+      arrivalDate,
+      departureDate,
+      reservationStatus,
+    }
+
+    sessionStorage.setItem(roomAllocationFiltersStorageKey, JSON.stringify(filters))
+  }, [query, allocationStatus, floor, roomType, arrivalDate, departureDate, reservationStatus])
 
   const computedDateRange = useMemo(() => ({
     startDate: arrivalDate || today,
@@ -67,12 +99,13 @@ export function RoomAllocationPage() {
   }), [arrivalDate, departureDate, today, defaultEndDate])
 
   useEffect(() => {
-    void dispatch(
-      fetchPmsReservations({
+    const request = dispatch(
+      fetchRoomAllocationReservations({
         startDate: computedDateRange.startDate,
         endDate: computedDateRange.endDate,
       })
     )
+    return () => request.abort()
   }, [dispatch, computedDateRange])
 
   const filteredRows = useMemo(() => {
@@ -265,7 +298,12 @@ export function RoomAllocationPage() {
         </div>
 
         <div className="min-h-[360px] flex flex-col">
-          {filteredRows.length === 0 ? (
+          {roomAllocationLoading ? (
+            <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
+              <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#0B4EA2]/20 border-t-[#0B4EA2]" />
+              <p className="mt-3 text-sm font-medium text-slate-500">Loading room allocations...</p>
+            </div>
+          ) : filteredRows.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
               <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
                 <Search className="h-6 w-6" />
@@ -288,7 +326,6 @@ export function RoomAllocationPage() {
                 >
                   <div className="flex items-center gap-2 text-slate-700">
                     <span className="truncate">{r.guestName}</span>
-                    <GuestDot name={r.guestName} />
                   </div>
                   <div className="text-slate-600">{nights}</div>
                   <div className="text-slate-600">{formatDateForDisplay(r.checkInDate)}</div>

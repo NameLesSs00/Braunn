@@ -5,14 +5,16 @@ import { routes } from '../../../shared/lib/routes'
 import { Header } from '../Header/Header'
 import { Sidebar } from '../Sidebar/Sidebar'
 import { NewReservationModal } from '../../reservations/NewReservationModal/NewReservationModal'
-import { NewReservationModalProvider } from './NewReservationModalContext'
+import { NewReservationModalProvider, type OpenNewReservationOptions } from './NewReservationModalContext'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
-import { addNotification, removeNotification } from '../../../features/notifications/notificationsSlice'
+import { addNotification, hydrateReservationDraftNotifications, removeNotification } from '../../../features/notifications/notificationsSlice'
+import { resetDraft } from '../../../features/reservations/draftSlice'
 import { ShiftStartModal } from '../../../features/shiftStart'
 import { selectIsShiftActive, fetchBusinessDate, fetchCurrentShift } from '../../../features/shift/shiftSlice'
 import { SelectReservationTypeModal } from '../../reservations/SelectReservationTypeModal/SelectReservationTypeModal'
 import { OtaReservationModal } from '../../reservations/OtaReservationModal/OtaReservationModal'
 import { useEffect } from 'react'
+import { getSavedReservationDrafts, type SavedReservationStep, type SavedReservationStep4Page } from '../../../features/reservations/reservationDraftStorage'
 
 const titleByPath: Record<string, string> = {
   [routes.dashboard]: 'Dashboard',
@@ -44,6 +46,9 @@ export function DashboardLayout() {
   const [newReservationOpen, setNewReservationOpen] = useState(false)
   const [otaReservationOpen, setOtaReservationOpen] = useState(false)
   const [shiftStartOpen, setShiftStartOpen] = useState(false)
+  const [activeReservationDraftId, setActiveReservationDraftId] = useState<string | null>(null)
+  const [initialReservationStep, setInitialReservationStep] = useState<SavedReservationStep>(1)
+  const [initialReservationStep4Page, setInitialReservationStep4Page] = useState<SavedReservationStep4Page>(1)
 
   const isShiftActive = useAppSelector(selectIsShiftActive)
   const shiftStatus = useAppSelector((state) => state.shift.shiftStatus)
@@ -53,7 +58,19 @@ export function DashboardLayout() {
   useEffect(() => {
     void dispatch(fetchBusinessDate())
     void dispatch(fetchCurrentShift())
+    dispatch(hydrateReservationDraftNotifications(getSavedReservationDrafts()))
   }, [dispatch])
+
+  const openNewReservation = (options?: OpenNewReservationOptions) => {
+    if (!options?.draftId) {
+      dispatch(resetDraft())
+    }
+
+    setActiveReservationDraftId(options?.draftId ?? null)
+    setInitialReservationStep(options?.step ?? 1)
+    setInitialReservationStep4Page(options?.step4Page ?? 1)
+    setNewReservationOpen(true)
+  }
 
   useEffect(() => {
     // If shift is not active (and we are done loading) and no shift_start notification exists, add one
@@ -78,7 +95,7 @@ export function DashboardLayout() {
 
   return (
     <div className="h-screen overflow-hidden bg-[#F6F8FC]">
-      <NewReservationModalProvider value={{ openNewReservation: () => setNewReservationOpen(true) }}>
+      <NewReservationModalProvider value={{ openNewReservation }}>
         <div className="flex h-full">
           <div className="shrink-0">
             <Sidebar />
@@ -114,14 +131,22 @@ export function DashboardLayout() {
         onClose={() => setSelectReservationTypeOpen(false)}
         onSelectIndividual={() => {
           setSelectReservationTypeOpen(false)
-          setNewReservationOpen(true)
+          dispatch(resetDraft())
+          openNewReservation()
         }}
         onSelectOta={() => {
           setSelectReservationTypeOpen(false)
           setOtaReservationOpen(true)
         }}
       />
-      <NewReservationModal open={newReservationOpen} onClose={() => setNewReservationOpen(false)} />
+      <NewReservationModal
+        open={newReservationOpen}
+        activeDraftId={activeReservationDraftId}
+        initialStep={initialReservationStep}
+        initialStep4Page={initialReservationStep4Page}
+        onActiveDraftIdChange={setActiveReservationDraftId}
+        onClose={() => setNewReservationOpen(false)}
+      />
       <OtaReservationModal open={otaReservationOpen} onClose={() => setOtaReservationOpen(false)} />
       <ShiftStartModal open={shiftStartOpen} onClose={() => setShiftStartOpen(false)} />
     </div>
