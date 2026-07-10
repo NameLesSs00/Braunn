@@ -36,7 +36,12 @@ export const positionsApi = {
       items: PositionReadDto[];
       totalCount: number;
     }>({ method: 'GET', path: fullPath });
-    return unwrapApiResponse(response);
+    return unwrapApiResponse<{
+      pageNumber: number;
+      pageSize: number;
+      items: PositionReadDto[];
+      totalCount: number;
+    }>(response);
   },
 
   /**
@@ -44,7 +49,7 @@ export const positionsApi = {
    */
   fetchPositionById: async (id: string) => {
     const response = await apiRequest<PositionReadDto>({ method: 'GET', path: `${BASE_PATH}/${id}` });
-    return unwrapApiResponse(response);
+    return unwrapApiResponse<PositionReadDto>(response);
   },
 
   /**
@@ -52,7 +57,7 @@ export const positionsApi = {
    */
   createPosition: async (payload: PositionCreateDto) => {
     const response = await apiRequest<PositionReadDto>({ method: 'POST', path: BASE_PATH, body: payload });
-    return unwrapApiResponse(response);
+    return unwrapApiResponse<PositionReadDto>(response);
   },
 
   /**
@@ -60,7 +65,7 @@ export const positionsApi = {
    */
   updatePosition: async (id: string, payload: PositionUpdateDto) => {
     const response = await apiRequest<PositionReadDto>({ method: 'PUT', path: `${BASE_PATH}/${id}`, body: payload });
-    return unwrapApiResponse(response);
+    return unwrapApiResponse<PositionReadDto>(response);
   },
 
   /**
@@ -68,6 +73,6 @@ export const positionsApi = {
    */
   deletePosition: async (id: string) => {
     const response = await apiRequest<void>({ method: 'DELETE', path: `${BASE_PATH}/${id}` });
-    return unwrapApiResponse(response);
+    return unwrapApiResponse<void>(response);
   }
 };

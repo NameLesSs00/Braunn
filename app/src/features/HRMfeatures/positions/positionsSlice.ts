@@ -19,14 +19,14 @@ const initialState: PositionsState = {
 export const fetchPositions = createAsyncThunk(
   'positions/fetchPositions',
   async (
-    params?: {
+    params: {
       PageNumber?: number;
       PageSize?: number;
       SearchTerm?: string;
       SortBy?: string;
       SortDirection?: string;
       IsActive?: boolean;
-    },
+    } = {},
     { rejectWithValue }
   ) => {
     try {

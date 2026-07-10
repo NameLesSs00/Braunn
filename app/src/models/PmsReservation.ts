@@ -140,11 +140,16 @@ export interface FolioCharge {
 }
 
 export interface FolioPayment {
+  paymentId?: string
   paymentDate: string
-  paymentMethod: string
+  paymentMethod: string | null
   amount: number
-  reference: string
-  status: string
+  currency: string | null
+  type: string | null
+  reference: string | null
+  externalReference?: string | null
+  reason: string | null
+  status: string | null
 }
 
 export interface FolioTotals {
@@ -156,6 +161,9 @@ export interface FolioTotals {
   taxTotal: number
   chargesTotal: number
   paymentsTotal: number
+  grossPaymentsTotal: number
+  refundsTotal: number
+  netPaymentsTotal: number
   remainingBalance: number
   paymentStatus: string
 }
@@ -190,11 +198,82 @@ export interface FolioDiscount {
   calculatedAmount: number
 }
 
+export interface FolioGuest {
+  firstName: string | null
+  middleName: string | null
+  lastName: string | null
+  fullName: string | null
+  salutation: string | null
+  dateOfBirth: string | null
+  nationality: string | null
+  idType: string | null
+  idNumber: string | null
+  phone: string | null
+  email: string | null
+  streetAddress: string | null
+  city: string | null
+  state: string | null
+  country: string | null
+  postalCode: string | null
+  emergencyContactName: string | null
+  emergencyContactPhone: string | null
+}
+
+export interface FolioCompanion {
+  firstName: string | null
+  lastName: string | null
+  idType: string | null
+  idNumber: string | null
+  nationality: string | null
+  dateOfBirth: string | null
+  gender: string | null
+  relationshipToPrimary: string | null
+}
+
+export interface FolioReservationRoom {
+  reservationRoomId: string
+  roomTypeName: string | null
+  roomNumber: string | null
+  checkInDate: string
+  checkOutDate: string
+  actualCheckInAt: string | null
+  actualCheckOutAt: string | null
+  assignedAt: string | null
+  adults: number
+  children: number
+  pricePerNight: number
+  totalPrice: number
+  status: string | null
+}
+
+export interface FolioGuarantee {
+  guaranteeType: string | null
+  cardType: string | null
+  cardHolderName: string | null
+  maskedCardNumber: string | null
+  expirationDate: string | null
+}
+
 export interface PmsReservationFolio {
+  bookingReference: string | null
   roomNumbers: string[]
   charges: FolioCharge[]
   payments: FolioPayment[]
   totals: FolioTotals
+  reservationStatus: string | null
+  reservationType: string | null
+  bookingSource: string | null
+  sourceType: string | null
+  guest: FolioGuest | null
+  companions: FolioCompanion[]
+  reservationRooms: FolioReservationRoom[]
+  specialRequests: string | null
+  comments: string | null
+  hasGuarantee: boolean
+  guarantee: FolioGuarantee | null
+  groupName: string | null
+  couponCode: string | null
+  // Root-level summary fields
   guestName: string
   roomNumber: string
   roomTypeName: string

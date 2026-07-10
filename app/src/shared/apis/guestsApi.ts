@@ -17,6 +17,14 @@ export function getGuestByNationalId(idNumber: string, signal?: AbortSignal) {
   )
 }
 
+export function searchGuests(query: string, limit: number = 10, signal?: AbortSignal) {
+  return apiRequest<unknown>({ 
+    method: 'GET', 
+    path: `${basePath}/search?query=${encodeURIComponent(query)}&limit=${limit}`, 
+    signal 
+  }).then((r) => unwrapApiResponse<Guest[]>(r))
+}
+
 export function getGuestByPhoneNumber(phnNumber: string, signal?: AbortSignal) {
   return apiRequest<unknown>({ method: 'GET', path: `${basePath}/by-phone-number-id/${encodeURIComponent(phnNumber)}`, signal }).then((r) =>
     unwrapApiResponse<Guest[]>(r),

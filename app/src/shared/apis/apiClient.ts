@@ -29,8 +29,25 @@ function joinUrl(base: string, path: string) {
 }
 
 export function unwrapApiResponse<T>(value: unknown): T {
-  if (value && typeof value === 'object' && 'data' in value) {
-    return (value as ApiResponse<T>).data
+  if (value && typeof value === 'object') {
+    const v = value as any
+    if ('isSuccess' in v || 'IsSuccess' in v) {
+      const isSuccess = v.isSuccess ?? v.IsSuccess
+      if (!isSuccess) {
+        const msg = v.message || v.Message || 'Operation failed'
+        const errors = v.errors || v.Errors
+        const errorMsg = Array.isArray(errors) && errors.length > 0 
+          ? `${msg}\n${errors.join('\n')}` 
+          : msg
+        throw new Error(errorMsg)
+      }
+    }
+    if ('data' in v) {
+      return v.data
+    }
+    if ('Data' in v) {
+      return v.Data
+    }
   }
   return value as T
 }
@@ -62,10 +79,18 @@ export async function apiRequest<T>({ method, path, body, signal }: RequestOptio
 
     let errorMessage = ''
     if (errorPayload && typeof errorPayload === 'object') {
-      if ('error' in errorPayload && typeof (errorPayload as any).error === 'string') {
-        errorMessage = String((errorPayload as any).error)
-      } else if ('message' in errorPayload && typeof (errorPayload as any).message === 'string') {
-        errorMessage = String((errorPayload as any).message)
+      const ep = errorPayload as any
+      if (typeof ep.error === 'string') {
+        errorMessage = ep.error
+      } else if (typeof ep.message === 'string') {
+        errorMessage = ep.message
+      } else if (typeof ep.Message === 'string') {
+        errorMessage = ep.Message
+      }
+      
+      const errorsArr = Array.isArray(ep.Errors) ? ep.Errors : Array.isArray(ep.errors) ? ep.errors : []
+      if (errorsArr.length > 0) {
+        errorMessage = errorMessage ? `${errorMessage}\n${errorsArr.join('\n')}` : errorsArr.join('\n')
       }
     }
 

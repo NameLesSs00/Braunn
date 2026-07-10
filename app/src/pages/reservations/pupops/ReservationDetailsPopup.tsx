@@ -11,9 +11,8 @@ import { InfoRow } from '../../../widgets/reservations/CheckInProcessModal/InfoR
 import { Step4Card } from '../../../widgets/reservations/NewReservationModal/steps/step4/Step4Card'
 import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
 import { MdMeetingRoom, MdDateRange, MdAdd } from 'react-icons/md'
-import { LuClock, LuIdCard, LuReceipt, LuCreditCard, LuTag, LuUtensilsCrossed, LuConciergeBell } from 'react-icons/lu'
+import { LuClock, LuIdCard, LuReceipt, LuCreditCard, LuTag, LuUtensilsCrossed, LuConciergeBell, LuUser, LuUsers, LuBriefcase, LuShieldCheck, LuMessageSquare } from 'react-icons/lu'
 
-import { getPmsReservationById } from '../../../shared/apis/PmsReservation'
 import { getAdditionalServices } from '../../../shared/apis/AdditionalServices'
 import { postFrontOfficeCharge } from '../../../shared/apis/FrontOfficeApi'
 import type { AdditionalService } from '../../../models/AdditionalService'
@@ -124,18 +123,16 @@ export function ReservationDetailsPopup({
   const currentShift = useAppSelector((s) => s.shift.currentShift)
 
   const loadReservationDetails = useCallback(async (id: string, signal?: AbortSignal) => {
-    const [folioRes, detailsRes, servicesRes] = await Promise.all([
+    const [folioRes, servicesRes] = await Promise.all([
       getPmsReservationFolio(id, signal),
-      getPmsReservationById(id, signal),
       getAdditionalServices(signal),
     ])
 
     setFolio(folioRes)
     setReservationRoomId(null)
-    if (detailsRes.reservationRoomIds && detailsRes.reservationRoomIds.length > 0) {
-      setReservationRoomId(detailsRes.reservationRoomIds[0])
-    } else if (detailsRes.reservationRooms && detailsRes.reservationRooms.length > 0) {
-      setReservationRoomId(detailsRes.reservationRooms[0].reservationRoomId)
+    // Prefer reservationRooms from the folio (new endpoint), fall back to charges
+    if (folioRes.reservationRooms && folioRes.reservationRooms.length > 0) {
+      setReservationRoomId(folioRes.reservationRooms[0].reservationRoomId)
     } else if (folioRes.charges && folioRes.charges.length > 0) {
       const chargeWithRoomId = folioRes.charges.find(c => c.reservationRoomId)
       if (chargeWithRoomId && chargeWithRoomId.reservationRoomId) {
@@ -257,33 +254,136 @@ export function ReservationDetailsPopup({
                 </div>
               </div>
 
-              {/* ── Row 1: Stay Details + Room & Channel ── */}
+              {/* ── Row 1: Stay Details + Booking Info ── */}
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Step4Card title="Stay Details" titleIconSrc={MdDateRange} titleIconBgClassName="bg-orange-100">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <InfoRow label="Check-in Date" value={formatDisplayDate(folio.checkInDate)} />
                     <InfoRow label="Check-out Date" value={formatDisplayDate(folio.checkOutDate)} />
-                    <InfoRow label="Number of Nights" value={`${folio.numberOfNights} night(s)`} />
-                    <InfoRow label="Room Number" value={folio.roomNumber || '—'} />
+                    <InfoRow label="Nights" value={`${folio.numberOfNights}`} />
+                    <InfoRow label="Room" value={folio.roomNumber || '—'} />
+                    <InfoRow label="Room Type" value={folio.roomTypeName || '—'} />
+                    <InfoRow label="Channel" value={folio.channelName || '—'} />
                   </div>
                 </Step4Card>
 
-                <Step4Card title="Room & Channel" titleIconSrc={MdMeetingRoom} titleIconBgClassName="bg-violet-100">
+                <Step4Card title="Booking Info" titleIconSrc={LuBriefcase} titleIconBgClassName="bg-violet-100">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <InfoRow label="Room Type" value={folio.roomTypeName || '—'} />
-                    <InfoRow label="Booking Channel" value={folio.channelName || '—'} />
-                    {folio.externalReservationId && (
-                      <InfoRow label="External Ref." value={folio.externalReservationId} />
-                    )}
-                    {folio.rateTigerConfirmedId && (
-                      <InfoRow label="RateTiger ID" value={folio.rateTigerConfirmedId} />
-                    )}
-                    {folio.roomNumbers && folio.roomNumbers.length > 0 && (
-                      <InfoRow label="Assigned Rooms" value={folio.roomNumbers.join(', ')} />
-                    )}
+                    {folio.bookingReference && <InfoRow label="Booking Ref." value={folio.bookingReference} />}
+                    {folio.reservationStatus && <InfoRow label="Status" value={folio.reservationStatus.replace(/([a-z])([A-Z])/g, '$1 $2')} />}
+                    {folio.reservationType && <InfoRow label="Type" value={folio.reservationType} />}
+                    {folio.bookingSource && <InfoRow label="Source" value={folio.bookingSource} />}
+                    {folio.sourceType && <InfoRow label="Source Type" value={folio.sourceType} />}
+                    {folio.groupName && <InfoRow label="Group" value={folio.groupName} />}
+                    {folio.couponCode && <InfoRow label="Coupon" value={folio.couponCode} />}
+                    {folio.externalReservationId && <InfoRow label="External Ref." value={folio.externalReservationId} />}
+                    {folio.rateTigerConfirmedId && <InfoRow label="RateTiger ID" value={folio.rateTigerConfirmedId} />}
                   </div>
                 </Step4Card>
               </div>
+
+              {/* ── Guest Information ── */}
+              {folio.guest && (
+                <Step4Card title="Guest Information" titleIconSrc={LuUser} titleIconBgClassName="bg-sky-100">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {folio.guest.fullName && <InfoRow label="Full Name" value={folio.guest.fullName} />}
+                    {folio.guest.salutation && <InfoRow label="Salutation" value={folio.guest.salutation} />}
+                    {folio.guest.dateOfBirth && <InfoRow label="Date of Birth" value={formatDisplayDate(folio.guest.dateOfBirth)} />}
+                    {folio.guest.nationality && <InfoRow label="Nationality" value={folio.guest.nationality} />}
+                    {folio.guest.idType && <InfoRow label="ID Type" value={folio.guest.idType} />}
+                    {folio.guest.idNumber && <InfoRow label="ID Number" value={folio.guest.idNumber} />}
+                    {folio.guest.phone && <InfoRow label="Phone" value={folio.guest.phone} />}
+                    {folio.guest.email && <InfoRow label="Email" value={folio.guest.email} />}
+                    {folio.guest.streetAddress && <InfoRow label="Address" value={folio.guest.streetAddress} />}
+                    {folio.guest.city && <InfoRow label="City" value={folio.guest.city} />}
+                    {folio.guest.country && <InfoRow label="Country" value={folio.guest.country} />}
+                    {folio.guest.emergencyContactName && <InfoRow label="Emergency Contact" value={folio.guest.emergencyContactName} />}
+                    {folio.guest.emergencyContactPhone && <InfoRow label="Emergency Phone" value={folio.guest.emergencyContactPhone} />}
+                  </div>
+                </Step4Card>
+              )}
+
+              {/* ── Companions ── */}
+              {folio.companions && folio.companions.length > 0 && (
+                <Step4Card title={`Companions (${folio.companions.length})`} titleIconSrc={LuUsers} titleIconBgClassName="bg-indigo-100">
+                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                    <table className="w-full text-[12px] text-slate-700">
+                      <thead>
+                        <tr className="bg-[#EAF2FF] text-[11px] font-semibold text-slate-600">
+                          <th className="px-4 py-2 text-left">Name</th>
+                          <th className="px-4 py-2 text-left">Relationship</th>
+                          <th className="px-4 py-2 text-left">Gender</th>
+                          <th className="px-4 py-2 text-left">Nationality</th>
+                          <th className="px-4 py-2 text-left">ID Type</th>
+                          <th className="px-4 py-2 text-left">ID Number</th>
+                          <th className="px-4 py-2 text-left">Date of Birth</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {folio.companions.map((c, i) => (
+                          <tr key={i} className={i % 2 === 1 ? 'bg-[#F4F9FF]' : 'bg-white'}>
+                            <td className="px-4 py-2 font-medium">{[c.firstName, c.lastName].filter(Boolean).join(' ') || '—'}</td>
+                            <td className="px-4 py-2">{c.relationshipToPrimary || '—'}</td>
+                            <td className="px-4 py-2">{c.gender || '—'}</td>
+                            <td className="px-4 py-2">{c.nationality || '—'}</td>
+                            <td className="px-4 py-2">{c.idType || '—'}</td>
+                            <td className="px-4 py-2">{c.idNumber || '—'}</td>
+                            <td className="px-4 py-2">{c.dateOfBirth ? formatDisplayDate(c.dateOfBirth) : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Step4Card>
+              )}
+
+              {/* ── Room Details ── */}
+              {folio.reservationRooms && folio.reservationRooms.length > 0 && (
+                <Step4Card title="Room Details" titleIconSrc={MdMeetingRoom} titleIconBgClassName="bg-violet-100">
+                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                    <table className="w-full text-[12px] text-slate-700">
+                      <thead>
+                        <tr className="bg-[#EAF2FF] text-[11px] font-semibold text-slate-600">
+                          <th className="px-4 py-2 text-left">Room</th>
+                          <th className="px-4 py-2 text-left">Type</th>
+                          <th className="px-4 py-2 text-left">Check-in</th>
+                          <th className="px-4 py-2 text-left">Check-out</th>
+                          <th className="px-4 py-2 text-left">Actual In</th>
+                          <th className="px-4 py-2 text-left">Actual Out</th>
+                          <th className="px-4 py-2 text-center">Adults</th>
+                          <th className="px-4 py-2 text-center">Children</th>
+                          <th className="px-4 py-2 text-right">Rate/Night</th>
+                          <th className="px-4 py-2 text-right">Total</th>
+                          <th className="px-4 py-2 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {folio.reservationRooms.map((room, i) => (
+                          <tr key={i} className={i % 2 === 1 ? 'bg-[#F4F9FF]' : 'bg-white'}>
+                            <td className="px-4 py-2 font-semibold">{room.roomNumber || '—'}</td>
+                            <td className="px-4 py-2">{room.roomTypeName || '—'}</td>
+                            <td className="px-4 py-2">{formatDisplayDate(room.checkInDate)}</td>
+                            <td className="px-4 py-2">{formatDisplayDate(room.checkOutDate)}</td>
+                            <td className="px-4 py-2">{room.actualCheckInAt ? formatDisplayDate(room.actualCheckInAt) : '—'}</td>
+                            <td className="px-4 py-2">{room.actualCheckOutAt ? formatDisplayDate(room.actualCheckOutAt) : '—'}</td>
+                            <td className="px-4 py-2 text-center">{room.adults}</td>
+                            <td className="px-4 py-2 text-center">{room.children}</td>
+                            <td className="px-4 py-2 text-right">{formatMoney(room.pricePerNight, currency)}</td>
+                            <td className="px-4 py-2 text-right font-semibold">{formatMoney(room.totalPrice, currency)}</td>
+                            <td className="px-4 py-2 text-center">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                (room.status || '').toLowerCase().includes('checkedin') ? 'bg-emerald-50 text-emerald-700'
+                                : (room.status || '').toLowerCase().includes('checkedout') ? 'bg-slate-100 text-slate-600'
+                                : 'bg-amber-50 text-amber-700'
+                              }`}>{room.status ? room.status.replace(/([a-z])([A-Z])/g, '$1 $2') : '—'}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Step4Card>
+              )}
 
               {/* ── Room Rate Lines ── */}
               {folio.roomRateLines && folio.roomRateLines.length > 0 && (
@@ -379,6 +479,39 @@ export function ReservationDetailsPopup({
                 </Step4Card>
               )}
 
+              {/* ── Guarantee ── */}
+              {folio.hasGuarantee && folio.guarantee && (
+                <Step4Card title="Guarantee" titleIconSrc={LuShieldCheck} titleIconBgClassName="bg-amber-100">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {folio.guarantee.guaranteeType && <InfoRow label="Type" value={folio.guarantee.guaranteeType} />}
+                    {folio.guarantee.cardType && <InfoRow label="Card Type" value={folio.guarantee.cardType} />}
+                    {folio.guarantee.cardHolderName && <InfoRow label="Card Holder" value={folio.guarantee.cardHolderName} />}
+                    {folio.guarantee.maskedCardNumber && <InfoRow label="Card Number" value={folio.guarantee.maskedCardNumber} />}
+                    {folio.guarantee.expirationDate && <InfoRow label="Expiry" value={folio.guarantee.expirationDate} />}
+                  </div>
+                </Step4Card>
+              )}
+
+              {/* ── Special Requests & Comments ── */}
+              {(folio.specialRequests || folio.comments) && (
+                <Step4Card title="Notes & Requests" titleIconSrc={LuMessageSquare} titleIconBgClassName="bg-yellow-100">
+                  <div className="space-y-4">
+                    {folio.specialRequests && (
+                      <div>
+                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Special Requests</div>
+                        <p className="text-[13px] text-slate-700 leading-relaxed">{folio.specialRequests}</p>
+                      </div>
+                    )}
+                    {folio.comments && (
+                      <div>
+                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Comments</div>
+                        <p className="text-[13px] text-slate-700 leading-relaxed">{folio.comments}</p>
+                      </div>
+                    )}
+                  </div>
+                </Step4Card>
+              )}
+
               {/* ── Payments ── */}
               <Step4Card title="Payments" titleIconSrc={LuCreditCard} titleIconBgClassName="bg-emerald-100">
                 {folio.payments && folio.payments.length > 0 ? (
@@ -387,23 +520,31 @@ export function ReservationDetailsPopup({
                       <thead>
                         <tr className="bg-[#EAF2FF] text-[11px] font-semibold text-slate-600">
                           <th className="px-4 py-2 text-left">Method</th>
+                          <th className="px-4 py-2 text-left">Type</th>
                           <th className="px-4 py-2 text-left">Date</th>
                           <th className="px-4 py-2 text-left">Reference</th>
+                          <th className="px-4 py-2 text-left">Currency</th>
                           <th className="px-4 py-2 text-center">Status</th>
+                          {folio.payments.some(p => p.reason) && <th className="px-4 py-2 text-left">Reason</th>}
                           <th className="px-4 py-2 text-right">Amount</th>
                         </tr>
                       </thead>
                       <tbody>
                         {folio.payments.map((pay, i) => (
                           <tr key={i} className={i % 2 === 1 ? 'bg-[#F4F9FF]' : 'bg-white'}>
-                            <td className="px-4 py-2 font-medium">{pay.paymentMethod}</td>
+                            <td className="px-4 py-2 font-medium">{pay.paymentMethod || '—'}</td>
+                            <td className="px-4 py-2">{pay.type || '—'}</td>
                             <td className="px-4 py-2 text-slate-500">{formatDisplayDate(pay.paymentDate)}</td>
                             <td className="px-4 py-2 text-slate-500">{pay.reference || '—'}</td>
+                            <td className="px-4 py-2 text-slate-500">{pay.currency || currency}</td>
                             <td className="px-4 py-2 text-center">
-                              <PaymentStatusBadge status={pay.status} />
+                              <PaymentStatusBadge status={pay.status || ''} />
                             </td>
+                            {folio.payments.some(p => p.reason) && (
+                              <td className="px-4 py-2 text-slate-500">{pay.reason || '—'}</td>
+                            )}
                             <td className="px-4 py-2 text-right font-semibold text-emerald-700">
-                              {formatMoney(pay.amount, currency)}
+                              {formatMoney(pay.amount, pay.currency || currency)}
                             </td>
                           </tr>
                         ))}
@@ -796,10 +937,35 @@ export function ReservationDetailsPopup({
 
                       <div className="mt-3 border-t border-slate-200 pt-3">
                         <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-700">Charges Total</span>
+                          <span className="font-semibold text-slate-800">{formatMoney(folio.totals.chargesTotal, currency)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
                           <span className="font-semibold text-slate-700">Grand Total</span>
                           <span className="text-base font-bold text-slate-900">{formatMoney(folio.grandTotal, currency)}</span>
                         </div>
-                        <div className="mt-2 flex items-center justify-between">
+                      </div>
+
+                      <div className="mt-3 border-t border-slate-200 pt-3 space-y-2">
+                        {folio.totals.grossPaymentsTotal > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span>Gross Payments</span>
+                            <span className="font-semibold text-emerald-600">{formatMoney(folio.totals.grossPaymentsTotal, currency)}</span>
+                          </div>
+                        )}
+                        {folio.totals.refundsTotal > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span>Refunds</span>
+                            <span className="font-semibold text-rose-500">-{formatMoney(folio.totals.refundsTotal, currency)}</span>
+                          </div>
+                        )}
+                        {folio.totals.netPaymentsTotal > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span>Net Payments</span>
+                            <span className="font-semibold text-emerald-600">{formatMoney(folio.totals.netPaymentsTotal, currency)}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
                           <span>Amount Paid</span>
                           <span className="font-semibold text-emerald-600">{formatMoney(folio.paidAmount, currency)}</span>
                         </div>
