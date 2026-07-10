@@ -317,7 +317,7 @@ export function InHouseListPage() {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-5">
         <div className="space-y-1.5">
           <div className="text-[12px] font-semibold text-slate-700">Status</div>
           <div className="relative">
@@ -366,9 +366,7 @@ export function InHouseListPage() {
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           </div>
         </div>
-      </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="space-y-1.5">
           <div className="text-[12px] font-semibold text-slate-700">Check-in from</div>
           <div className="relative">
@@ -392,19 +390,17 @@ export function InHouseListPage() {
             />
           </div>
         </div>
+      </div>
 
-        <div className="hidden xl:block" />
-
-        <div className="flex items-end justify-end">
-          <button
-            type="button"
-            onClick={() => setExportOpen(true)}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"
-          >
-            <Download className="h-4 w-4" />
-            Export
-          </button>
-        </div>
+      <div className="mt-4 flex items-center justify-end">
+        <button
+          type="button"
+          onClick={() => setExportOpen(true)}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0B4EA2] px-8 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"
+        >
+          <Download className="h-4 w-4" />
+          Export
+        </button>
       </div>
 
       <div className="mt-5 min-h-[430px] overflow-hidden rounded-2xl border border-slate-100 bg-white flex flex-col">

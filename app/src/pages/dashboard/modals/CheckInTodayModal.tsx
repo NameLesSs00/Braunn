@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-import { Ban, ChevronLeft, ChevronRight, ChevronsRight, MoreHorizontal, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 import { IconImage } from '../../../shared/ui/IconImage'
 import { Modal } from '../../../shared/ui/Modal'
@@ -28,9 +28,6 @@ export function CheckInTodayModal({ open, onClose }: Props) {
   const pmsCheckIns = useAppSelector((s) => s.pms.checkInsByDate)
 
   const [query, setQuery] = useState('')
-  const [openMenuForId, setOpenMenuForId] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
-
   const [page, setPage] = useState(1)
 
   const [checkInOpen, setCheckInOpen] = useState(false)
@@ -47,7 +44,6 @@ export function CheckInTodayModal({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return
     setQuery('')
-    setOpenMenuForId(null)
     setPage(1)
   }, [open])
 
@@ -55,21 +51,12 @@ export function CheckInTodayModal({ open, onClose }: Props) {
     setPage(1)
   }, [query])
 
-  useEffect(() => {
-    if (!openMenuForId) return
-
-    const onMouseDown = (e: MouseEvent) => {
-      if (!menuRef.current) return
-      if (!menuRef.current.contains(e.target as Node)) setOpenMenuForId(null)
-    }
-
-    window.addEventListener('mousedown', onMouseDown)
-    return () => window.removeEventListener('mousedown', onMouseDown)
-  }, [openMenuForId])
-
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    let result = [...pmsCheckIns]
+    let result = pmsCheckIns.filter((reservation) => {
+      const status = (reservation.status ?? '').replace(/[\s_-]/g, '').toLowerCase()
+      return status !== 'checkedin'
+    })
 
     if (q) {
       result = result.filter((r) => 
@@ -90,7 +77,7 @@ export function CheckInTodayModal({ open, onClose }: Props) {
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="flex h-[calc(100vh-2rem)] w-[94vw] max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="flex h-[calc(100vh-4rem)] w-[92vw] max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
         <CheckInProcessPopup
           open={checkInOpen}
           onClose={() => {
@@ -98,6 +85,10 @@ export function CheckInTodayModal({ open, onClose }: Props) {
             setCheckInReservationId(null)
           }}
           reservationId={checkInReservationId}
+          onSuccess={() => {
+            const currentToday = new Date().toISOString().split('T')[0]
+            void dispatch(fetchPmsCheckInsByDate(currentToday))
+          }}
         />
 
         <div className="flex items-center justify-between bg-[#0B4EA2] px-8 py-5 flex-shrink-0">
@@ -132,15 +123,13 @@ export function CheckInTodayModal({ open, onClose }: Props) {
         {/* Table */}
         <div className="flex min-h-0 flex-1 px-8 pb-2">
           <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200">
-            <div className="grid grid-cols-[1.4fr_.8fr_1fr_1fr_.7fr_.9fr_1fr_.8fr_1.2fr] rounded-t-2xl bg-[#EAF2FF] px-6 py-3 text-[12px] font-semibold text-slate-700">
+            <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_.9fr_1fr_1.2fr] rounded-t-2xl bg-[#EAF2FF] px-6 py-3 text-[12px] font-semibold text-slate-700">
                 <div>Guest</div>
                 <div>Room</div>
                 <div>Check-in</div>
                 <div>Check-out</div>
-                <div>Guests</div>
                 <div>Status</div>
                 <div>Payment</div>
-                <div>Source</div>
                 <div className="text-center">Action</div>
               </div>
 
@@ -155,7 +144,7 @@ export function CheckInTodayModal({ open, onClose }: Props) {
                     <div
                       key={row.reservationId}
                       className={[
-                        'grid grid-cols-[1.4fr_.8fr_1fr_1fr_.7fr_.9fr_1fr_.8fr_1.2fr] items-center px-6 py-3 text-[12px] text-slate-700',
+                        'grid grid-cols-[1.5fr_1fr_1fr_1fr_.9fr_1fr_1.2fr] items-center px-6 py-3 text-[12px] text-slate-700',
                         idx % 2 === 1 ? 'bg-[#F4F9FF]' : 'bg-white',
                       ].join(' ')}
                     >
@@ -174,12 +163,10 @@ export function CheckInTodayModal({ open, onClose }: Props) {
                       </div>
                       <div>{formatDateForDisplay(row.checkInDate)}</div>
                       <div>{formatDateForDisplay(row.checkOutDate)}</div>
-                      <div>----</div>
                       <div>{row.status}</div>
                       <div>{paymentLabel}</div>
-                      <div>—</div>
 
-                      <div className="relative flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center">
                         <button
                           type="button"
                           className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-3 py-1.5 text-[12px] font-semibold text-white"
@@ -192,46 +179,6 @@ export function CheckInTodayModal({ open, onClose }: Props) {
                           check in
                         </button>
 
-                        <button
-                          type="button"
-                          className="grid h-8 w-8 place-items-center rounded-md text-slate-600 hover:bg-slate-100"
-                          aria-label="More"
-                          onClick={() => setOpenMenuForId((prev) => (prev === row.reservationId ? null : row.reservationId))}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
-
-                        {openMenuForId === row.reservationId ? (
-                          <div
-                            ref={menuRef}
-                            className="absolute right-0 top-10 z-50 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
-                          >
-                            <button
-                              type="button"
-                              className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                              onClick={() => setOpenMenuForId(null)}
-                            >
-                              <Ban className="h-4 w-4 text-slate-500" />
-                              Cancel Reservation
-                            </button>
-                            <button
-                              type="button"
-                              className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                              onClick={() => setOpenMenuForId(null)}
-                            >
-                              <ChevronsRight className="h-4 w-4 text-slate-500" />
-                              Early Check out
-                            </button>
-                            <button
-                              type="button"
-                              className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                              onClick={() => setOpenMenuForId(null)}
-                            >
-                              <MoreHorizontal className="h-4 w-4 text-slate-500" />
-                              Move Room
-                            </button>
-                          </div>
-                        ) : null}
                       </div>
                     </div>
                   )

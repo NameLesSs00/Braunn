@@ -404,11 +404,23 @@ export function RoomPlanPage() {
     return () => request.abort()
   }, [bookingType, dispatch, floor, fromDateIso, roomStatus, roomType, toDateIso])
 
+  const refreshRoomPlan = () => {
+    void dispatch(fetchRoomPlan({
+      from: fromDateIso,
+      to: toDateIso,
+      roomTypeId: roomType === 'all' ? undefined : roomType,
+      floor: floor === 'all' ? undefined : floor,
+      roomStatus: roomStatus === 'all' ? undefined : roomStatus,
+      bookingType: bookingType === 'all' ? undefined : bookingType,
+    }))
+  }
+
   const allRooms = useMemo<RoomPlanRoom[]>(() => (roomPlanData?.rooms ?? []).map((room) => ({
     id: room.roomId,
     number: room.roomNumber ?? '-----',
     type: (room.roomTypeName?.toLowerCase() ?? 'unknown') as RoomType,
     status: toUiRoomStatus(room.currentRoomStatus, room.housekeepingStatus),
+    currentRoomStatus: room.currentRoomStatus,
     floor: room.floor ?? '-----',
     bookingType: bookingType === 'all' ? '' : bookingType,
     housekeeping: (room.housekeepingStatus ?? '').toLowerCase() === 'dirty' ? 'dirty' : 'clean',
@@ -416,20 +428,23 @@ export function RoomPlanPage() {
   })), [bookingType, roomPlanData])
 
   const blocks = useMemo<RoomPlanBlock[]>(() => (roomPlanData?.rooms ?? []).flatMap((room) =>
-    (room.blocks ?? []).map((block) => ({
-      id: block.reservationRoomId || block.reservationId,
-      reservationId: block.reservationId,
-      reservationStatus:
-        room.days?.find((day) => day.reservationId === block.reservationId)?.reservationStatus ?? block.status,
-      roomId: room.roomId,
-      type: 'reservation',
-      title: block.guestName || block.displayText || 'Reservation',
-      subtitle: `${block.checkInDate} - ${block.checkOutDate}`,
-      checkInDate: block.checkInDate,
-      checkOutDate: block.checkOutDate,
-      start: block.startDate,
-      end: toInclusiveBlockEnd(block.startDate, block.endDate),
-    }))
+    (room.blocks ?? []).map((block) => {
+      const matchingDay = room.days?.find((day) => day.reservationId === block.reservationId)
+      return {
+        id: block.reservationRoomId || block.reservationId,
+        reservationId: block.reservationId,
+        reservationStatus: matchingDay?.reservationStatus ?? block.status,
+        paymentStatus: matchingDay?.paymentStatus ?? null,
+        roomId: room.roomId,
+        type: 'reservation',
+        title: block.guestName || block.displayText || 'Reservation',
+        subtitle: `${block.checkInDate} - ${block.checkOutDate}`,
+        checkInDate: block.checkInDate,
+        checkOutDate: block.checkOutDate,
+        start: block.startDate,
+        end: toInclusiveBlockEnd(block.startDate, block.endDate),
+      }
+    })
   ), [roomPlanData])
 
   const roomById = useMemo(() => {
@@ -625,6 +640,7 @@ export function RoomPlanPage() {
         block={popupBlock}
         focusDate={fromDate}
         mode={roomPopupMode}
+        onRefresh={refreshRoomPlan}
       />
 
       <ReservationDetailsPopup

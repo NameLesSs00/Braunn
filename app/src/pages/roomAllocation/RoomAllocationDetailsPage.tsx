@@ -45,11 +45,11 @@ export function RoomAllocationDetailsPage() {
       {/* Header Section */}
       <div className="mb-6">
         <Link
-          to={routes.reservations}
+          to={routes.roomAllocation}
           className="inline-flex items-center gap-2 text-[13px] text-slate-500 hover:text-slate-800 transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Reservations
+          Back to Room Allocation
         </Link>
       </div>
 

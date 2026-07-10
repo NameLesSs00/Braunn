@@ -8,7 +8,6 @@ import { routes } from '../../shared/lib/routes'
 import type { PmsReservation } from '../../models/PmsReservation'
 
 type AllocationStatusFilter = 'All status' | 'Allocated' | 'Not Allocated'
-type ReservationStatusFilter = 'All status' | 'Confirmed' | 'Cancelled' | 'Checked in' | 'Checked out'
 type FloorFilter = 'All Floor' | '1' | '2' | '3' | '4' | '5'
 type RoomTypeFilter = 'All Types' | 'Single' | 'Double' | 'Triple' | 'Suite' | 'Deluxe'
 
@@ -21,13 +20,15 @@ interface RoomAllocationFilters {
   roomType: RoomTypeFilter
   arrivalDate: string
   departureDate: string
-  reservationStatus: ReservationStatusFilter
 }
 
 function getSavedRoomAllocationFilters(defaults: RoomAllocationFilters): RoomAllocationFilters {
   try {
     const saved = sessionStorage.getItem(roomAllocationFiltersStorageKey)
-    return saved ? { ...defaults, ...JSON.parse(saved) } : defaults
+    if (!saved) return defaults
+
+    const filters = { ...defaults, ...JSON.parse(saved) }
+    return filters
   } catch {
     return defaults
   }
@@ -68,7 +69,6 @@ export function RoomAllocationPage() {
     roomType: 'All Types',
     arrivalDate: today,
     departureDate: defaultEndDate,
-    reservationStatus: 'All status',
   }), [defaultEndDate, today])
 
   const [query, setQuery] = useState(initialFilters.query)
@@ -77,7 +77,6 @@ export function RoomAllocationPage() {
   const [roomType, setRoomType] = useState<RoomTypeFilter>(initialFilters.roomType)
   const [arrivalDate, setArrivalDate] = useState(initialFilters.arrivalDate)
   const [departureDate, setDepartureDate] = useState(initialFilters.departureDate)
-  const [reservationStatus, setReservationStatus] = useState<ReservationStatusFilter>(initialFilters.reservationStatus)
 
   useEffect(() => {
     const filters: RoomAllocationFilters = {
@@ -87,11 +86,10 @@ export function RoomAllocationPage() {
       roomType,
       arrivalDate,
       departureDate,
-      reservationStatus,
     }
 
     sessionStorage.setItem(roomAllocationFiltersStorageKey, JSON.stringify(filters))
-  }, [query, allocationStatus, floor, roomType, arrivalDate, departureDate, reservationStatus])
+  }, [query, allocationStatus, floor, roomType, arrivalDate, departureDate])
 
   const computedDateRange = useMemo(() => ({
     startDate: arrivalDate || today,
@@ -109,7 +107,10 @@ export function RoomAllocationPage() {
   }, [dispatch, computedDateRange])
 
   const filteredRows = useMemo(() => {
-    let result = [...pmsReservations]
+    let result = pmsReservations.filter((reservation) => {
+      const status = (reservation.status ?? '').replace(/[\s_-]/g, '').toLowerCase()
+      return status !== 'checkedout' && status !== 'checkedin'
+    })
     const q = query.trim().toLowerCase()
 
     if (q) {
@@ -123,16 +124,6 @@ export function RoomAllocationPage() {
         const isAllocated = !!r.roomNumber
         return allocationStatus === 'Allocated' ? isAllocated : !isAllocated
       })
-    }
-
-    if (reservationStatus !== 'All status') {
-      const targetStatus =
-        reservationStatus === 'Checked in'
-          ? 'CheckedIn'
-          : reservationStatus === 'Checked out'
-          ? 'CheckedOut'
-          : reservationStatus
-      result = result.filter((r) => r.status === targetStatus)
     }
 
     if (arrivalDate) {
@@ -154,7 +145,7 @@ export function RoomAllocationPage() {
     }
 
     return result
-  }, [pmsReservations, query, allocationStatus, reservationStatus, arrivalDate, departureDate, floor, roomType])
+  }, [pmsReservations, query, allocationStatus, arrivalDate, departureDate, floor, roomType])
 
   const selectClass =
     'h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-9 text-sm text-slate-600 outline-none transition-all focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10'
@@ -187,7 +178,7 @@ export function RoomAllocationPage() {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="space-y-1.5">
           <div className="text-[12px] font-semibold text-slate-700">Allocation Status</div>
           <div className="relative">
@@ -266,24 +257,6 @@ export function RoomAllocationPage() {
             />
           </div>
         </div>
-
-        <div className="space-y-1.5">
-          <div className="text-[12px] font-semibold text-slate-700">Reservation Status</div>
-          <div className="relative">
-            <select
-              className={selectClass}
-              value={reservationStatus}
-              onChange={(e) => setReservationStatus(e.target.value as ReservationStatusFilter)}
-            >
-              <option>All status</option>
-              <option>Confirmed</option>
-              <option>Cancelled</option>
-              <option>Checked in</option>
-              <option>Checked out</option>
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          </div>
-        </div>
       </div>
 
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-100">
@@ -347,8 +320,7 @@ export function RoomAllocationPage() {
                   <div className="flex justify-end">
                     <button
                       type="button"
-                      className="flex items-center justify-center gap-1.5 h-8 w-28 whitespace-nowrap rounded-lg bg-[#0B4EA2] px-4 text-[12px] font-semibold text-white transition-colors hover:bg-[#0a3f85] disabled:bg-slate-300 disabled:cursor-not-allowed"
-                      disabled={r.status === 'CheckedIn'}
+                      className="flex items-center justify-center gap-1.5 h-8 w-28 whitespace-nowrap rounded-lg bg-[#0B4EA2] px-4 text-[12px] font-semibold text-white transition-colors hover:bg-[#0a3f85]"
                       onClick={() => {
                         navigate(`/room-allocation/${r.id}`)
                       }}

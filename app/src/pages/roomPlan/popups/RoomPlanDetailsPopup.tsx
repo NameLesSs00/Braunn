@@ -1,13 +1,12 @@
-import { Ban, Clock, Eye, LogIn, LogOut, MoreHorizontal, Move, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Clock, Eye, LogIn, LogOut, X } from 'lucide-react'
+import { useState } from 'react'
 
 import { Modal } from '../../../shared/ui/Modal'
 import { CheckInProcessPopup } from '../../reservations/pupops/CheckInProcessPopup'
-import { MoveRoomStep1Popup } from './moveRoom/MoveRoomStep1Popup'
-import type { MoveRoomStep1Data } from './moveRoom/MoveRoomStep1Popup'
-import { MoveRoomStep2Popup } from './moveRoom/MoveRoomStep2Popup'
+import { CheckOutProcessPopup } from '../../reservations/checkout/CheckOutProcessPopup'
 
 import type { RoomPlanBlock, RoomPlanRoom } from '../roomPlanMock'
+import type { PmsReservation } from '../../../models/PmsReservation'
 
 type Props = {
   open: boolean
@@ -17,6 +16,7 @@ type Props = {
   block?: RoomPlanBlock
   focusDate: Date
   mode: 'check_in' | 'check_out'
+  onRefresh: () => void
 }
 
 function titleCase(value: string) {
@@ -48,42 +48,49 @@ function formatUsDate(isoValue?: string) {
   return d.toLocaleDateString('en-US')
 }
 
-function rateByRoomType(roomType: RoomPlanRoom['type']) {
-  if (roomType === 'single') return 120
-  if (roomType === 'double') return 160
-  if (roomType === 'suite') return 220
-  return 180
+function localIsoDate(date: Date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
-export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, block, focusDate, mode }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement | null>(null)
+export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, block, focusDate, mode, onRefresh }: Props) {
   const [checkInOpen, setCheckInOpen] = useState(false)
-  const [moveRoomOpen, setMoveRoomOpen] = useState(false)
-  const [moveStep2Open, setMoveStep2Open] = useState(false)
-  const [moveStep1Data, setMoveStep1Data] = useState<MoveRoomStep1Data | null>(null)
+  const [checkInReservationId, setCheckInReservationId] = useState<string | null>(null)
+  const [checkOutOpen, setCheckOutOpen] = useState(false)
+  const [checkOutReservation, setCheckOutReservation] = useState<PmsReservation | null>(null)
 
-  useEffect(() => {
-    if (!open) return
-    setMenuOpen(false)
-  }, [open])
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const onMouseDown = (e: MouseEvent) => {
-      if (!menuRef.current) return
-      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false)
-    }
-    window.addEventListener('mousedown', onMouseDown)
-    return () => window.removeEventListener('mousedown', onMouseDown)
-  }, [menuOpen])
-
-  const primaryText = mode === 'check_out' ? 'Check-Out' : 'Check-in'
+  const checkoutDate = block?.checkOutDate ?? block?.end ?? ''
+  const isCheckoutDue = Boolean(checkoutDate) && checkoutDate <= localIsoDate()
+  const primaryText =
+    mode === 'check_out'
+      ? isCheckoutDue
+        ? 'Check-Out'
+        : 'Early Check-out'
+      : 'Check-in'
   const primaryBtnClassName =
     mode === 'check_out'
       ? 'bg-rose-500 hover:bg-rose-600'
       : 'bg-emerald-600 hover:bg-emerald-700'
   const PrimaryIcon = mode === 'check_out' ? LogOut : LogIn
+  const alreadyCheckedIn =
+    (room?.currentRoomStatus ?? '').replace(/[\s_-]/g, '').toLowerCase() === 'checkedin'
+  const checkoutReservation: PmsReservation | null =
+    block?.reservationId
+      ? {
+          id: block.reservationId,
+          guestName: block.title,
+          roomNumber: room?.number ?? null,
+          roomTypeName: room?.type ?? '',
+          checkInDate: block.checkInDate ?? block.start,
+          checkOutDate: block.checkOutDate ?? block.end,
+          status: block.reservationStatus ?? room?.currentRoomStatus ?? '',
+          totalAmount: 0,
+          paidAmount: 0,
+          channelName: null,
+        }
+      : null
 
   return (
     <>
@@ -114,54 +121,6 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
 
         <div className="max-h-[calc(100vh-140px)] overflow-y-auto px-6 py-5">
           <div className="space-y-4">
-            <div className="flex justify-end">
-              <div ref={menuRef} className="relative">
-                <button
-                  type="button"
-                  className="grid h-8 w-8 place-items-center rounded-full text-slate-500 hover:bg-slate-100"
-                  aria-label="More"
-                  onClick={() => setMenuOpen((v) => !v)}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-
-                {menuOpen ? (
-                  <div
-                    className="absolute right-0 top-9 z-10 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
-                  >
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      <Ban className="h-4 w-4 text-slate-600" />
-                      cancel Reservation
-                    </button>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      <LogOut className="h-4 w-4 text-slate-600" />
-                      Early Check out
-                    </button>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                      onClick={() => {
-                        setMenuOpen(false)
-                        onClose()
-                        setMoveRoomOpen(true)
-                      }}
-                    >
-                      <Move className="h-4 w-4 text-slate-600" />
-                      Move Room
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
             <div className="rounded-xl bg-[#EAF2FF] p-4">
               <div className="text-[12px] font-semibold text-slate-700">Room Information</div>
               <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 text-[12px] text-slate-700">
@@ -192,31 +151,37 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
                   <div className="font-semibold text-slate-800">{block?.title ?? '-'}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-[#0B4EA2]">Check-out</div>
-                  <div className="font-semibold">{formatUsDate(block?.checkOutDate ?? block?.end)}</div>
+                  <div className="text-[11px] text-[#0B4EA2]">Payment Status</div>
+                  <div
+                    className={[
+                      'mt-1 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold',
+                      block?.paymentStatus === 'Paid'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : block?.paymentStatus === 'Partial'
+                          ? 'bg-blue-50 text-[#0B4EA2]'
+                          : 'bg-amber-50 text-amber-700',
+                    ].join(' ')}
+                  >
+                    <span
+                      className={[
+                        'inline-block h-2 w-2 rounded-full',
+                        block?.paymentStatus === 'Paid'
+                          ? 'bg-emerald-500'
+                          : block?.paymentStatus === 'Partial'
+                            ? 'bg-[#0B4EA2]'
+                            : 'bg-amber-500',
+                      ].join(' ')}
+                    />
+                    {block?.paymentStatus ?? 'Pending'}
+                  </div>
                 </div>
                 <div>
                   <div className="text-[11px] text-[#0B4EA2]">Check-in</div>
                   <div className="font-semibold">{formatUsDate(block?.checkInDate ?? block?.start)}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-[#0B4EA2]">Rate</div>
-                  <div className="font-semibold">{room ? `$${rateByRoomType(room.type)}` : '-'}</div>
-                </div>
-                <div>
-                  <div className="text-[11px] text-[#0B4EA2]">Guests</div>
-                  <div className="font-semibold">1</div>
-                </div>
-                <div>
-                  <div className="text-[11px] text-[#0B4EA2]">Source</div>
-                  <div className="font-semibold">{room ? titleCase(room.bookingType) : '-'}</div>
-                </div>
-                <div className="col-span-2">
-                  <div className="text-[11px] text-[#0B4EA2]">Payment Status</div>
-                  <div className="mt-1 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[#B07A20]">
-                    <span className="inline-block h-2 w-2 rounded-full bg-[#F5A524]" />
-                    deposit
-                  </div>
+                  <div className="text-[11px] text-[#0B4EA2]">Check-out</div>
+                  <div className="font-semibold">{formatUsDate(block?.checkOutDate ?? block?.end)}</div>
                 </div>
               </div>
             </div>
@@ -252,7 +217,7 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
               </button>
             </div>
 
-            <button
+            {!(mode === 'check_in' && alreadyCheckedIn) ? <button
               type="button"
               className={[
                 'inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white',
@@ -260,14 +225,19 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
               ].join(' ')}
               onClick={() => {
                 if (mode === 'check_in') {
+                  setCheckInReservationId(block?.reservationId ?? null)
                   onClose()
                   setCheckInOpen(true)
+                } else {
+                  setCheckOutReservation(checkoutReservation)
+                  onClose()
+                  setCheckOutOpen(true)
                 }
               }}
             >
               <PrimaryIcon className="h-4 w-4" />
               {primaryText}
-            </button>
+            </button> : null}
           </div>
         </div>
       </div>
@@ -275,29 +245,24 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
 
       <CheckInProcessPopup
         open={checkInOpen}
-        onClose={() => setCheckInOpen(false)}
-        reservationId={block?.reservationId ?? null}
+        onClose={() => {
+          setCheckInOpen(false)
+          setCheckInReservationId(null)
+        }}
+        reservationId={checkInReservationId}
+        onSuccess={onRefresh}
       />
 
-    <MoveRoomStep1Popup
-      open={moveRoomOpen}
-      onClose={() => setMoveRoomOpen(false)}
-      onContinue={(data) => {
-        setMoveStep1Data(data)
-        setMoveRoomOpen(false)
-        setMoveStep2Open(true)
-      }}
-      room={room}
-      block={block}
-    />
+      <CheckOutProcessPopup
+        open={checkOutOpen}
+        onClose={() => {
+          setCheckOutOpen(false)
+          setCheckOutReservation(null)
+        }}
+        reservation={checkOutReservation}
+        onSuccess={onRefresh}
+      />
 
-    <MoveRoomStep2Popup
-      open={moveStep2Open}
-      onClose={() => setMoveStep2Open(false)}
-      step1Data={moveStep1Data}
-      room={room}
-      block={block}
-    />
     </>
   )
 }

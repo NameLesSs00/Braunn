@@ -130,7 +130,7 @@ export function InHouseMonthModal({ open, onClose }: Props) {
   return (
     <>
       <Modal open={open} onClose={onClose}>
-        <div className="flex h-[calc(100vh-2rem)] w-[94vw] max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+        <div className="flex h-[calc(100vh-4rem)] w-[92vw] max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
           <div className="flex items-center justify-between bg-[#0B4EA2] px-8 py-5">
             <div>
               <div className="text-lg font-semibold text-white">In House list</div>

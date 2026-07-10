@@ -59,8 +59,6 @@ function roomBadge() {
   return 'bg-[#E8EEFF] text-[#4B6CD4]'
 }
 
-const FLOORS = [1, 2, 3, 4, 5, 6]
-
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function FilterSelect({
@@ -210,7 +208,6 @@ export function GuestsPage() {
 
   const [query, setQuery] = useState('')
   const [guestType, setGuestType] = useState('all')
-  const [floor, setFloor] = useState('all')
   const [roomType, setRoomType] = useState('all')
   const [checkInFrom, setCheckInFrom] = useState('')
   const [checkInTo, setCheckInTo] = useState('')
@@ -256,7 +253,6 @@ export function GuestsPage() {
     }
 
     if (guestType !== 'all') result = result.filter((g) => g.guestType === guestType)
-    if (floor !== 'all') result = result.filter((g) => g.floor === Number(floor))
     if (roomType !== 'all') result = result.filter((g) => g.roomType === roomType)
 
     const fromT = parseDate(checkInFrom)
@@ -272,7 +268,7 @@ export function GuestsPage() {
     }
 
     return result
-  }, [checkInFrom, checkInTo, floor, guestType, mappedApiGuests, query, roomType])
+  }, [checkInFrom, checkInTo, guestType, mappedApiGuests, query, roomType])
 
   const handleExportPdf = () => {
     const doc = new jsPDF()
@@ -417,59 +413,39 @@ export function GuestsPage() {
           </div>
         </div>
 
-        {/* Filter row 1 */}
-        <div className="flex flex-wrap gap-6">
-          <div className="w-52">
-            <FilterSelect label="Guest Type" value={guestType} onChange={setGuestType}>
-              <option value="all">All status</option>
-              <option value="VIP">VIP</option>
-              <option value="Regular">Regular</option>
-              <option value="Corporate">Corporate</option>
-            </FilterSelect>
-          </div>
+        {/* Filters */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <FilterSelect label="Guest Type" value={guestType} onChange={setGuestType}>
+            <option value="all">All status</option>
+            <option value="VIP">VIP</option>
+            <option value="Regular">Regular</option>
+            <option value="Corporate">Corporate</option>
+          </FilterSelect>
 
-          <div className="w-52">
-            <FilterSelect label="Floor" value={floor} onChange={setFloor}>
-              <option value="all">All Floors</option>
-              {FLOORS.map((f) => (
-                <option key={f} value={f}>
-                  Floor {f}
-                </option>
-              ))}
-            </FilterSelect>
-          </div>
+          <FilterSelect label="Room Type" value={roomType} onChange={setRoomType}>
+            <option value="all">All Types</option>
+            <option value="Single">Single</option>
+            <option value="Double">Double</option>
+            <option value="Suite">Suite</option>
+            <option value="Deluxe">Deluxe</option>
+          </FilterSelect>
 
-          <div className="w-52">
-            <FilterSelect label="Room Type" value={roomType} onChange={setRoomType}>
-              <option value="all">All Types</option>
-              <option value="Single">Single</option>
-              <option value="Double">Double</option>
-              <option value="Suite">Suite</option>
-              <option value="Deluxe">Deluxe</option>
-            </FilterSelect>
-          </div>
+          <DateInput label="Check-in from" value={checkInFrom} onChange={setCheckInFrom} />
+
+          <DateInput label="Check-in To" value={checkInTo} onChange={setCheckInTo} />
         </div>
 
-        {/* Filter row 2 */}
-        <div className="mt-4 flex flex-wrap items-end gap-6">
-          <div className="w-52">
-            <DateInput label="Check-in from" value={checkInFrom} onChange={setCheckInFrom} />
-          </div>
-          <div className="w-52">
-            <DateInput label="Check-in To" value={checkInTo} onChange={setCheckInTo} />
-          </div>
-
-          <div className="ml-auto flex items-end gap-4">
-            <div className="pb-2 text-sm font-semibold text-slate-600">{filtered.length} results</div>
-            <button
-              type="button"
-              onClick={handleExportPdf}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </button>
-          </div>
+        {/* Actions */}
+        <div className="mt-4 flex items-center justify-end gap-4">
+          <div className="text-sm font-semibold text-slate-600">{filtered.length} results</div>
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"
+          >
+            <Download className="h-4 w-4" />
+            Export
+          </button>
         </div>
       </div>
 

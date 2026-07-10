@@ -13,6 +13,7 @@ export type RoomPlanRoom = {
   number: string
   type: RoomType
   status: RoomStatus
+  currentRoomStatus?: string | null
   floor: string
   bookingType: BookingType
   housekeeping: HousekeepingStatus
@@ -25,6 +26,7 @@ export type RoomPlanBlock = {
   id: string
   reservationId?: string
   reservationStatus?: string | null
+  paymentStatus?: 'Pending' | 'Partial' | 'Paid' | null
   roomId: string
   type: RoomPlanBlockType
   title: string

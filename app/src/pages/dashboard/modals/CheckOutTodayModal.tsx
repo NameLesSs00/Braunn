@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, MoreHorizontal, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 
 import { Modal } from '../../../shared/ui/Modal'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { fetchPmsInHouseReservations } from '../../../features/pms/pmsSlice'
 import type { PmsInHouseReservation, PmsReservation } from '../../../models/PmsReservation'
 import { CheckOutProcessPopup } from '../../reservations/checkout/CheckOutProcessPopup'
-import { MoveRoomPopup } from '../../reservations/pupops/MoveRoomPopup'
 
 type Props = {
   open: boolean
@@ -42,35 +41,24 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
 
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
-  const [openMenuForId, setOpenMenuForId] = useState<string | null>(null)
   const [checkOutOpen, setCheckOutOpen] = useState(false)
   const [checkOutReservationId, setCheckOutReservationId] = useState<string | null>(null)
-  const [moveRoomOpen, setMoveRoomOpen] = useState(false)
-  const [moveRoomReservationId, setMoveRoomReservationId] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
+  const fetchedForOpenRef = useRef(false)
   const pageSize = 8
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      fetchedForOpenRef.current = false
+      return
+    }
     setQuery('')
     setPage(1)
-    setOpenMenuForId(null)
+    if (fetchedForOpenRef.current) return
+    fetchedForOpenRef.current = true
     void dispatch(fetchPmsInHouseReservations())
   }, [dispatch, open])
-
-  useEffect(() => {
-    if (!openMenuForId) return
-
-    const onMouseDown = (e: MouseEvent) => {
-      if (!menuRef.current) return
-      if (!menuRef.current.contains(e.target as Node)) setOpenMenuForId(null)
-    }
-
-    window.addEventListener('mousedown', onMouseDown)
-    return () => window.removeEventListener('mousedown', onMouseDown)
-  }, [openMenuForId])
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -111,7 +99,7 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
   return (
     <>
       <Modal open={open} onClose={onClose}>
-        <div className="flex h-[calc(100vh-2rem)] w-[94vw] max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+        <div className="flex h-[calc(100vh-4rem)] w-[92vw] max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
           <div className="flex items-center justify-between bg-[#0B4EA2] px-8 py-5">
             <div className="text-lg font-semibold text-white">Departures Today</div>
             <button
@@ -142,14 +130,13 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white">
-                <div className="grid grid-cols-[1.35fr_0.95fr_0.95fr_0.95fr_0.85fr_0.95fr_0.8fr_0.75fr] bg-[#EAF2FF] px-5 py-3 text-[12px] font-bold text-slate-700">
+                <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr_.9fr_1fr_1.1fr] bg-[#EAF2FF] px-5 py-3 text-[12px] font-bold text-slate-700">
                   <div>Guest</div>
                   <div>Room</div>
                   <div>Check-in</div>
                   <div>Check-out</div>
                   <div>Status</div>
                   <div>Payment</div>
-                  <div>Source</div>
                   <div className="text-right">Action</div>
                 </div>
 
@@ -169,7 +156,7 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
                       <div
                         key={`${row.reservationId}-${idx}`}
                         className={[
-                          'grid grid-cols-[1.35fr_0.95fr_0.95fr_0.95fr_0.85fr_0.95fr_0.8fr_0.75fr] items-center px-5 py-3 text-[13px]',
+                          'grid grid-cols-[1.4fr_1fr_1fr_1fr_.9fr_1fr_1.1fr] items-center px-5 py-3 text-[13px]',
                           idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
                         ].join(' ')}
                       >
@@ -184,8 +171,7 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
                         <div className="text-slate-600">{formatDateForDisplay(row.checkOutDate)}</div>
                         <div className="text-slate-600">{row.status || '-----'}</div>
                         <div className="text-slate-600">{paymentLabel}</div>
-                        <div className="text-slate-600">-----</div>
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end">
                           <button
                             type="button"
                             className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white"
@@ -197,48 +183,6 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
                             check out
                           </button>
 
-                          <div className="relative">
-                            <button
-                              type="button"
-                              className="inline-flex h-7 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200"
-                              aria-label="More"
-                              onClick={() => setOpenMenuForId((prev) => (prev === row.reservationId ? null : row.reservationId))}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </button>
-                            {openMenuForId === row.reservationId ? (
-                              <div
-                                ref={menuRef}
-                                className="absolute right-0 top-9 z-10 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
-                              >
-                                <button
-                                  type="button"
-                                  className="flex w-full cursor-not-allowed items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-400"
-                                  disabled
-                                >
-                                  Cancel Reservation
-                                </button>
-                                <button
-                                  type="button"
-                                  className="flex w-full cursor-not-allowed items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-400"
-                                  disabled
-                                >
-                                  Early Check out
-                                </button>
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                                  onClick={() => {
-                                    setOpenMenuForId(null)
-                                    setMoveRoomReservationId(row.reservationId)
-                                    setMoveRoomOpen(true)
-                                  }}
-                                >
-                                  Move Room
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
                         </div>
                       </div>
                     )
@@ -285,15 +229,6 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
           </div>
         </div>
       </Modal>
-
-      <MoveRoomPopup
-        open={moveRoomOpen}
-        onClose={() => {
-          setMoveRoomOpen(false)
-          setMoveRoomReservationId(null)
-        }}
-        reservationId={moveRoomReservationId}
-      />
 
       <CheckOutProcessPopup
         open={checkOutOpen}
