@@ -31,6 +31,7 @@ import { hkmInventoryCategoriesReducer } from '../features/HKfeatures/hkmInvento
 import { hkmInventoryItemsReducer } from '../features/HKfeatures/hkmInventoryItems/hkmInventoryItemsSlice'
 import { hkmIssuesReducer } from '../features/HKfeatures/hkmIssues/hkmIssuesSlice'
 import { hkmPurchasesReducer } from '../features/HKfeatures/hkmPurchases/hkmPurchasesSlice'
+import { hkmReceptionAssignmentsReducer } from '../features/HKfeatures/hkmReceptionAssignments/hkmReceptionAssignmentsSlice'
 import { departmentsReducer } from '../features/HRMfeatures/departments/departmentsSlice'
 import { hrShiftsReducer } from '../features/HRMfeatures/shifts/hrShiftsSlice'
 import shiftAssignmentsReducer from '../features/HRMfeatures/shiftAssignments/shiftAssignmentsSlice'
@@ -89,6 +90,7 @@ export const store = configureStore({
     hkmInventoryItems: hkmInventoryItemsReducer,
     hkmIssues: hkmIssuesReducer,
     hkmPurchases: hkmPurchasesReducer,
+    hkmReceptionAssignments: hkmReceptionAssignmentsReducer,
     departments: departmentsReducer,
     hrShifts: hrShiftsReducer,
     shiftAssignments: shiftAssignmentsReducer,

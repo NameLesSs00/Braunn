@@ -1,15 +1,15 @@
 import { X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
+import type {
+  EvaluateExtendStayResponse,
+  ExecuteExtendStayResponse,
+  PmsReservation,
+  PmsReservationDetails,
+} from '../../../models/PmsReservation'
+import { evaluateExtendStay, executeExtendStay, getPmsReservationById } from '../../../shared/apis/PmsReservation'
+import { useAppSelector } from '../../../shared/apis/hooks'
 import { Modal } from '../../../shared/ui/Modal'
-
-import { extendReservation, getReservationById } from '../../../shared/apis/reservationsApi'
-import { getRooms } from '../../../shared/apis/roomsApi'
-
-import type { Reservation } from '../../../models/Reservation'
-import type { Room } from '../../../models/Room'
-import type { ReservationDraft } from '../../../features/reservations/draftSlice'
-
 import { ExtendStayStep1 } from './extendStay/steps/ExtendStayStep1'
 import { ExtendStayStep2 } from './extendStay/steps/ExtendStayStep2'
 import { ExtendStayStep3 } from './extendStay/steps/ExtendStayStep3'
@@ -18,241 +18,254 @@ type Props = {
   open: boolean
   onClose: () => void
   reservationId: string | null
+  onSuccess?: () => void
 }
 
-function titleCase(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-  return trimmed
-    .split(/\s+/)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ')
+const DEFAULT_REASON = 'Guest requested extend stay'
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  return fallback
 }
 
-function isoDateOnly(value?: string) {
-  if (!value) return ''
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return ''
-  const pad2 = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+function isoDateOnly(value?: string | null) {
+  return value ? value.slice(0, 10) : ''
 }
 
-function reservationToDraft(res: Reservation): ReservationDraft {
-  const [firstName = '', ...rest] = (res.guestName ?? '').split(' ')
-  const surName = rest.join(' ')
+function dateTimeForDate(value: string) {
+  const date = value ? new Date(`${value}T00:00:00`) : new Date()
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
+}
 
+function reservationFromInHouse(row: any): PmsReservation | null {
+  if (!row) return null
   return {
-    bookingSource: '',
-
-    isGroupReservation: false,
-
-    firstName,
-    surName,
-    dateOfBirth: '',
-    language: '',
-
-    email: '',
-    phone: '',
-
-    nationality: '',
-    idNumber: '',
-
-    notes: '',
-
-    checkInDate: isoDateOnly(res.checkInDate),
-    checkOutDate: isoDateOnly(res.checkOutDate),
-    nights: '',
-
-    adultCount: 1,
-    childCount: 0,
-    infantCount: 0,
-
-    rooms: [
-      {
-        id: 0,
-        roomType: res.roomTypeName ?? '',
-        roomView: '',
-        roomCount: 1,
-        roomNumbers: res.roomNumber ? [res.roomNumber] : [],
-      },
-    ],
-
-    discountType: 'none',
-    discountPercentage: '',
-    discountFixed: '',
-    discountComment: '',
-
-    rateCode: '',
-    ratePlan: '',
-
-    extras: [],
-
-    specialRequests: '',
-
-    depositAmountReceived: '',
-    paymentMethod: '',
-    paidAmount: String(res.paidAmount ?? 0),
-    coupon: '',
-
-    otherPayments: [],
-  } as unknown as ReservationDraft
+    id: row.reservationId,
+    guestName: row.guestFullName,
+    roomNumber: row.roomNumber,
+    roomTypeName: row.roomTypeName,
+    checkInDate: row.checkInDate,
+    checkOutDate: row.checkOutDate,
+    status: row.status,
+    totalAmount: row.remainingBalance,
+    paidAmount: 0,
+    channelName: null,
+  }
 }
 
-export function ExtendStayPopup({ open, onClose, reservationId }: Props) {
-  const [reservation, setReservation] = useState<Reservation | null>(null)
-  const [rooms, setRooms] = useState<Room[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export function ExtendStayPopup({ open, onClose, reservationId, onSuccess }: Props) {
+  const pmsReservations = useAppSelector((state) => state.pms.reservations)
+  const reservationsTableRows = useAppSelector((state) => state.pms.reservationsTableRows)
+  const inHouseListRows = useAppSelector((state) => state.pms.inHouseListRows)
+  const roomAllocationRows = useAppSelector((state) => state.pms.roomAllocationRows)
+  const inHouseReservations = useAppSelector((state) => state.pms.inHouseReservations)
+
+  const reservation = useMemo(() => {
+    if (!reservationId) return null
+    const row = [
+      ...reservationsTableRows,
+      ...inHouseListRows,
+      ...roomAllocationRows,
+      ...pmsReservations,
+    ].find((item) => item.id === reservationId)
+    if (row) return row
+    return reservationFromInHouse(inHouseReservations.find((item) => item.reservationId === reservationId))
+  }, [inHouseListRows, inHouseReservations, pmsReservations, reservationId, reservationsTableRows, roomAllocationRows])
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [newCheckOutIso, setNewCheckOutIso] = useState('')
-  const [selectedRoomNumber, setSelectedRoomNumber] = useState('')
+  const [details, setDetails] = useState<PmsReservationDetails | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [newCheckoutDate, setNewCheckoutDate] = useState('')
+  const [manualNightlyRate, setManualNightlyRate] = useState('')
+  const [evaluation, setEvaluation] = useState<EvaluateExtendStayResponse | null>(null)
+  const [evaluating, setEvaluating] = useState(false)
+  const [evaluationError, setEvaluationError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [result, setResult] = useState<ExecuteExtendStayResponse | null>(null)
 
-  const draft = useMemo<ReservationDraft | null>(() => (reservation ? reservationToDraft(reservation) : null), [reservation])
-
-  const fullName = useMemo(() => {
-    if (!draft) return ''
-    return [draft.firstName, draft.surName].filter(Boolean).join(' ')
-  }, [draft])
-
-  const roomNumber = draft?.rooms[0]?.roomNumbers?.[0] ?? ''
+  const evaluatingRef = useRef(false)
+  const submittingRef = useRef(false)
 
   useEffect(() => {
-    if (!open) return
-    if (!reservationId) return
+    if (!open || !reservationId) return
 
     const controller = new AbortController()
-
-    setLoading(true)
-    setError(null)
-    setReservation(null)
-    setRooms([])
-
     setStep(1)
-    setNewCheckOutIso('')
-    setSelectedRoomNumber('')
+    setDetails(null)
+    setLoadError(null)
+    setLoading(true)
+    setNewCheckoutDate('')
+    setManualNightlyRate('')
+    setEvaluation(null)
+    setEvaluating(false)
+    setEvaluationError(null)
+    setSubmitting(false)
+    setSubmitError(null)
+    setResult(null)
+    evaluatingRef.current = false
+    submittingRef.current = false
 
-    Promise.all([getReservationById(reservationId, controller.signal), getRooms(controller.signal)])
-      .then(([res, rms]) => {
-        setReservation(res)
-        setRooms(rms)
+    void getPmsReservationById(reservationId, controller.signal)
+      .then((response) => {
+        setDetails(response)
+        const currentCheckout = response.reservationRooms?.[0]?.checkOutDate || response.checkOutDate
+        if (currentCheckout) {
+          const current = new Date(`${isoDateOnly(currentCheckout)}T00:00:00`)
+          if (!Number.isNaN(current.getTime())) {
+            current.setDate(current.getDate() + 1)
+            setNewCheckoutDate(current.toISOString().slice(0, 10))
+          }
+        }
+        const nightlyRate = response.reservationRooms?.[0]?.pricePerNight || response.baseRateAtBooking || 0
+        if (nightlyRate > 0) setManualNightlyRate(String(nightlyRate))
       })
-      .catch((e: unknown) => {
+      .catch((error) => {
         if (controller.signal.aborted) return
-        setError(e instanceof Error ? e.message : 'Failed to load extend stay data')
+        setLoadError(getErrorMessage(error, 'Failed to load extend stay details.'))
       })
       .finally(() => {
-        if (controller.signal.aborted) return
-        setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       })
 
     return () => controller.abort()
   }, [open, reservationId])
 
-  const onCloseSafe = () => {
-    if (submitting) return
+  const resetAndClose = () => {
+    if (evaluating || submitting) return
     onClose()
     setStep(1)
-    setNewCheckOutIso('')
-    setSelectedRoomNumber('')
-    setError(null)
+    setDetails(null)
+    setLoadError(null)
+    setNewCheckoutDate('')
+    setManualNightlyRate('')
+    setEvaluation(null)
+    setEvaluationError(null)
+    setSubmitError(null)
+    setResult(null)
+    evaluatingRef.current = false
+    submittingRef.current = false
   }
 
-  const canRenderFlow = Boolean(draft) && Boolean(reservationId)
+  const handleEvaluate = async () => {
+    if (!reservationId || evaluatingRef.current) return
+    const rate = Number(manualNightlyRate)
+    if (!newCheckoutDate) {
+      setEvaluationError('New check-out date is required.')
+      return
+    }
+    if (!Number.isFinite(rate) || rate <= 0) {
+      setEvaluationError('Manual nightly rate must be greater than 0.')
+      return
+    }
 
-  const onSubmitExtend = async () => {
-    if (!reservationId) return
-    if (!newCheckOutIso) return
+    evaluatingRef.current = true
+    setEvaluating(true)
+    setEvaluationError(null)
+    setSubmitError(null)
 
     try {
-      setSubmitting(true)
-      await extendReservation(reservationId, { newCheckOutDate: newCheckOutIso })
-      onCloseSafe()
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to extend reservation')
+      const quote = await evaluateExtendStay({
+        reservationId,
+        newCheckoutDate,
+        evaluationDateTime: new Date().toISOString(),
+        useCurrentRatePlan: true,
+        manualNightlyRate: rate,
+        forceManualApprovalOverride: true,
+      })
+      setEvaluation(quote)
+      setStep(2)
+    } catch (error) {
+      setEvaluationError(getErrorMessage(error, 'Failed to evaluate extend stay.'))
     } finally {
+      evaluatingRef.current = false
+      setEvaluating(false)
+    }
+  }
+
+  const handleConfirm = async () => {
+    if (!reservationId || !evaluation || submittingRef.current) return
+    if ((!evaluation.isAllowed && !evaluation.requiresManualApproval) || (evaluation.unavailableDates?.length ?? 0) > 0) return
+
+    const rate = Number(manualNightlyRate)
+    submittingRef.current = true
+    setSubmitting(true)
+    setSubmitError(null)
+
+    try {
+      const response = await executeExtendStay(reservationId, {
+        newCheckoutDate: dateTimeForDate(evaluation.newCheckoutDate || newCheckoutDate),
+        reason: DEFAULT_REASON,
+        useCurrentRatePlan: true,
+        manualNightlyRate: Number.isFinite(rate) && rate > 0 ? rate : 0,
+        forceManualApprovalOverride: true,
+      })
+      setResult(response)
+      setStep(3)
+    } catch (error) {
+      setSubmitError(getErrorMessage(error, 'Failed to extend stay.'))
+    } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }
 
+  const handleDone = () => {
+    onSuccess?.()
+    resetAndClose()
+  }
+
+  const fallbackCheckInDate = reservation?.checkInDate || ''
+  const fallbackCheckOutDate = reservation?.checkOutDate || ''
+  const fallbackGuestName = reservation?.guestName || ''
+  const fallbackRoomNumber = reservation?.roomNumber || null
+
   return (
-    <Modal open={open} onClose={onCloseSafe} lockScroll>
-      <div className="flex h-[calc(100vh-2rem)] w-[94vw] max-w-6xl flex-col overflow-y-auto rounded-2xl bg-white shadow-xl">
-        <div className="bg-[#0B4EA2] px-8 py-5">
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <div className="text-lg font-semibold text-white">{step === 3 ? 'Confirm Extension' : 'Extend Stay'}</div>
-              <div className="mt-1 text-sm text-white/90">
-                {step === 3 ? (
-                  <span>Review extension details</span>
-                ) : (
-                  <span className="flex flex-wrap items-center gap-4">
-                    <span>• {fullName || '—'}</span>
-                    <span>• Room {roomNumber || '—'}</span>
-                    <span className="inline-flex h-7 items-center rounded-full bg-emerald-400 px-6 text-xs font-semibold text-white">
-                      {titleCase('in house')}
-                    </span>
-                  </span>
-                )}
-              </div>
-            </div>
+    <Modal open={open} onClose={resetAndClose} lockScroll>
+      <div className="relative flex max-h-[90vh] w-[96vw] max-w-7xl flex-col overflow-y-auto rounded-2xl bg-white shadow-xl">
+        <button
+          type="button"
+          onClick={resetAndClose}
+          className="absolute right-6 top-5 z-10 grid h-9 w-9 place-items-center rounded-full text-white/90 hover:bg-white/10 disabled:opacity-60"
+          aria-label="Close"
+          disabled={evaluating || submitting}
+        >
+          <X className="h-5 w-5" />
+        </button>
 
-            <button
-              type="button"
-              onClick={onCloseSafe}
-              className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10"
-              aria-label="Close"
-              disabled={submitting}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1">
-          {loading ? (
-            <div className="px-8 py-8">
-              <div className="rounded-xl border border-slate-200 p-6 text-sm text-slate-600">Loading...</div>
-            </div>
-          ) : error ? (
-            <div className="px-8 py-8">
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">{error}</div>
-            </div>
-          ) : !canRenderFlow ? (
-            <div className="px-8 py-8">
-              <div className="rounded-xl border border-slate-200 p-6 text-sm text-slate-600">No reservation selected</div>
-            </div>
-          ) : step === 1 ? (
-            <ExtendStayStep1
-              value={draft!}
-              newCheckOutIso={newCheckOutIso}
-              onChangeNewCheckOutIso={setNewCheckOutIso}
-              onCancel={onCloseSafe}
-              onConfirm={() => setStep(2)}
-            />
-          ) : step === 2 ? (
-            <ExtendStayStep2
-              value={draft!}
-              rooms={rooms}
-              newCheckOutIso={newCheckOutIso}
-              onChangeNewCheckOutIso={setNewCheckOutIso}
-              selectedRoomNumber={selectedRoomNumber}
-              onChangeSelectedRoomNumber={setSelectedRoomNumber}
-              onCancel={onCloseSafe}
-              onConfirm={() => setStep(3)}
-            />
-          ) : step === 3 ? (
-            <ExtendStayStep3
-              value={draft!}
-              newCheckOutIso={newCheckOutIso}
-              selectedRoomNumber={selectedRoomNumber}
-              onBack={() => setStep(2)}
-              onSubmit={onSubmitExtend}
-              submitting={submitting}
-            />
-          ) : null}
-        </div>
+        {step === 1 ? (
+          <ExtendStayStep1
+            details={details}
+            fallbackGuestName={fallbackGuestName}
+            fallbackRoomNumber={fallbackRoomNumber}
+            fallbackCheckInDate={fallbackCheckInDate}
+            fallbackCheckOutDate={fallbackCheckOutDate}
+            newCheckoutDate={newCheckoutDate}
+            onChangeNewCheckoutDate={setNewCheckoutDate}
+            manualNightlyRate={manualNightlyRate}
+            onChangeManualNightlyRate={setManualNightlyRate}
+            loading={loading}
+            error={loadError}
+            evaluating={evaluating}
+            evaluationError={evaluationError}
+            onCancel={resetAndClose}
+            onEvaluate={handleEvaluate}
+          />
+        ) : step === 2 ? (
+          <ExtendStayStep2
+            evaluation={evaluation}
+            manualNightlyRate={Number(manualNightlyRate) || 0}
+            submitError={submitError}
+            submitting={submitting}
+            onBack={() => setStep(1)}
+            onCancel={resetAndClose}
+            onConfirm={handleConfirm}
+          />
+        ) : (
+          <ExtendStayStep3 result={result} onDone={handleDone} />
+        )}
       </div>
     </Modal>
   )

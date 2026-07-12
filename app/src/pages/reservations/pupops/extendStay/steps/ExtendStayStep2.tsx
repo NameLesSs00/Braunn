@@ -1,390 +1,304 @@
-import { AlertCircle, Calendar, CheckCircle2, ChevronDown } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 
-import type { Room } from '../../../../../models/Room'
-import type { ReservationDraft } from '../../../../../widgets/reservations/NewReservationModal/NewReservationModal'
+import type { EvaluateExtendStayResponse, ExtendStayUnavailableDate } from '../../../../../models/PmsReservation'
 
 type Props = {
-  value: ReservationDraft
-  rooms: Room[]
-  newCheckOutIso: string
-  onChangeNewCheckOutIso: (value: string) => void
-  selectedRoomNumber: string
-  onChangeSelectedRoomNumber: (value: string) => void
+  evaluation: EvaluateExtendStayResponse | null
+  manualNightlyRate: number
+  submitError: string | null
+  submitting: boolean
+  onBack: () => void
   onCancel: () => void
   onConfirm: () => void
 }
 
-type PaymentMethod = 'charge_to_room' | 'pay_now' | 'charge_to_company'
+const hiddenKeys = new Set([
+  'id',
+  'reservationId',
+  'reservationRoomId',
+  'policyId',
+  'roomTypeId',
+  'assignedRoomId',
+  'mealPlanId',
+  'chargeIds',
+  'warnings',
+])
 
-function formatMoney(amount: number, curr: string) {
-  if (curr === '$' || curr === '€' || curr === '£') return `${curr}${amount.toFixed(2)}`
-  return `${amount.toFixed(2)} ${curr}`
+function valueOrNA(value: unknown) {
+  if (value === null || value === undefined) return 'N/A'
+  if (typeof value === 'string') return value.trim() ? value : 'N/A'
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  return String(value)
 }
 
-function parseIsoDate(value: string) {
-  const trimmed = value.trim()
-  const [yyyy, mm, dd] = trimmed.split('-')
-  if (!yyyy || !mm || !dd) return null
-  const y = Number(yyyy)
-  const m = Number(mm)
-  const d = Number(dd)
-  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
-  const date = new Date(y, m - 1, d)
-  const t = date.getTime()
-  return Number.isFinite(t) ? date : null
+function formatDate(value?: string | null) {
+  if (!value) return 'N/A'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 }
 
-function parseUsDate(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  const parts = trimmed.split('/')
-  if (parts.length !== 3) return null
-  const [mm, dd, yyyy] = parts
-  const m = Number(mm)
-  const d = Number(dd)
-  const y = Number(yyyy)
-  if (!Number.isFinite(m) || !Number.isFinite(d) || !Number.isFinite(y)) return null
-  const date = new Date(y, m - 1, d)
-  const t = date.getTime()
-  return Number.isFinite(t) ? date : null
+function amount(value: number | null | undefined, currency?: string | null) {
+  if (value === null || value === undefined) return 'N/A'
+  return `${Number(value).toFixed(2)} ${currency || ''}`.trim()
 }
 
-function parseReservationDate(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  if (trimmed.includes('-')) return parseIsoDate(trimmed)
-  return parseUsDate(trimmed)
+function SummaryItem({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] font-semibold uppercase text-slate-400">{label}</div>
+      <div className={['mt-1 break-words text-[13px] font-semibold', accent || 'text-slate-800'].join(' ')}>{value}</div>
+    </div>
+  )
 }
 
-function formatHuman(d: Date | null) {
-  if (!d) return '—'
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+function readableKey(key: string) {
+  return key
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-function formatShort(d: Date | null) {
-  if (!d) return ''
-  return d.toLocaleDateString('en-US')
-}
-
-function toIsoDateInput(d: Date) {
-  const pad2 = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-}
-
-function daysBetween(start: Date | null, end: Date | null) {
-  if (!start || !end) return 0
-  const diff = Math.round((end.getTime() - start.getTime()) / 86400000)
-  return Math.max(0, diff)
-}
-
-function titleCase(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-  return trimmed
-    .split(/\s+/)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ')
+function safeUnavailableEntries(row: ExtendStayUnavailableDate) {
+  return Object.entries(row).filter(([key]) => {
+    const normalized = key.replace(/[\s_-]/g, '').toLowerCase()
+    return !hiddenKeys.has(key) && !normalized.endsWith('id') && normalized !== 'warnings'
+  })
 }
 
 export function ExtendStayStep2({
-  value,
-  rooms,
-  newCheckOutIso,
-  onChangeNewCheckOutIso,
-  selectedRoomNumber,
-  onChangeSelectedRoomNumber,
+  evaluation,
+  manualNightlyRate,
+  submitError,
+  submitting,
+  onBack,
   onCancel,
   onConfirm,
 }: Props) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('charge_to_room')
-  const [confirmError, setConfirmError] = useState('')
-  const [isConfirming, setIsConfirming] = useState(false)
-
-  const currency = value?.finance?.currency || '$'
-
-  const checkIn = useMemo(() => parseReservationDate(value.checkInDate), [value.checkInDate])
-  const checkOut = useMemo(() => parseReservationDate(value.checkOutDate), [value.checkOutDate])
-  const newCheckOut = useMemo(() => (newCheckOutIso ? parseIsoDate(newCheckOutIso) : null), [newCheckOutIso])
-
-  const dateInputRef = useRef<HTMLInputElement | null>(null)
-
-  const extraNights = useMemo(() => daysBetween(checkOut, newCheckOut), [checkOut, newCheckOut])
-  const ratePerNight = 120
-  const extensionCharge = extraNights * ratePerNight
-
-  const sameRoomAvailable = useMemo(() => {
-    if (!newCheckOutIso) return true
-    return extraNights < 4
-  }, [extraNights, newCheckOutIso])
-
-  const currentBalance = useMemo(() => {
-    const paid = Number.parseFloat(value.paidAmount || '0')
-    return Number.isFinite(paid) ? Math.max(0, paid) : 0
-  }, [value.paidAmount])
-
-  const newTotalBalance = currentBalance + extensionCharge
-
-  const alternativeRooms = useMemo(() => {
-    if (!rooms?.length) return []
-    return rooms.map((r) => ({
-      id: r.id,
-      number: `Room ${r.roomNumber}`,
-      subtitle: `${titleCase(r.roomTypeName)} • Floor ${r.floor}`,
-      price: ratePerNight,
-    }))
-  }, [rooms])
-
-  const canConfirm = Boolean(newCheckOutIso) && (sameRoomAvailable || Boolean(selectedRoomNumber))
-
-  const handleConfirm = () => {
-    if (!newCheckOutIso) {
-      setConfirmError('Please select a new check-out date.')
-      return
-    }
-
-    if (!sameRoomAvailable && !selectedRoomNumber) {
-      setConfirmError('Please select an alternative room to continue.')
-      return
-    }
-
-    setConfirmError('')
-    onConfirm()
-  }
+  const currency = evaluation?.currency || 'EUR'
+  const unavailableDates = evaluation?.unavailableDates ?? []
+  const canConfirm = Boolean(evaluation) && unavailableDates.length === 0 && Boolean(evaluation?.isAllowed || evaluation?.requiresManualApproval)
+  const isBlocked = !canConfirm
 
   return (
-    <div className="space-y-8 px-8 py-8">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="rounded-xl border border-[#BBD3FF] bg-[#EEF6FF] px-6 py-5">
-              <div className="text-[12px] text-slate-500">Current Check-in Date</div>
-              <div className="mt-1 text-sm font-semibold text-slate-800">{formatHuman(checkIn)}</div>
-            </div>
+    <>
+      <div className="bg-[#0B4EA2] px-8 py-5">
+        <div className="text-xl font-semibold text-white">Extend Stay Quote</div>
+        <div className="mt-1 text-sm text-white/90">Review the policy result before extending the reservation</div>
+      </div>
 
-            <div className="rounded-xl border border-[#BBD3FF] bg-[#EEF6FF] px-6 py-5">
-              <div className="text-[12px] text-slate-500">Current Check-out Date</div>
-              <div className="mt-1 text-sm font-semibold text-slate-800">{formatHuman(checkOut)}</div>
-            </div>
+      <div className="space-y-6 bg-slate-50 p-8 text-slate-700">
+        {!evaluation ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
+            No extend stay evaluation is available. Go back and evaluate the request again.
           </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
-            <div className="flex items-center gap-3 text-sm font-semibold text-slate-800">
-              <Calendar className="h-5 w-5 text-[#0B4EA2]" />
-              New Check-out Date
-            </div>
-
-            <button
-              type="button"
-              className="mt-4 flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm text-slate-700"
-              onClick={() => dateInputRef.current?.showPicker?.() ?? dateInputRef.current?.click()}
+        ) : (
+          <>
+            <div
+              className={[
+                'flex items-start gap-3 rounded-xl border px-5 py-4 text-sm',
+                canConfirm
+                  ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
+                  : 'border-rose-100 bg-rose-50 text-rose-700',
+              ].join(' ')}
             >
-              <span className="inline-flex items-center gap-3 text-slate-400">
-                <Calendar className="h-5 w-5 text-slate-400" />
-                {newCheckOut ? formatShort(newCheckOut) : 'MM/DD/YY'}
-              </span>
-
-              <ChevronDown className="h-5 w-5 text-slate-500" />
-
-              <input
-                ref={dateInputRef}
-                type="date"
-                className="sr-only"
-                value={newCheckOutIso}
-                onChange={(e) => onChangeNewCheckOutIso(e.target.value)}
-                min={checkOut ? toIsoDateInput(checkOut) : undefined}
-              />
-            </button>
-
-            <div className="mt-4 rounded-xl border border-[#BBD3FF] bg-[#EEF6FF] p-4">
-              <div className="grid grid-cols-1 gap-2 text-[12px] text-slate-700">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#0B4EA2]">Extra Nights</span>
-                  <span className="font-semibold text-slate-800">{extraNights}</span>
+              <AlertTriangle className="mt-0.5 h-5 w-5" />
+              <div>
+                {canConfirm ? null : (
+                  <div className="font-bold">Extend stay cannot be confirmed</div>
+                )}
+                <div className={['text-[13px]', canConfirm ? '' : 'mt-1'].join(' ')}>
+                  {evaluation.requiresManualApproval
+                    ? 'Manual approval is required; the request will be sent with approval override.'
+                    : 'No manual approval is required.'}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-[#0B4EA2]">Rate per Night:</span>
-                  <span className="font-semibold text-slate-800">{formatMoney(ratePerNight, currency)}</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-[#BBD3FF] pt-2">
-                  <span className="font-semibold text-[#0B4EA2]">Total Additional:</span>
-                  <span className="font-semibold text-[#0B4EA2]">{formatMoney(extensionCharge, currency)}</span>
-                </div>
+                {unavailableDates.length ? (
+                  <div className="mt-1 text-[13px]">Unavailable dates are listed below.</div>
+                ) : null}
               </div>
             </div>
-          </div>
 
-          {!sameRoomAvailable ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 text-rose-600" />
-                <div>
-                  <div className="text-sm font-semibold text-rose-700">Room Change Required</div>
-                  <div className="mt-1 text-xs text-rose-700/80">
-                    Room {value.rooms[0]?.roomNumber || '—'} is not available. Please select an alternative room below.
-                  </div>
-                </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 text-sm font-bold text-slate-800">Evaluation Details</div>
+              <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-3">
+                <SummaryItem label="Current Check-out" value={formatDate(evaluation.currentCheckoutDate)} />
+                <SummaryItem label="New Check-out" value={formatDate(evaluation.newCheckoutDate)} />
+                <SummaryItem label="Additional Nights" value={valueOrNA(evaluation.additionalNights)} />
+                <SummaryItem label="Allowed" value={valueOrNA(evaluation.isAllowed)} />
+                <SummaryItem label="Manual Approval" value={valueOrNA(evaluation.requiresManualApproval)} />
+                <SummaryItem label="Policy Type" value={valueOrNA(evaluation.policyType)} />
+                <SummaryItem label="Policy Code" value={valueOrNA(evaluation.policyCode)} />
+                <SummaryItem label="Policy Name" value={valueOrNA(evaluation.policyName)} />
+                <SummaryItem label="Calculation Base" value={amount(evaluation.calculationBase, currency)} />
+                <SummaryItem label="Calculation Source" value={valueOrNA(evaluation.calculationBaseSource)} />
+                <SummaryItem label="Pricing Source" value={valueOrNA(evaluation.pricingSource)} />
+                <SummaryItem label="Room Type" value={valueOrNA(evaluation.roomTypeName)} />
+                <SummaryItem label="Assigned Room" value={valueOrNA(evaluation.assignedRoomNumber)} />
+                <SummaryItem label="Rate Plan" value={valueOrNA(evaluation.ratePlanCode)} />
+                <SummaryItem label="Currency" value={valueOrNA(evaluation.currency)} />
+                <SummaryItem label="Manual Nightly Rate" value={amount(manualNightlyRate, currency)} />
+                <SummaryItem label="Meal Plan Confirmation" value={valueOrNA(evaluation.requiresMealPlanConfirmation)} />
               </div>
             </div>
-          ) : null}
 
-          {!sameRoomAvailable ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6">
-              <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-800">
-                <Calendar className="h-5 w-5 text-[#0B4EA2]" />
-                Alternative Rooms
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 text-sm font-bold text-slate-800">Additional Charges</div>
+              <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-3">
+                <SummaryItem label="Room Before Tax" value={amount(evaluation.additionalRoomAmountBeforeTax, currency)} />
+                <SummaryItem label="Room Tax" value={amount(evaluation.additionalRoomTaxAmount, currency)} />
+                <SummaryItem label="Room After Tax" value={amount(evaluation.additionalRoomAmountAfterTax, currency)} />
+                <SummaryItem label="Meal Plan" value={amount(evaluation.additionalMealPlanAmount, currency)} />
+                <SummaryItem label="Recurring Services" value={amount(evaluation.additionalRecurringServicesAmount, currency)} />
+                <SummaryItem label="Grand Total" value={amount(evaluation.additionalGrandTotal, currency)} accent="text-[#0B4EA2]" />
               </div>
+            </div>
 
-              <div className="space-y-3">
-                {alternativeRooms.map((r) => {
-                  const checked = selectedRoomNumber === r.number
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      className={[
-                        'w-full rounded-xl border p-4 text-left',
-                        checked ? 'border-[#0B4EA2] bg-[#EEF6FF]' : 'border-slate-200 bg-white',
-                      ].join(' ')}
-                      onClick={() => onChangeSelectedRoomNumber(r.number)}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={[
-                              'mt-1 inline-block h-5 w-5 rounded-full border',
-                              checked ? 'border-[#0B4EA2]' : 'border-slate-300',
-                            ].join(' ')}
-                          >
-                            {checked ? <span className="mx-auto mt-[3px] block h-2.5 w-2.5 rounded-full bg-[#0B4EA2]" /> : null}
-                          </span>
-                          <div>
-                            <div className="text-sm font-semibold text-slate-800">{r.number}</div>
-                            <div className="mt-1 text-xs text-slate-500">{r.subtitle}</div>
-                            <div className="mt-2 inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
-                              Available
-                            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 text-sm font-bold text-slate-800">Nightly Breakdown</div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-[12px]">
+                  <thead className="bg-[#EAF2FF] text-slate-700">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Date</th>
+                      <th className="px-4 py-3 font-semibold">Room Type</th>
+                      <th className="px-4 py-3 font-semibold">Rate Plan</th>
+                      <th className="px-4 py-3 font-semibold">Adults</th>
+                      <th className="px-4 py-3 font-semibold">Children</th>
+                      <th className="px-4 py-3 font-semibold">Base Room</th>
+                      <th className="px-4 py-3 font-semibold">Tax</th>
+                      <th className="px-4 py-3 font-semibold">Room After Tax</th>
+                      <th className="px-4 py-3 font-semibold">Meal Plan</th>
+                      <th className="px-4 py-3 font-semibold">Services</th>
+                      <th className="px-4 py-3 font-semibold">Night Total</th>
+                      <th className="px-4 py-3 font-semibold">Room Type Available</th>
+                      <th className="px-4 py-3 font-semibold">Assigned Room Available</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {evaluation.nightlyBreakdown?.length ? (
+                      evaluation.nightlyBreakdown.map((line, index) => (
+                        <tr key={`${line.date}-${index}`} className={index % 2 ? 'bg-[#F4F9FF]' : 'bg-white'}>
+                          <td className="px-4 py-3 font-medium text-slate-800">{formatDate(line.date)}</td>
+                          <td className="px-4 py-3 text-slate-600">{valueOrNA(line.roomTypeName)}</td>
+                          <td className="px-4 py-3 text-slate-600">{valueOrNA(line.ratePlanCode)}</td>
+                          <td className="px-4 py-3 text-slate-600">{line.adults}</td>
+                          <td className="px-4 py-3 text-slate-600">{line.children}</td>
+                          <td className="px-4 py-3 text-slate-600">{amount(line.baseRoomAmount, currency)}</td>
+                          <td className="px-4 py-3 text-slate-600">{amount(line.taxAmount, currency)}</td>
+                          <td className="px-4 py-3 text-slate-600">{amount(line.roomAmountAfterTax, currency)}</td>
+                          <td className="px-4 py-3 text-slate-600">{amount(line.mealPlanAmount, currency)}</td>
+                          <td className="px-4 py-3 text-slate-600">{amount(line.recurringServiceAmount, currency)}</td>
+                          <td className="px-4 py-3 font-semibold text-slate-800">{amount(line.nightTotal, currency)}</td>
+                          <td className="px-4 py-3 text-slate-600">{valueOrNA(line.isRoomTypeAvailable)}</td>
+                          <td className="px-4 py-3 text-slate-600">{valueOrNA(line.isAssignedRoomAvailable)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={13} className="px-4 py-6 text-center text-slate-500">N/A</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 text-sm font-bold text-slate-800">Meal Plan Breakdown</div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-[12px]">
+                  <thead className="bg-[#EAF2FF] text-slate-700">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Code</th>
+                      <th className="px-4 py-3 font-semibold">Name</th>
+                      <th className="px-4 py-3 font-semibold">Pricing Mode</th>
+                      <th className="px-4 py-3 font-semibold">Added Days</th>
+                      <th className="px-4 py-3 font-semibold">Unit Price</th>
+                      <th className="px-4 py-3 font-semibold">Added Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {evaluation.mealPlanBreakdown?.length ? (
+                      evaluation.mealPlanBreakdown.map((line, index) => (
+                        <tr key={`${line.mealPlanCode || line.mealPlanName || 'meal'}-${index}`} className={index % 2 ? 'bg-[#F4F9FF]' : 'bg-white'}>
+                          <td className="px-4 py-3 text-slate-600">{valueOrNA(line.mealPlanCode)}</td>
+                          <td className="px-4 py-3 font-medium text-slate-800">{valueOrNA(line.mealPlanName)}</td>
+                          <td className="px-4 py-3 text-slate-600">{valueOrNA(line.pricingMode)}</td>
+                          <td className="px-4 py-3 text-slate-600">{line.addedDays}</td>
+                          <td className="px-4 py-3 text-slate-600">{amount(line.unitPrice, currency)}</td>
+                          <td className="px-4 py-3 font-semibold text-slate-800">{amount(line.addedAmount, currency)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-6 text-center text-slate-500">N/A</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {unavailableDates.length ? (
+              <div className="rounded-xl border border-rose-200 bg-white p-5 shadow-sm">
+                <div className="mb-4 text-sm font-bold text-rose-700">Unavailable Dates</div>
+                <div className="space-y-3">
+                  {unavailableDates.map((row, index) => {
+                    const entries = safeUnavailableEntries(row)
+                    return (
+                      <div key={index} className="rounded-xl border border-rose-100 bg-rose-50 p-4">
+                        {entries.length ? (
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            {entries.map(([key, value]) => (
+                              <SummaryItem key={key} label={readableKey(key)} value={valueOrNA(value)} />
+                            ))}
                           </div>
-                        </div>
-                        <div className="text-xs font-semibold text-slate-700">{formatMoney(r.price, currency)}/night</div>
+                        ) : (
+                          <div className="text-sm text-rose-700">Unavailable date</div>
+                        )}
                       </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="space-y-6">
-          {sameRoomAvailable ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
-                <div>
-                  <div className="text-sm font-semibold text-emerald-700">Same Room Available</div>
-                  <div className="mt-1 text-xs text-emerald-700/80">
-                    Room {value.rooms[0]?.roomNumber || '—'} is available for the entire extended period.
-                  </div>
+                    )
+                  })}
                 </div>
               </div>
-            </div>
-          ) : null}
-        </div>
+            ) : null}
+          </>
+        )}
+
+        {submitError ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{submitError}</div>
+        ) : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <span>{currency}</span>
-            Payment Method
-          </div>
-
-          <div className="space-y-3">
-            <button
-              type="button"
-              className={[
-                'w-full rounded-xl border p-4 text-left',
-                paymentMethod === 'charge_to_room' ? 'border-[#0B4EA2] bg-[#EEF6FF]' : 'border-slate-200 bg-white',
-              ].join(' ')}
-              onClick={() => setPaymentMethod('charge_to_room')}
-            >
-              <div className="text-sm font-semibold text-slate-800">Charge to Room</div>
-              <div className="mt-1 text-xs text-slate-500">Add extension charges to the guest folio.</div>
-            </button>
-
-            <button
-              type="button"
-              className={[
-                'w-full rounded-xl border p-4 text-left',
-                paymentMethod === 'pay_now' ? 'border-[#0B4EA2] bg-[#EEF6FF]' : 'border-slate-200 bg-white',
-              ].join(' ')}
-              onClick={() => setPaymentMethod('pay_now')}
-            >
-              <div className="text-sm font-semibold text-slate-800">Pay Now</div>
-              <div className="mt-1 text-xs text-slate-500">Collect payment for the extension now.</div>
-            </button>
-
-            <button
-              type="button"
-              className={[
-                'w-full rounded-xl border p-4 text-left',
-                paymentMethod === 'charge_to_company' ? 'border-[#0B4EA2] bg-[#EEF6FF]' : 'border-slate-200 bg-white',
-              ].join(' ')}
-              onClick={() => setPaymentMethod('charge_to_company')}
-            >
-              <div className="text-sm font-semibold text-slate-800">Charge to Company</div>
-              <div className="mt-1 text-xs text-slate-500">Bill the extension to a company account.</div>
-            </button>
-          </div>
+      <div className="flex items-center justify-between border-t border-slate-200 bg-white px-8 py-5">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="h-11 rounded-xl border border-[#0B4EA2] px-8 text-sm font-semibold text-[#0B4EA2] transition-colors hover:bg-blue-50 disabled:opacity-60"
+            onClick={onBack}
+            disabled={submitting}
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            className="h-11 rounded-xl border border-slate-200 px-8 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-60"
+            onClick={onCancel}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
         </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="mb-4 text-sm font-semibold text-slate-800">Summary</div>
-          <div className="space-y-2 text-sm text-slate-700">
-            <div className="flex items-center justify-between">
-              <span>Extra Nights</span>
-              <span className="font-semibold">{extraNights}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Extension Charge</span>
-              <span className="font-semibold">{formatMoney(extensionCharge, currency)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-slate-600">Current Balance</span>
-              <span className="font-semibold">{formatMoney(currentBalance, currency)}</span>
-            </div>
-            <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-              <span className="font-bold text-[#0B4EA2]">New Total Balance</span>
-              <span className="font-semibold text-[#0B4EA2]">{formatMoney(newTotalBalance, currency)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {confirmError ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{confirmError}</div> : null}
-
-      <div className="flex flex-col items-center justify-end gap-4 md:flex-row">
         <button
           type="button"
-          className="h-12 w-full rounded-xl border border-slate-300 px-16 text-sm font-semibold text-slate-700 md:w-auto"
-          onClick={onCancel}
+          className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0B4EA2] px-8 text-sm font-semibold text-white transition-colors hover:bg-[#093d81] disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={onConfirm}
+          disabled={isBlocked || submitting}
         >
-          cancel
-        </button>
-
-        <button
-          type="button"
-          className={[
-            'h-12 w-full rounded-xl bg-[#0B4EA2] px-16 text-sm font-semibold text-white md:w-auto',
-            canConfirm ? '' : 'opacity-50',
-          ].join(' ')}
-          onClick={handleConfirm}
-          disabled={!canConfirm}
-        >
-          Continue
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {submitting ? 'Extending...' : 'Confirm Extend Stay'}
         </button>
       </div>
-    </div>
+    </>
   )
 }

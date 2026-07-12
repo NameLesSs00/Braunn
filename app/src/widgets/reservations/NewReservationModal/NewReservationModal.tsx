@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Swal from 'sweetalert2'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
@@ -40,6 +40,16 @@ type Step = 1 | 2 | 3 | 4
 
 type Step4Page = 1 | 2
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  return 'Operation failed'
+}
+
+function isPossiblyStillProcessingError(message: string) {
+  return /timeout|timed out|failed to fetch|network|request failed \(408\)|request failed \(502\)|request failed \(503\)|request failed \(504\)/i.test(message)
+}
+
 export function NewReservationModal({
   open,
   activeDraftId,
@@ -62,6 +72,11 @@ export function NewReservationModal({
   const [extendStayOpen, setExtendStayOpen] = useState(false)
   const [successOpen, setSuccessOpen] = useState(false)
   const [finalConfirmationOpen, setFinalConfirmationOpen] = useState(false)
+  const [creatingReservation, setCreatingReservation] = useState(false)
+  const [creatingReservationResultUnknown, setCreatingReservationResultUnknown] = useState(false)
+  const [savingOptionalReservation, setSavingOptionalReservation] = useState(false)
+  const creatingReservationRef = useRef(false)
+  const savingOptionalReservationRef = useRef(false)
 
   useEffect(() => {
     if (!open) return
@@ -92,6 +107,14 @@ export function NewReservationModal({
     dispatch(updateDraft(patch))
   }
 
+  const resetSubmissionLocks = () => {
+    creatingReservationRef.current = false
+    savingOptionalReservationRef.current = false
+    setCreatingReservation(false)
+    setSavingOptionalReservation(false)
+    setCreatingReservationResultUnknown(false)
+  }
+
   const removeActiveSavedDraft = () => {
     if (!activeDraftId) return
     removeSavedReservationDraft(activeDraftId)
@@ -102,6 +125,7 @@ export function NewReservationModal({
   const resetModalProgress = () => {
     setStep(1)
     setStep4Page(1)
+    resetSubmissionLocks()
   }
 
   const finishReservationDraft = () => {
@@ -202,6 +226,7 @@ export function NewReservationModal({
               <button
                 type="button"
                 onClick={restartReservationDraft}
+                disabled={creatingReservation || savingOptionalReservation}
                 className="h-9 rounded-full border border-white/40 px-5 text-sm font-semibold text-white/90 hover:bg-white/10"
               >
                 Reset
@@ -210,6 +235,7 @@ export function NewReservationModal({
               <button
                 type="button"
                 onClick={() => handleClose()}
+                disabled={creatingReservation || savingOptionalReservation}
                 className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10"
                 aria-label="Close"
               >
@@ -276,6 +302,8 @@ export function NewReservationModal({
                 'border-[#0B4EA2] text-[#0B4EA2]',
               ].join(' ')}
               onClick={() => {
+                if (creatingReservation || savingOptionalReservation) return
+
                 if (step === 4 && step4Page === 2) {
                   setStep4Page(1)
                   return
@@ -299,10 +327,14 @@ export function NewReservationModal({
                   type="button"
                   className={[
                     "h-12 rounded-xl border border-[#0B4EA2] px-8 text-sm font-semibold text-[#0B4EA2] hover:bg-blue-50 transition-colors flex items-center gap-2",
-                    optionalReservations.status === 'loading' ? 'opacity-80 cursor-not-allowed' : ''
+                    (optionalReservations.status === 'loading' || savingOptionalReservation) ? 'opacity-80 cursor-not-allowed' : ''
                   ].join(' ')}
-                  disabled={optionalReservations.status === 'loading'}
-                  onClick={() => {
+                  disabled={optionalReservations.status === 'loading' || savingOptionalReservation || creatingReservation}
+                  onClick={async () => {
+                    if (savingOptionalReservationRef.current || creatingReservationRef.current) return
+                    savingOptionalReservationRef.current = true
+                    setSavingOptionalReservation(true)
+
                     const payload = {
                       guestName: `${draft.firstName} ${draft.surName}`.trim() || 'Guest',
                       email: draft.email || '',
@@ -312,26 +344,29 @@ export function NewReservationModal({
                       expirationDate: draft.checkInDate ? new Date(draft.checkInDate).toISOString() : new Date().toISOString()
                     }
 
-                    dispatch(createOptionalReservation(payload)).unwrap()
-                      .then(() => {
-                        removeActiveSavedDraft()
-                        dispatch(resetDraft())
-                        resetModalProgress()
-                        setSuccessOpen(true)
+                    try {
+                      await dispatch(createOptionalReservation(payload)).unwrap()
+                      removeActiveSavedDraft()
+                      dispatch(resetDraft())
+                      resetModalProgress()
+                      setSuccessOpen(true)
+                    } catch (err) {
+                      const message = getErrorMessage(err)
+                      console.error('Optional reservation failed:', err)
+                      Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to save optional reservation: ' + message,
+                        confirmButtonColor: '#0B4EA2',
                       })
-                      .catch((err) => {
-                        console.error('Optional reservation failed:', err)
-                        Swal.fire({
-                          icon: 'error',
-                          title: 'Error',
-                          text: 'Failed to save optional reservation: ' + err,
-                          confirmButtonColor: '#0B4EA2',
-                        })
-                      })
+                    } finally {
+                      savingOptionalReservationRef.current = false
+                      setSavingOptionalReservation(false)
+                    }
                   }}
                 >
-                  {optionalReservations.status === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Save As Optional Reservation
+                  {(optionalReservations.status === 'loading' || savingOptionalReservation) && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {savingOptionalReservation ? 'Saving...' : 'Save As Optional Reservation'}
                 </button>
 
               )}
@@ -340,11 +375,18 @@ export function NewReservationModal({
                 type="button"
                 className={[
                   'h-12 rounded-xl px-16 text-sm font-semibold flex items-center justify-center gap-2',
-                  'bg-[#0B4EA2] text-white'
+                  creatingReservation || savingOptionalReservation || creatingReservationResultUnknown
+                    ? 'bg-blue-300 text-white cursor-not-allowed'
+                    : 'bg-[#0B4EA2] text-white'
                 ].join(' ')}
+                disabled={creatingReservation || savingOptionalReservation || creatingReservationResultUnknown}
                 onClick={async () => {
+                  if (creatingReservationRef.current || savingOptionalReservationRef.current || creatingReservationResultUnknown) return
+
                   if (step === 4) {
                     if (step4Page === 1) {
+                      creatingReservationRef.current = true
+                      setCreatingReservation(true)
 
 
                       const localReservationPayload: CreateLocalReservationRequest = {
@@ -423,20 +465,37 @@ export function NewReservationModal({
                         }
                       }
 
-                dispatch(createLocalReservation(localReservationPayload)).unwrap()
-                  .then(() => {
+                try {
+                  await dispatch(createLocalReservation(localReservationPayload)).unwrap()
                     setFinalConfirmationOpen(true)
                     setStep4Page(2)
-                  })
-                  .catch((err) => {
+                  creatingReservationRef.current = false
+                  setCreatingReservation(false)
+                  setCreatingReservationResultUnknown(false)
+                } catch (err) {
+                    const message = getErrorMessage(err)
                     console.error('Reservation creation failed:', err)
+                    if (isPossiblyStillProcessingError(message)) {
+                      setCreatingReservationResultUnknown(true)
+                      setCreatingReservation(false)
+                      Swal.fire({
+                        icon: 'warning',
+                        title: 'Reservation may still be processing',
+                        text: 'The server did not confirm the result in time. Please check the Reservations list before trying again, so the same reservation is not created twice.',
+                        confirmButtonColor: '#0B4EA2',
+                      })
+                    } else {
+                      creatingReservationRef.current = false
+                      setCreatingReservation(false)
+                      setCreatingReservationResultUnknown(false)
                     Swal.fire({
                       icon: 'error',
                       title: 'Error',
-                      text: 'Failed to confirm reservation: ' + err,
+                        text: 'Failed to confirm reservation: ' + message,
                       confirmButtonColor: '#0B4EA2',
                     })
-                  })
+                    }
+                }
                 return
               }
 
@@ -450,7 +509,8 @@ export function NewReservationModal({
                 }}
 
               >
-                {nextLabel}
+                {creatingReservation ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {creatingReservation ? 'Creating reservation...' : creatingReservationResultUnknown ? 'Check Reservations List' : nextLabel}
               </button>
             </div>
           </div>

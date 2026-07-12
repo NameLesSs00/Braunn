@@ -268,7 +268,7 @@ export function InHouseMonthModal({ open, onClose }: Props) {
 
       <ReservationDetailsPopup open={detailsOpen} onClose={closeDetails} reservationId={detailsReservationId} onOpenExtendStay={onOpenExtendStay} onPaymentSuccess={refreshInHouseReservations} />
       <ExtendStayPopup open={extendStayOpen} onClose={closeExtendStay} reservationId={extendStayReservationId} />
-      <MoveRoomPopup open={moveRoomOpen} onClose={() => { setMoveRoomOpen(false); setMoveRoomReservationId(null) }} reservationId={moveRoomReservationId} />
+      <MoveRoomPopup open={moveRoomOpen} onClose={() => { setMoveRoomOpen(false); setMoveRoomReservationId(null) }} reservationId={moveRoomReservationId} onSuccess={refreshInHouseReservations} />
       <CheckInProcessPopup open={checkInOpen} onClose={() => { setCheckInOpen(false); setCheckInReservationId(null) }} reservationId={checkInReservationId} />
       <CheckOutProcessPopup open={checkOutOpen} onClose={() => { setCheckOutOpen(false); setCheckOutReservationId(null) }} reservation={checkOutReservation as any} onSuccess={refreshInHouseReservations} />
     </>

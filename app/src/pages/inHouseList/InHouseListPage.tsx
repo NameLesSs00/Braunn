@@ -432,6 +432,8 @@ export function InHouseListPage() {
           rows.map((r, idx) => {
             const paymentLabel = r.paidAmount >= r.totalAmount ? 'Fully Paid' : 'Unpaid'
             const isCheckInToday = r.checkInDate.startsWith(today)
+            const normalizedStatus = (r.status || '').replace(/[\s_-]/g, '').toLowerCase()
+            const canExtendStay = normalizedStatus !== 'checkedout' && normalizedStatus !== 'cancelled' && normalizedStatus !== 'canceled'
             return (
               <div
                 key={`${r.id}-${idx}`}
@@ -502,6 +504,18 @@ export function InHouseListPage() {
                         >
                           Move Room
                         </button>
+                        {canExtendStay ? (
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
+                            onClick={() => {
+                              setOpenMenuForId(null)
+                              onOpenExtendStay(r.id)
+                            }}
+                          >
+                            Extend Stay
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -559,6 +573,7 @@ export function InHouseListPage() {
         open={extendStayOpen}
         onClose={closeExtendStay}
         reservationId={extendStayReservationId}
+        onSuccess={refreshInHouseReservations}
       />
 
       <MoveRoomPopup
@@ -568,6 +583,7 @@ export function InHouseListPage() {
           setMoveRoomReservationId(null)
         }}
         reservationId={moveRoomReservationId}
+        onSuccess={refreshInHouseReservations}
       />
 
       <CheckInProcessPopup

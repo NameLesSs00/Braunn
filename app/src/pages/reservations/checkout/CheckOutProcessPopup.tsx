@@ -3,20 +3,26 @@ import { Modal } from '../../../shared/ui/Modal'
 import { Step1Verification } from './Step1Verification'
 import { Step2Payment } from './Step2Payment'
 import { Step3Confirm } from './Step3Confirm'
-import type { PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
+import { LateCheckoutEvaluationStep } from './LateCheckoutEvaluationStep'
+import type { EvaluateLateCheckoutResponse, PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
 import { CheckCircle2 } from 'lucide-react'
 import {
   checkOutReservationRoom,
+  completeLateCheckout,
   createReservationPayment,
+  evaluateLateCheckout,
   getPmsReservationById,
   getPmsReservationFolio,
 } from '../../../shared/apis/PmsReservation'
+
+export type CheckoutMode = 'regular' | 'early' | 'late'
 
 type Props = {
   open: boolean
   onClose: () => void
   reservation: PmsReservation | null
   onSuccess?: () => void
+  mode?: CheckoutMode
 }
 
 export type CheckoutPaymentData = {
@@ -29,7 +35,24 @@ export type CheckoutPaymentData = {
   method: 'Card' | 'Cash' | 'Online'
 }
 
-export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: Props) {
+function resolveReservationRoomId(details: PmsReservationDetails | null, folio: PmsReservationFolio | null) {
+  if (details?.reservationRoomIds?.length) return details.reservationRoomIds[0]
+  if (details?.reservationRooms?.length) return details.reservationRooms[0].reservationRoomId
+  if (folio?.reservationRooms?.length) return folio.reservationRooms[0].reservationRoomId
+  const chargeWithRoomId = folio?.charges?.find((charge) => charge.reservationRoomId)
+  return chargeWithRoomId?.reservationRoomId || null
+}
+
+function lateCheckoutPaymentAmount(evaluation: EvaluateLateCheckoutResponse | null) {
+  if (!evaluation) return 0
+  return Math.max(0, evaluation.estimatedRemainingBalanceAfterPosting ?? evaluation.chargeAfterTax ?? 0)
+}
+
+function defaultPaymentReference(reservation: PmsReservation) {
+  return `pay for ${reservation.guestName || 'guest'}`
+}
+
+export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mode = 'regular' }: Props) {
   const [step, setStep] = useState(1)
   const [paymentData, setPaymentData] = useState<CheckoutPaymentData>({
     amount: '',
@@ -48,6 +71,10 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
   const [isCompletingCheckout, setIsCompletingCheckout] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [lateCheckoutEvaluation, setLateCheckoutEvaluation] = useState<EvaluateLateCheckoutResponse | null>(null)
+  const [lateCheckoutError, setLateCheckoutError] = useState<string | null>(null)
+
+  const isLateCheckout = mode === 'late'
 
   const loadCheckoutData = async (reservationId: string, signal?: AbortSignal) => {
     const [detailsRes, folioRes] = await Promise.all([
@@ -69,10 +96,47 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
     setLoadError(null)
     setDetails(null)
     setFolio(null)
+    setLateCheckoutEvaluation(null)
+    setLateCheckoutError(null)
     setLoading(true)
 
     void loadCheckoutData(reservation.id, controller.signal)
-      .then(({ folio }) => {
+      .then(async ({ details, folio }) => {
+        if (isLateCheckout) {
+          const reservationRoomId = resolveReservationRoomId(details, folio)
+          if (!reservationRoomId) {
+            setLateCheckoutError('No reservation room ID found for late check-out.')
+            return
+          }
+
+          const now = new Date().toISOString()
+          try {
+            const evaluation = await evaluateLateCheckout({
+              reservationRoomId,
+              actualCheckoutDateTime: now,
+              evaluationDateTime: now,
+              forceManualApprovalOverride: true,
+            }, controller.signal)
+
+            setLateCheckoutEvaluation(evaluation)
+            const amountDue = lateCheckoutPaymentAmount(evaluation)
+            setPaymentData({
+              amount: String(amountDue),
+              currency: evaluation.currency || folio.currency || 'EUR',
+              paymentMethod: 'Cash',
+              paymentReference: defaultPaymentReference(reservation),
+              paymentDate: new Date().toISOString().substring(0, 16),
+              paymentType: 'Payment',
+              method: 'Cash',
+            })
+          } catch (e: unknown) {
+            if (!controller.signal.aborted) {
+              setLateCheckoutError(e instanceof Error ? e.message : 'Failed to evaluate late check-out.')
+            }
+          }
+          return
+        }
+
         setPaymentData({
           amount: String(Math.max(0, folio.remainingBalance || 0)),
           currency: folio.currency || 'EUR',
@@ -92,10 +156,12 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
       })
 
     return () => controller.abort()
-  }, [open, reservation?.id])
+  }, [open, reservation?.id, isLateCheckout])
 
   const remainingBalance = folio?.remainingBalance ?? reservation?.remainingAmount ?? 0
-  const currency = folio?.currency || details?.finance?.currency || reservation?.currency || 'EUR'
+  const lateCheckoutAmountDue = lateCheckoutPaymentAmount(lateCheckoutEvaluation)
+  const requiredPaymentAmount = isLateCheckout ? lateCheckoutAmountDue : remainingBalance
+  const currency = lateCheckoutEvaluation?.currency || folio?.currency || details?.finance?.currency || reservation?.currency || 'EUR'
 
   const guestCount = useMemo(() => {
     if (!details) return 1
@@ -103,10 +169,7 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
   }, [details])
 
   const reservationRoomId = useMemo(() => {
-    if (details?.reservationRoomIds?.length) return details.reservationRoomIds[0]
-    if (details?.reservationRooms?.length) return details.reservationRooms[0].reservationRoomId
-    const chargeWithRoomId = folio?.charges?.find((charge) => charge.reservationRoomId)
-    return chargeWithRoomId?.reservationRoomId || null
+    return resolveReservationRoomId(details, folio)
   }, [details, folio])
 
   const handleNext = () => {
@@ -116,7 +179,7 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
   const submitPaymentAndContinue = async () => {
     if (!reservation) return
 
-    if (remainingBalance <= 0) {
+    if (requiredPaymentAmount <= 0) {
       setStep(3)
       return
     }
@@ -127,8 +190,8 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
       return
     }
 
-    if (amount < remainingBalance) {
-      setPaymentError('Payment amount must cover the remaining balance before check-out.')
+    if (amount < requiredPaymentAmount) {
+      setPaymentError(isLateCheckout ? 'Payment amount must cover the late check-out amount before continuing.' : 'Payment amount must cover the remaining balance before check-out.')
       return
     }
 
@@ -136,15 +199,16 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
     setPaymentError(null)
 
     try {
+      const paymentReference = paymentData.paymentReference.trim() || (isLateCheckout ? defaultPaymentReference(reservation) : '')
       await createReservationPayment(reservation.id, {
         amount,
         currency: paymentData.currency || currency,
         paymentMethod: paymentData.paymentMethod,
-        paymentReference: paymentData.paymentReference || null,
+        paymentReference: paymentReference || null,
         paymentDate: paymentData.paymentDate ? new Date(paymentData.paymentDate).toISOString() : new Date().toISOString(),
         paymentType: paymentData.paymentType,
         method: paymentData.method,
-        reference: paymentData.paymentReference || null,
+        reference: paymentReference || null,
       })
       await loadCheckoutData(reservation.id)
       setStep(3)
@@ -158,21 +222,29 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
   const completeCheckout = async () => {
     if (!reservation) return
     if (!reservationRoomId) {
-      setPaymentError('No reservation room ID found for check-out.')
+      setPaymentError(isLateCheckout ? 'No reservation room ID found for late check-out.' : 'No reservation room ID found for check-out.')
       setStep(2)
       return
     }
 
     setIsCompletingCheckout(true)
     try {
-      await checkOutReservationRoom(reservationRoomId, {
-        notes: '',
-        checkedOutByUserId: localStorage.getItem('cashier_user_id') || localStorage.getItem('user_id') || '',
-      })
+      if (isLateCheckout) {
+        await completeLateCheckout(reservationRoomId, {
+          actualCheckoutDateTime: new Date().toISOString(),
+          reason: 'Late check-out completed from PMS',
+          forceManualApprovalOverride: true,
+        })
+      } else {
+        await checkOutReservationRoom(reservationRoomId, {
+          notes: '',
+          checkedOutByUserId: localStorage.getItem('cashier_user_id') || localStorage.getItem('user_id') || '',
+        })
+      }
       await loadCheckoutData(reservation.id).catch(() => undefined)
       setShowSuccess(true)
     } catch (e: unknown) {
-      setPaymentError(e instanceof Error ? e.message : 'Failed to complete check-out.')
+      setPaymentError(e instanceof Error ? e.message : isLateCheckout ? 'Failed to complete late check-out.' : 'Failed to complete check-out.')
       setStep(2)
     } finally {
       setIsCompletingCheckout(false)
@@ -189,13 +261,24 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
 
   if (!reservation) return null
 
+  const headerTitle = isLateCheckout ? 'Late Check-Out' : mode === 'early' ? 'Early Check-Out' : 'Guest Check-Out'
+  const successTitle = isLateCheckout ? 'Late Check-Out Complete!' : 'Check-Out Complete!'
+  const successBody = isLateCheckout
+    ? `Guest ${reservation.guestName} has been successfully checked out.`
+    : `Guest ${reservation.guestName} has been successfully checked out.`
+
   return (
     <Modal open={open} onClose={onClose} lockScroll>
-      <div className="flex h-[calc(100vh-2rem)] w-[94vw] max-w-4xl flex-col overflow-y-auto rounded-2xl bg-white shadow-xl">
+      <div
+        className={[
+          'flex h-[calc(100vh-2rem)] w-[94vw] flex-col overflow-y-auto rounded-2xl bg-white shadow-xl',
+          isLateCheckout ? 'max-w-6xl' : 'max-w-4xl',
+        ].join(' ')}
+      >
         {/* Header */}
         <div className="flex items-center justify-between bg-[#0B4EA2] px-8 py-5">
           <div>
-            <div className="text-lg font-semibold text-white">Guest Check-Out</div>
+            <div className="text-lg font-semibold text-white">{headerTitle}</div>
             <div className="text-sm text-white/80">Room {reservation.roomNumber || '---'} - {reservation.guestName}</div>
           </div>
           <button
@@ -211,7 +294,7 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
         {/* Stepper */}
         <div className="px-8 py-8">
           <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-10">
-            <StepIcon active={step === 1} completed={step > 1} label="Verification" icon="user" />
+            <StepIcon active={step === 1} completed={step > 1} label={isLateCheckout ? 'Evaluation' : 'Verification'} icon="user" />
             <div className={["h-[2px] flex-1 mx-4 transition-colors duration-500", step > 1 ? "bg-emerald-500" : "bg-slate-100"].join(' ')} />
             <StepIcon active={step === 2} completed={step > 2} label="Payment" icon="credit-card" />
             <div className={["h-[2px] flex-1 mx-4 transition-colors duration-500", step > 2 ? "bg-emerald-500" : "bg-slate-100"].join(' ')} />
@@ -228,14 +311,24 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
           ) : (
             <>
           {step === 1 && (
-            <Step1Verification 
-              reservation={reservation} 
-              details={details}
-              folio={folio}
-              guestCount={guestCount}
-              onNext={handleNext} 
-              onBack={handleBack} 
-            />
+            isLateCheckout ? (
+              <LateCheckoutEvaluationStep
+                evaluation={lateCheckoutEvaluation}
+                loading={false}
+                error={lateCheckoutError}
+                onNext={handleNext}
+                onBack={handleBack}
+              />
+            ) : (
+              <Step1Verification
+                reservation={reservation}
+                details={details}
+                folio={folio}
+                guestCount={guestCount}
+                onNext={handleNext}
+                onBack={handleBack}
+              />
+            )
           )}
           {step === 2 && (
             <Step2Payment 
@@ -246,6 +339,9 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
               paymentData={paymentData}
               paymentError={paymentError}
               submitting={isSubmittingPayment}
+              requiredAmount={isLateCheckout ? requiredPaymentAmount : undefined}
+              requiredAmountLabel={isLateCheckout ? 'Late Check-out Amount Due' : undefined}
+              lateCheckoutEvaluation={isLateCheckout ? lateCheckoutEvaluation : null}
               onNext={submitPaymentAndContinue} 
               onBack={handleBack} 
               onPaymentChange={(data) => setPaymentData(prev => ({ ...prev, ...data }))}
@@ -259,6 +355,10 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
               guestCount={guestCount}
               paymentData={paymentData}
               completing={isCompletingCheckout}
+              requiredAmount={isLateCheckout ? requiredPaymentAmount : undefined}
+              requiredAmountLabel={isLateCheckout ? 'Late Check-out Amount Due' : undefined}
+              completionLabel={isLateCheckout ? 'Complete Late Check-Out' : undefined}
+              lateCheckoutEvaluation={isLateCheckout ? lateCheckoutEvaluation : null}
               onNext={completeCheckout} 
               onBack={handleBack} 
             />
@@ -276,9 +376,9 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess }: 
             </div>
           </div>
           
-          <h3 className="mb-4 text-3xl font-extrabold text-slate-800 tracking-tight">Check-Out Complete!</h3>
+          <h3 className="mb-4 text-3xl font-extrabold text-slate-800 tracking-tight">{successTitle}</h3>
           <p className="mb-10 max-w-[380px] text-[15px] leading-relaxed text-slate-500 font-medium">
-            Guest <strong>{reservation.guestName}</strong> has been successfully checked out.
+            {successBody}
           </p>
           
           <button

@@ -11,7 +11,8 @@ import type { PmsReservation } from '../../models/PmsReservation'
 import { ReservationDetailsPopup } from './pupops/ReservationDetailsPopup'
 import { ExtendStayPopup } from './pupops/ExtendStayPopup'
 import { CheckInProcessPopup } from './pupops/CheckInProcessPopup'
-import { CheckOutProcessPopup } from './checkout/CheckOutProcessPopup'
+import { CheckOutProcessPopup, type CheckoutMode } from './checkout/CheckOutProcessPopup'
+import { CancelReservationProcessPopup } from './cancel/CancelReservationProcessPopup'
 import { OtaReservationModal } from '../../widgets/reservations/OtaReservationModal/OtaReservationModal'
 import { MoveRoomPopup } from './pupops/MoveRoomPopup'
 import { ExportInHouseListPopup } from '../inHouseList/ExportInHouseListPopup'
@@ -43,6 +44,33 @@ function formatDateForDisplay(isoDate: string): string {
   const d = new Date(isoDate)
   if (Number.isNaN(d.getTime())) return isoDate
   return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+}
+
+function normalizeStatus(value?: string | null) {
+  return (value || '').replace(/[\s_-]/g, '').toLowerCase()
+}
+
+function getStatusTagClass(status?: string | null) {
+  switch (normalizeStatus(status)) {
+    case 'reserved':
+      return 'border-sky-200 bg-sky-50 text-sky-700'
+    case 'confirmed':
+      return 'border-indigo-200 bg-indigo-50 text-indigo-700'
+    case 'checkedin':
+    case 'inhouse':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    case 'checkedout':
+      return 'border-slate-200 bg-slate-100 text-slate-600'
+    case 'cancelled':
+    case 'canceled':
+      return 'border-rose-200 bg-rose-50 text-rose-700'
+    case 'noshow':
+      return 'border-amber-200 bg-amber-50 text-amber-700'
+    case 'pending':
+      return 'border-orange-200 bg-orange-50 text-orange-700'
+    default:
+      return 'border-slate-200 bg-white text-slate-600'
+  }
 }
 
 function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (page: number) => void }) {
@@ -118,6 +146,10 @@ export function ReservationsPage() {
 
   const [checkOutOpen, setCheckOutOpen] = useState(false)
   const [checkOutReservationId, setCheckOutReservationId] = useState<string | null>(null)
+  const [checkOutMode, setCheckOutMode] = useState<CheckoutMode>('regular')
+
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelReservationId, setCancelReservationId] = useState<string | null>(null)
 
   const [extendStayOpen, setExtendStayOpen] = useState(false)
   const [extendStayReservationId, setExtendStayReservationId] = useState<string | null>(null)
@@ -200,6 +232,11 @@ export function ReservationsPage() {
     if (!checkOutReservationId) return null
     return pmsReservations.find((r) => r.id === checkOutReservationId) || null
   }, [checkOutReservationId, pmsReservations])
+
+  const cancelReservation = useMemo(() => {
+    if (!cancelReservationId) return null
+    return pmsReservations.find((r) => r.id === cancelReservationId) || null
+  }, [cancelReservationId, pmsReservations])
 
   const closeDetails = () => {
     setDetailsOpen(false)
@@ -310,6 +347,7 @@ export function ReservationsPage() {
         open={extendStayOpen}
         onClose={closeExtendStay}
         reservationId={extendStayReservationId}
+        onSuccess={refreshReservations}
       />
 
       <MoveRoomPopup
@@ -319,6 +357,7 @@ export function ReservationsPage() {
           setMoveRoomReservationId(null)
         }}
         reservationId={moveRoomReservationId}
+        onSuccess={refreshReservations}
       />
 
       <CheckInProcessPopup
@@ -338,8 +377,20 @@ export function ReservationsPage() {
         onClose={() => {
           setCheckOutOpen(false)
           setCheckOutReservationId(null)
+          setCheckOutMode('regular')
         }}
         reservation={checkOutReservation}
+        mode={checkOutMode}
+        onSuccess={refreshReservations}
+      />
+
+      <CancelReservationProcessPopup
+        open={cancelOpen}
+        onClose={() => {
+          setCancelOpen(false)
+          setCancelReservationId(null)
+        }}
+        reservation={cancelReservation}
         onSuccess={refreshReservations}
       />
 
@@ -381,6 +432,7 @@ export function ReservationsPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">All status</option>
+              <option value="Reserved">Reserved</option>
               <option value="Confirmed">Confirmed</option>
               <option value="CheckedIn">Checked In</option>
               <option value="CheckedOut">Checked Out</option>
@@ -462,7 +514,7 @@ export function ReservationsPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl bg-white shadow-sm  ">
         <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_.9fr_1fr_.8fr_1.2fr] bg-[#EAF2FF] px-6 py-3 text-[12px] font-semibold text-slate-700">
           <div>Guest</div>
           <div>Room</div>
@@ -494,10 +546,26 @@ export function ReservationsPage() {
             const paymentLabel = row.paidAmount >= row.totalAmount ? 'Fully Paid' : row.paidAmount > 0 ? 'deposit paid' : 'Unpaid'
 
             const isCheckInToday = row.checkInDate?.startsWith(today) ?? false
+            const normalizedStatus = normalizeStatus(row.status)
+            const isCancelledStatus = normalizedStatus === 'cancelled' || normalizedStatus === 'canceled'
+            const canShowCheckIn =
+              (isCheckInToday || normalizedStatus === 'reserved') &&
+              normalizedStatus !== 'checkedin' &&
+              normalizedStatus !== 'checkedout' &&
+              !isCancelledStatus
             const isCheckOutDue =
-              row.status === 'CheckedIn' &&
+              normalizedStatus === 'checkedin' &&
               Boolean(row.checkOutDate) &&
-              row.checkOutDate.slice(0, 10) <= today
+              row.checkOutDate.slice(0, 10) === today
+            const isLateCheckOut =
+              normalizedStatus === 'checkedin' &&
+              Boolean(row.checkOutDate) &&
+              row.checkOutDate.slice(0, 10) < today
+            const canCancelReservation = !isCancelledStatus
+            const canEarlyCheckOut = normalizedStatus === 'checkedin' && !isCheckOutDue && !isLateCheckOut
+            const canMoveRoom = !isCancelledStatus
+            const canExtendStay = !isCancelledStatus && normalizedStatus !== 'checkedout'
+            const hasMoreActions = canCancelReservation || canEarlyCheckOut || canMoveRoom || canExtendStay
             return (
               <div
                 key={row.id}
@@ -523,12 +591,22 @@ export function ReservationsPage() {
 
                 <div>{formatDateForDisplay(row.checkInDate)}</div>
                 <div>{formatDateForDisplay(row.checkOutDate)}</div>
-                <div>{statusLabel}</div>
+                <div>
+                  <span
+                    className={[
+                      'inline-flex max-w-full items-center rounded-full border px-3 py-1 text-[11px] font-semibold leading-none',
+                      getStatusTagClass(statusLabel),
+                    ].join(' ')}
+                    title={statusLabel || undefined}
+                  >
+                    <span className="truncate">{statusLabel || '-----'}</span>
+                  </span>
+                </div>
                 <div>{paymentLabel}</div>
                 <div>{row.channelName || '—'}</div>
 
                 <div className="relative flex items-center justify-center gap-2">
-                  {isCheckInToday && row.status !== 'CheckedIn' && row.status !== 'CheckedOut' ? (
+                  {canShowCheckIn ? (
                     // Check in button (green)
                     <button
                       type="button"
@@ -540,16 +618,17 @@ export function ReservationsPage() {
                     </button>
                   ) : (
                     <>
-                      {isCheckOutDue ? (
+                      {isCheckOutDue || isLateCheckOut ? (
                         <button
                           type="button"
                           className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white"
                           onClick={() => {
                             setCheckOutReservationId(row.id)
+                            setCheckOutMode(isLateCheckOut ? 'late' : 'regular')
                             setCheckOutOpen(true)
                           }}
                         >
-                          check out
+                          {isLateCheckOut ? 'Late Check-out' : 'check out'}
                         </button>
                       ) : null}
                       <button
@@ -566,52 +645,75 @@ export function ReservationsPage() {
                     </>
                   )}
 
-                  <button
-                    type="button"
-                    className="grid h-9 w-9 place-items-center rounded-md text-slate-600 hover:bg-slate-100"
-                    aria-label="More"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={() => setOpenMenuForId((prev) => (prev === row.id ? null : row.id))}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
+                  {hasMoreActions ? (
+                    <button
+                      type="button"
+                      className="grid h-9 w-9 place-items-center rounded-md text-slate-600 hover:bg-slate-100"
+                      aria-label="More"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={() => setOpenMenuForId((prev) => (prev === row.id ? null : row.id))}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  ) : null}
 
-                  {openMenuForId === row.id ? (
+                  {hasMoreActions && openMenuForId === row.id ? (
                     <div
                       ref={menuRef}
-                      className="absolute right-0 top-11 z-10 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                      className="absolute right-0 top-11 z-10 w-48  rounded-xl border border-slate-200 bg-white shadow-lg"
                     >
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                        onClick={() => setOpenMenuForId(null)}
-                      >
-                        cancel Reservation
-                      </button>
-                      {row.status === 'CheckedIn' && !isCheckOutDue ? (
+                      {canCancelReservation ? (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
+                          onClick={() => {
+                            setOpenMenuForId(null)
+                            setCancelReservationId(row.id)
+                            setCancelOpen(true)
+                          }}
+                        >
+                          cancel Reservation
+                        </button>
+                      ) : null}
+                      {canEarlyCheckOut ? (
                         <button
                           type="button"
                           className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
                           onClick={() => {
                             setOpenMenuForId(null)
                             setCheckOutReservationId(row.id)
+                            setCheckOutMode('early')
                             setCheckOutOpen(true)
                           }}
                         >
                           Early Check out
                         </button>
                       ) : null}
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
-                        onClick={() => {
-                          setOpenMenuForId(null)
-                          setMoveRoomReservationId(row.id)
-                          setMoveRoomOpen(true)
-                        }}
-                      >
-                        Move Room
-                      </button>
+                      {canMoveRoom ? (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
+                          onClick={() => {
+                            setOpenMenuForId(null)
+                            setMoveRoomReservationId(row.id)
+                            setMoveRoomOpen(true)
+                          }}
+                        >
+                          Move Room
+                        </button>
+                      ) : null}
+                      {canExtendStay ? (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50"
+                          onClick={() => {
+                            setOpenMenuForId(null)
+                            onOpenExtendStay(row.id)
+                          }}
+                        >
+                          Extend Stay
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

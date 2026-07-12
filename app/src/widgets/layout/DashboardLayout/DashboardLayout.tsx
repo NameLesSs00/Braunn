@@ -13,6 +13,7 @@ import { ShiftStartModal } from '../../../features/shiftStart'
 import { selectIsShiftActive, fetchBusinessDate, fetchCurrentShift } from '../../../features/shift/shiftSlice'
 import { SelectReservationTypeModal } from '../../reservations/SelectReservationTypeModal/SelectReservationTypeModal'
 import { OtaReservationModal } from '../../reservations/OtaReservationModal/OtaReservationModal'
+import { GroupReservationModal } from '../../reservations/GroupReservationModal/GroupReservationModal'
 import { useEffect } from 'react'
 import { getSavedReservationDrafts, type SavedReservationStep, type SavedReservationStep4Page } from '../../../features/reservations/reservationDraftStorage'
 
@@ -45,6 +46,7 @@ export function DashboardLayout() {
   const [selectReservationTypeOpen, setSelectReservationTypeOpen] = useState(false)
   const [newReservationOpen, setNewReservationOpen] = useState(false)
   const [otaReservationOpen, setOtaReservationOpen] = useState(false)
+  const [groupReservationOpen, setGroupReservationOpen] = useState(false)
   const [shiftStartOpen, setShiftStartOpen] = useState(false)
   const [activeReservationDraftId, setActiveReservationDraftId] = useState<string | null>(null)
   const [initialReservationStep, setInitialReservationStep] = useState<SavedReservationStep>(1)
@@ -138,6 +140,10 @@ export function DashboardLayout() {
           setSelectReservationTypeOpen(false)
           setOtaReservationOpen(true)
         }}
+        onSelectGroup={() => {
+          setSelectReservationTypeOpen(false)
+          setGroupReservationOpen(true)
+        }}
       />
       <NewReservationModal
         open={newReservationOpen}
@@ -148,6 +154,7 @@ export function DashboardLayout() {
         onClose={() => setNewReservationOpen(false)}
       />
       <OtaReservationModal open={otaReservationOpen} onClose={() => setOtaReservationOpen(false)} />
+      <GroupReservationModal open={groupReservationOpen} onClose={() => setGroupReservationOpen(false)} />
       <ShiftStartModal open={shiftStartOpen} onClose={() => setShiftStartOpen(false)} />
     </div>
   )

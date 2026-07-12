@@ -297,3 +297,353 @@ export interface PmsReservationFolio {
   remainingBalance: number
   paymentStatus: string
 }
+
+export interface ReservationPolicySettings {
+  freeCancellationBeforeHours?: number
+  percentage?: number
+  requiresManualApproval?: boolean
+  [key: string]: unknown
+}
+
+export interface ReservationPolicy {
+  id: number
+  name: string
+  code: string
+  policyType: string
+  isActive: boolean
+  appliesToReservationType: string | null
+  appliesToBookingSource: string | null
+  appliesToRatePlanCode: string | null
+  effectiveFrom: string | null
+  effectiveTo: string | null
+  priority: number
+  settings: ReservationPolicySettings | null
+  createdAtUtc: string | null
+  updatedAtUtc: string | null
+}
+
+export interface ReservationPolicyEvaluationRequest {
+  reservationId: string
+  policyType: 'Cancellation'
+  reservationType: string
+  bookingSource: string
+  ratePlanCode: string
+  evaluationDateTime: string
+  checkInDateTime: string
+  checkOutDateTime: string
+  requestedDateTime: string
+  bookingTotal: number
+  firstNightAmount: number
+  nightlyRate: number
+  unusedNightsAmount: number
+  rateDifference: number
+  extensionNights: number
+  availabilityConfirmed: boolean
+  isOperationalRoomMove: boolean
+  isGuestRequestedUpgrade: boolean
+  netPaidAmount: number
+  manualAmount: number
+}
+
+export interface ReservationPolicyEvaluationResult {
+  isAllowed: boolean
+  policyCode: string
+  policyName: string
+  policyType: string
+  reason: string
+  percentage: number
+  calculationBase: number
+  calculationBaseSource: string
+  calculatedAmount: number
+  penaltyAmount: number
+  refundAmount: number
+  chargeAmount: number
+  requiresManualApproval: boolean
+  warnings: string[]
+}
+
+export interface EvaluateLateCheckoutRequest {
+  reservationRoomId: string
+  actualCheckoutDateTime: string
+  evaluationDateTime: string
+  forceManualApprovalOverride: boolean
+}
+
+export interface LateCheckoutChargeBreakdown {
+  date: string
+  chargeType: string | null
+  nightlyRateBeforeTax: number
+  percentage: number
+  amountBeforeTax: number
+  taxAmount: number
+  amountAfterTax: number
+  alreadyPosted: boolean
+  existingChargeId: string | null
+  externalReference: string | null
+}
+
+export interface EvaluateLateCheckoutResponse {
+  reservationId: string
+  reservationRoomId: string
+  roomId: string | null
+  roomNumber: string | null
+  roomTypeId: string
+  roomTypeName: string | null
+  ratePlanCode: string | null
+  currency: string | null
+  scheduledCheckoutDateTime: string
+  actualCheckoutDateTime: string
+  lateCheckoutBand: string | null
+  percentage: number
+  nightlyRateBeforeTax: number
+  taxAmount: number
+  chargeBeforeTax: number
+  chargeAfterTax: number
+  existingOutstandingBalance: number
+  estimatedRemainingBalanceAfterPosting: number
+  isAllowed: boolean
+  requiresManualApproval: boolean
+  policyId: number | null
+  policyCode: string | null
+  policyName: string | null
+  breakdown: LateCheckoutChargeBreakdown[] | null
+  warnings: string[] | null
+  pricingSource: string | null
+  bookedNightlyRate: number | null
+  dynamicNightlyRate: number | null
+  occupancyAdults: number
+  occupancyChildren: number
+  occupancyChildAges: number[] | null
+  rateWarnings: string[] | null
+}
+
+export interface CompleteLateCheckoutRequest {
+  actualCheckoutDateTime: string
+  reason?: string | null
+  forceManualApprovalOverride: boolean
+  manualChargeAmount?: number
+  externalReference?: string | null
+}
+
+export interface EvaluateExtendStayRequest {
+  reservationId: string
+  newCheckoutDate: string
+  evaluationDateTime: string
+  useCurrentRatePlan: boolean
+  manualNightlyRate: number
+  forceManualApprovalOverride: boolean
+}
+
+export interface ExtendStayNightlyBreakdown {
+  date: string
+  roomTypeId: string
+  roomTypeName: string | null
+  ratePlanCode: string | null
+  adults: number
+  children: number
+  baseRoomAmount: number
+  taxAmount: number
+  roomAmountAfterTax: number
+  mealPlanAmount: number
+  recurringServiceAmount: number
+  nightTotal: number
+  isRoomTypeAvailable: boolean
+  isAssignedRoomAvailable: boolean
+  warnings: string[] | null
+}
+
+export interface ExtendStayMealPlanBreakdown {
+  mealPlanId: string
+  mealPlanCode: string | null
+  mealPlanName: string | null
+  pricingMode: string | null
+  addedDays: number
+  unitPrice: number
+  addedAmount: number
+}
+
+export type ExtendStayUnavailableDate = Record<string, unknown>
+
+export interface EvaluateExtendStayResponse {
+  reservationId: string
+  reservationRoomId: string
+  currentCheckoutDate: string
+  newCheckoutDate: string
+  additionalNights: number
+  isAllowed: boolean
+  requiresManualApproval: boolean
+  policyId: number | null
+  policyCode: string | null
+  policyName: string | null
+  policyType: string | null
+  calculationBase: number
+  calculationBaseSource: string | null
+  pricingSource: string | null
+  roomTypeId: string
+  roomTypeName: string | null
+  assignedRoomId: string | null
+  assignedRoomNumber: string | null
+  ratePlanCode: string | null
+  currency: string | null
+  additionalRoomAmountBeforeTax: number
+  additionalRoomTaxAmount: number
+  additionalRoomAmountAfterTax: number
+  additionalMealPlanAmount: number
+  additionalRecurringServicesAmount: number
+  additionalGrandTotal: number
+  requiresMealPlanConfirmation: boolean
+  nightlyBreakdown: ExtendStayNightlyBreakdown[] | null
+  mealPlanBreakdown: ExtendStayMealPlanBreakdown[] | null
+  unavailableDates: ExtendStayUnavailableDate[] | null
+  warnings: string[] | null
+}
+
+export interface ExecuteExtendStayRequest {
+  newCheckoutDate: string
+  reason: string
+  useCurrentRatePlan: boolean
+  manualNightlyRate: number
+  externalReference?: string | null
+  forceManualApprovalOverride: boolean
+}
+
+export interface ExecuteExtendStayResponse {
+  reservationId: string
+  oldCheckoutDate: string
+  newCheckoutDate: string
+  additionalNights: number
+  additionalCharge: number
+  remainingBalance: number
+  paymentStatus: string | null
+  chargeIds: string[] | null
+  warnings: string[] | null
+}
+
+export type RoomChangeType = 'OperationalMove' | 'Upgrade' | 'Downgrade'
+
+export interface EvaluateRoomChangeRequest {
+  reservationRoomId: string
+  newRoomId: string
+  changeType: RoomChangeType
+  effectiveDate?: string | null
+  evaluationDateTime?: string | null
+  forceManualApprovalOverride: boolean
+}
+
+export interface RoomChangeNightlyBreakdown {
+  date: string
+  oldNightRateBeforeTax: number
+  oldTax: number
+  oldNightRateAfterTax: number
+  newNightRateBeforeTax: number
+  newTax: number
+  newNightRateAfterTax: number
+  difference: number
+}
+
+export interface EvaluateRoomChangeResponse {
+  reservationId: string
+  reservationRoomId: string
+  currentRoomId: string | null
+  currentRoomNumber: string | null
+  currentRoomTypeId: string | null
+  currentRoomTypeName: string | null
+  newRoomId: string
+  newRoomNumber: string | null
+  newRoomTypeId: string | null
+  newRoomTypeName: string | null
+  changeType: RoomChangeType | string
+  effectiveDate: string | null
+  checkoutDate: string | null
+  remainingNights: number
+  ratePlanCode: string | null
+  currency: string | null
+  oldStayAmount: number
+  newStayAmount: number
+  rateDifference: number
+  upgradeChargeAmount: number
+  downgradeCreditAmount: number
+  netPaidAmount: number
+  estimatedRemainingBalanceAfterAdjustment: number
+  maximumRefundableAmount: number
+  suggestedRefundAmount: number
+  isAllowed: boolean
+  requiresManualApproval: boolean
+  policyId: number | null
+  policyCode: string | null
+  policyName: string | null
+  unavailableDates: string[] | null
+  nightlyBreakdown: RoomChangeNightlyBreakdown[] | null
+  warnings: string[] | null
+}
+
+export interface ChangeRoomRequest {
+  newRoomId: string
+  changeType?: string | null
+  reason?: string | null
+  effectiveDate?: string | null
+  forceManualApprovalOverride: boolean
+  processRefund: boolean
+  manualChargeAmount?: number | null
+  manualRefundAmount?: number | null
+  externalReference?: string | null
+  refundPaymentMethod?: string | null
+  refundReference?: string | null
+  originalPaymentId?: string | null
+  refundExternalReference?: string | null
+}
+
+export interface ChangeRoomResponse {
+  quote: EvaluateRoomChangeResponse | null
+  creditChargeId: string | null
+  reservationId: string
+  reservationRoomId: string
+  oldRoomId: string | null
+  newRoomId: string
+  oldRoomNumber: string | null
+  newRoomNumber: string | null
+  oldRoomTypeId: string | null
+  newRoomTypeId: string | null
+  changeType: string | null
+  chargeAmount: number
+  refundAmount: number
+  refundProcessed: boolean
+  refundId: string | null
+  refundStatus: string | null
+  chargeId: string | null
+  remainingBalance: number
+  paymentStatus: string | null
+  warnings: string[] | null
+}
+
+export interface CancelReservationRequest {
+  reason: string
+  cancellationDate: string
+  forceManualApprovalOverride: boolean
+  externalReference: string
+  postPenaltyToFolio: boolean
+  processRefund: boolean
+  refundPaymentMethod: string
+  refundReference: string
+  originalPaymentId: string | null
+  refundExternalReference: string
+}
+
+export interface CancelReservationResult {
+  reservationId: string
+  bookingReference: string
+  previousStatus: string
+  newStatus: string
+  isAllowed: boolean
+  requiresManualApproval: boolean
+  penaltyAmount: number
+  refundAmount: number
+  refundProcessed: boolean
+  refundId: string | null
+  refundStatus: string
+  remainingBalance: number
+  paymentStatus: string
+  penaltyChargeId: string | null
+  reason: string
+  warnings: string[]
+}

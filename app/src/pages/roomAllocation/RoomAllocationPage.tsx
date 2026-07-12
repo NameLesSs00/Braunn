@@ -5,8 +5,6 @@ import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
 import { fetchRoomAllocationReservations } from '../../features/pms/pmsSlice'
 import { routes } from '../../shared/lib/routes'
 
-import type { PmsReservation } from '../../models/PmsReservation'
-
 type AllocationStatusFilter = 'All status' | 'Allocated' | 'Not Allocated'
 type FloorFilter = 'All Floor' | '1' | '2' | '3' | '4' | '5'
 type RoomTypeFilter = 'All Types' | 'Single' | 'Double' | 'Triple' | 'Suite' | 'Deluxe'
@@ -287,7 +285,6 @@ export function RoomAllocationPage() {
           ) : (
             filteredRows.map((r, idx) => {
               const isAllocated = !!r.roomNumber
-              const allocationText = isAllocated ? 'Allocated' : 'Not Allocated'
               const nights = getDifferenceInDays(r.checkInDate, r.checkOutDate)
               return (
                 <div

@@ -339,7 +339,7 @@ export function SearchReservationModal({ open, onClose }: Props) {
 
       <ReservationDetailsPopup open={detailsOpen} onClose={closeDetails} reservationId={detailsReservationId} onOpenExtendStay={onOpenExtendStay} onPaymentSuccess={refreshReservations} />
       <ExtendStayPopup open={extendStayOpen} onClose={closeExtendStay} reservationId={extendStayReservationId} />
-      <MoveRoomPopup open={moveRoomOpen} onClose={() => { setMoveRoomOpen(false); setMoveRoomReservationId(null) }} reservationId={moveRoomReservationId} />
+      <MoveRoomPopup open={moveRoomOpen} onClose={() => { setMoveRoomOpen(false); setMoveRoomReservationId(null) }} reservationId={moveRoomReservationId} onSuccess={refreshReservations} />
     </>
   )
 }

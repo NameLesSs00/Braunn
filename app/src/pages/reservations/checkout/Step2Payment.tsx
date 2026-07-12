@@ -1,4 +1,4 @@
-import type { PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
+import type { EvaluateLateCheckoutResponse, PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
 import type { CheckoutPaymentData } from './CheckOutProcessPopup'
 import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
 import { ChevronDown } from 'lucide-react'
@@ -11,6 +11,9 @@ type Props = {
   paymentData: CheckoutPaymentData
   paymentError: string | null
   submitting: boolean
+  requiredAmount?: number
+  requiredAmountLabel?: string
+  lateCheckoutEvaluation?: EvaluateLateCheckoutResponse | null
   onNext: () => void
   onBack: () => void
   onPaymentChange: (data: Partial<CheckoutPaymentData>) => void
@@ -25,8 +28,9 @@ function calcNights(checkIn?: string, checkOut?: string) {
   return Math.max(1, diff)
 }
 
-export function Step2Payment({ reservation, details, folio, guestCount, paymentData, paymentError, submitting, onNext, onBack, onPaymentChange }: Props) {
-  const currency = folio?.currency || details?.finance?.currency || reservation.currency || 'EUR'
+export function Step2Payment({ reservation, details, folio, guestCount, paymentData, paymentError, submitting, requiredAmount, requiredAmountLabel, lateCheckoutEvaluation, onNext, onBack, onPaymentChange }: Props) {
+  const isLateCheckout = Boolean(lateCheckoutEvaluation)
+  const currency = lateCheckoutEvaluation?.currency || folio?.currency || details?.finance?.currency || reservation.currency || 'EUR'
   const nights = folio?.numberOfNights || calcNights(folio?.checkInDate || reservation.checkInDate, folio?.checkOutDate || reservation.checkOutDate)
   const roomCharge = folio?.totals?.roomChargesTotal ?? folio?.totalRoomRate ?? details?.finance?.baseRoomAmount ?? reservation.totalAmount
   const depositPaid = folio?.paidAmount ?? details?.finance?.paidAmount ?? reservation.paidAmount
@@ -38,34 +42,57 @@ export function Step2Payment({ reservation, details, folio, guestCount, paymentD
   const discounts = folio?.totalDiscounts ?? details?.finance?.discountAmount ?? 0
   const remainingBalance = folio?.remainingBalance ?? details?.finance?.remainingBalance ?? reservation.remainingAmount ?? Math.max(0, roomCharge + serviceCharges + mealCharges + packageCharges + manualCharges + tax - discounts - depositPaid)
   const grandTotal = folio?.grandTotal ?? details?.finance?.grandTotal ?? reservation.totalAmount
-  const hasBalance = remainingBalance > 0
+  const lateChargeBeforeTax = lateCheckoutEvaluation?.chargeBeforeTax ?? 0
+  const lateTax = lateCheckoutEvaluation?.taxAmount ?? 0
+  const lateChargeAfterTax = lateCheckoutEvaluation?.chargeAfterTax ?? Math.max(0, lateChargeBeforeTax + lateTax)
+  const lateOutstandingBalance = lateCheckoutEvaluation?.existingOutstandingBalance ?? 0
+  const lateGrandTotal = lateCheckoutEvaluation?.estimatedRemainingBalanceAfterPosting ?? Math.max(0, lateOutstandingBalance + lateChargeAfterTax)
+  const effectiveRemainingBalance = isLateCheckout ? lateGrandTotal : remainingBalance
+  const effectiveGrandTotal = isLateCheckout ? lateGrandTotal : grandTotal
+  const amountDue = requiredAmount ?? remainingBalance
+  const hasBalance = amountDue > 0
 
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="space-y-4">
           {/* Summary Rows */}
-          <SummaryRow label="Number of Night :" value={`${nights}`} amount={formatMoney(roomCharge, currency)} />
+          <SummaryRow label="Number of Night :" value={`${nights}`} amount={isLateCheckout ? formatMoney(lateChargeBeforeTax, currency) : formatMoney(roomCharge, currency)} />
           <SummaryRow label="Number of Guest" value={`${guestCount}`} />
-          <SummaryRow label="Room Type" value={folio?.roomTypeName || reservation.roomTypeName || '-----'} />
+          <SummaryRow label="Room Type" value={lateCheckoutEvaluation?.roomTypeName || folio?.roomTypeName || reservation.roomTypeName || '-----'} />
           
           <div className="my-4 h-px bg-slate-100" />
           
-          <SummaryRow label="Total Room Charges" amount={formatMoney(roomCharge, currency)} />
-          <SummaryRow label="Service Charges" amount={formatMoney(serviceCharges, currency)} subtext={folio?.services?.length ? `${folio.services.length} service(s)` : 'No services'} />
-          <SummaryRow label="Meal Charges" amount={formatMoney(mealCharges, currency)} subtext={folio?.mealPlans?.length ? `${folio.mealPlans.length} meal plan(s)` : 'No meal plans'} />
-          <SummaryRow label="Package Charges" amount={formatMoney(packageCharges, currency)} />
-          <SummaryRow label="Manual Charges" amount={formatMoney(manualCharges, currency)} />
-          <SummaryRow label="Taxes" amount={formatMoney(tax, currency)} />
-          <SummaryRow label="Discounts" amount={`-${formatMoney(discounts, currency)}`} amountClassName="text-emerald-500" />
-          <SummaryRow label="Amount Paid" amount={formatMoney(depositPaid, currency)} amountClassName="text-emerald-500" />
-          <SummaryRow label="Remaining Balance" amount={formatMoney(remainingBalance, currency)} amountClassName={hasBalance ? 'text-orange-600' : 'text-emerald-600'} />
+          {isLateCheckout ? (
+            <>
+              <SummaryRow label="Late Check-out Charges" amount={formatMoney(lateChargeBeforeTax, currency)} />
+              <SummaryRow label="Taxes" amount={formatMoney(lateTax, currency)} />
+              <SummaryRow label="Discounts" amount={`${lateCheckoutEvaluation?.percentage ?? 0}%`} amountClassName="text-emerald-500" />
+              <SummaryRow label="Charge After Tax" amount={formatMoney(lateChargeAfterTax, currency)} />
+              <SummaryRow label="Existing Outstanding Balance" amount={formatMoney(lateOutstandingBalance, currency)} />
+            </>
+          ) : (
+            <>
+              <SummaryRow label="Total Room Charges" amount={formatMoney(roomCharge, currency)} />
+              <SummaryRow label="Service Charges" amount={formatMoney(serviceCharges, currency)} subtext={folio?.services?.length ? `${folio.services.length} service(s)` : 'No services'} />
+              <SummaryRow label="Meal Charges" amount={formatMoney(mealCharges, currency)} subtext={folio?.mealPlans?.length ? `${folio.mealPlans.length} meal plan(s)` : 'No meal plans'} />
+              <SummaryRow label="Package Charges" amount={formatMoney(packageCharges, currency)} />
+              <SummaryRow label="Manual Charges" amount={formatMoney(manualCharges, currency)} />
+              <SummaryRow label="Taxes" amount={formatMoney(tax, currency)} />
+              <SummaryRow label="Discounts" amount={`-${formatMoney(discounts, currency)}`} amountClassName="text-emerald-500" />
+              <SummaryRow label="Amount Paid" amount={formatMoney(depositPaid, currency)} amountClassName="text-emerald-500" />
+            </>
+          )}
+          <SummaryRow label="Remaining Balance" amount={formatMoney(effectiveRemainingBalance, currency)} amountClassName={effectiveRemainingBalance > 0 ? 'text-orange-600' : 'text-emerald-600'} />
+          {requiredAmount !== undefined ? (
+            <SummaryRow label={requiredAmountLabel || 'Amount Due'} amount={formatMoney(requiredAmount, currency)} amountClassName={requiredAmount > 0 ? 'text-orange-600' : 'text-emerald-600'} />
+          ) : null}
           
           <div className="my-4 h-px bg-slate-100" />
           
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-slate-800">Grand Total:</span>
-            <span className="text-lg font-bold text-slate-800">{formatMoney(grandTotal, currency)}</span>
+            <span className="text-lg font-bold text-slate-800">{formatMoney(effectiveGrandTotal, currency)}</span>
           </div>
         </div>
       </div>
@@ -98,7 +125,7 @@ export function Step2Payment({ reservation, details, folio, guestCount, paymentD
             onChange={(e) => onPaymentChange({ amount: e.target.value })}
             disabled={!hasBalance || submitting}
           />
-          <div className="text-[11px] font-medium text-slate-400">Remaining: {formatMoney(remainingBalance, currency)}</div>
+          <div className="text-[11px] font-medium text-slate-400">Required: {formatMoney(amountDue, currency)}</div>
         </div>
 
         <div className="space-y-2">

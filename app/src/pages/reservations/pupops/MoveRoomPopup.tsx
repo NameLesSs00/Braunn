@@ -7,9 +7,10 @@ type Props = {
   open: boolean
   onClose: () => void
   reservationId: string | null
+  onSuccess?: () => void
 }
 
-export function MoveRoomPopup({ open, onClose, reservationId }: Props) {
+export function MoveRoomPopup({ open, onClose, reservationId, onSuccess }: Props) {
   const pmsReservations = useAppSelector((s) => s.pms.reservations)
   const reservationsTableRows = useAppSelector((s) => s.pms.reservationsTableRows)
   const inHouseListRows = useAppSelector((s) => s.pms.inHouseListRows)
@@ -55,6 +56,7 @@ export function MoveRoomPopup({ open, onClose, reservationId }: Props) {
       open={open}
       onClose={onClose}
       reservation={reservation}
+      onSuccess={onSuccess}
     />
   )
 }

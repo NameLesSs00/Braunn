@@ -5,7 +5,7 @@ import { fetchLostFoundCategories } from '../../../../../features/HKfeatures/los
 import { Modal } from './Modal';
 import { FiBox, FiSearch } from 'react-icons/fi';
 import { fetchHrEmployees } from '../../../../../features/HRMfeatures/employees/hrEmployeesSlice';
-import { getGuestByPhoneNumber } from '../../../../../shared/apis/guestsApi';
+import { searchGuests } from '../../../../../shared/apis/guestsApi';
 import { getRooms } from '../../../../../shared/apis/roomsApi';
 import type { Guest } from '../../../../../models/Guest';
 import type { Room } from '../../../../../models/Room';
@@ -33,7 +33,7 @@ export function AddLostFoundModal({ isOpen, onClose }: AddLostFoundModalProps) {
   // Person state
   const [employeeId, setEmployeeId] = useState('');
   
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [guestsResult, setGuestsResult] = useState<Guest[]>([]);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [isSearchingGuest, setIsSearchingGuest] = useState(false);
@@ -53,13 +53,13 @@ export function AddLostFoundModal({ isOpen, onClose }: AddLostFoundModalProps) {
   }, [isOpen, catStatus, dispatch]);
 
   const handleSearchGuest = async () => {
-    if (!phoneNumber) return;
+    if (!searchQuery) return;
     setIsSearchingGuest(true);
     setGuestSearchError('');
     setGuestsResult([]);
     setSelectedGuest(null);
     try {
-      const g = await getGuestByPhoneNumber(phoneNumber);
+      const g = await searchGuests(searchQuery);
       if (g && Array.isArray(g) && g.length > 0) {
         setGuestsResult(g);
       } else {
@@ -101,7 +101,7 @@ export function AddLostFoundModal({ isOpen, onClose }: AddLostFoundModalProps) {
     setRoomNo('');
     setNotes('');
     setEmployeeId('');
-    setPhoneNumber('');
+    setSearchQuery('');
     setGuestsResult([]);
     setSelectedGuest(null);
     setGuestSearchError('');
@@ -202,34 +202,36 @@ export function AddLostFoundModal({ isOpen, onClose }: AddLostFoundModalProps) {
             />
           </div>
           
-          <div className="flex flex-col gap-2">
-            <label className="text-[14px] font-semibold text-slate-700">Room Number</label>
-            <select 
-              value={roomNo} onChange={(e) => setRoomNo(e.target.value)}
-              className="px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] bg-white"
-            >
-              <option value="">Select Room</option>
-              {rooms.map(r => (
-                <option key={r.id} value={r.roomNumber}>{r.roomNumber}</option>
-              ))}
-            </select>
-          </div>
+          {rooms.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <label className="text-[14px] font-semibold text-slate-700">Room Number</label>
+              <select 
+                value={roomNo} onChange={(e) => setRoomNo(e.target.value)}
+                className="px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] bg-white"
+              >
+                <option value="">Select Room</option>
+                {rooms.map(r => (
+                  <option key={r.id} value={r.roomNumber}>{r.roomNumber}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             {type === 'Lost' ? (
               <>
-                <label className="text-[14px] font-semibold text-slate-700">Guest Phone Number (Reporting)</label>
+                <label className="text-[14px] font-semibold text-slate-700">Search Guest (Reporting)</label>
                 <div className="flex gap-2">
                   <input 
                     type="text" 
-                    value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="e.g., +12025550123"
+                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Name, ID, or phone..."
                     className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px]"
                   />
                   <button
                     type="button"
                     onClick={handleSearchGuest}
-                    disabled={isSearchingGuest || !phoneNumber}
+                    disabled={isSearchingGuest || !searchQuery}
                     className="px-4 py-3 rounded-xl bg-[#0a4bbd] hover:bg-blue-800 text-white font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {/* @ts-ignore */}
@@ -264,7 +266,7 @@ export function AddLostFoundModal({ isOpen, onClose }: AddLostFoundModalProps) {
                     </div>
                     <button 
                       type="button"
-                      onClick={() => { setSelectedGuest(null); setGuestsResult([]); setPhoneNumber(''); }}
+                      onClick={() => { setSelectedGuest(null); setGuestsResult([]); setSearchQuery(''); }}
                       className="text-[12px] font-bold text-emerald-700 hover:text-emerald-900 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors"
                     >
                       Clear

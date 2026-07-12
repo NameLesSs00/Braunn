@@ -37,6 +37,7 @@ import { GuestRequestsHKPage } from './pages/HKPages/guestRequests/GuestRequests
 import { FoundsAndLostHKPage } from './pages/HKPages/foundsAndLost/FoundsAndLostHKPage'
 import { InventoryHKPage } from './pages/HKPages/inventory/InventoryHKPage'
 import { SettingsHKPage } from './pages/HKPages/settings/SettingsHKPage'
+import { RoomStatusHKPage } from './pages/HKPages/roomStatus/RoomStatusHKPage'
 import { HRMLayout } from './widgets/layout/HRMLayout/HRMLayout'
 import { DashboardHRMPage } from './pages/HRMPages/dashboard/DashboardHRMPage'
 import { EmployeesHRMPage } from './pages/HRMPages/employees/EmployeesHRMPage'
@@ -96,6 +97,7 @@ export default function App() {
           <Route element={<HousekeepingLayout />}>
             <Route path="/HK" element={<Navigate to={routes.hk.dashboard} replace />} />
             <Route path={routes.hk.dashboard} element={<DashboardHKPage />} />
+            <Route path={routes.hk.roomStatus} element={<RoomStatusHKPage />} />
             <Route path={routes.hk.cleaningTasks} element={<CleaningTasksHKPage />} />
             <Route path={routes.hk.guestRequests} element={<GuestRequestsHKPage />} />
             <Route path={routes.hk.foundsAndLost} element={<FoundsAndLostHKPage />} />

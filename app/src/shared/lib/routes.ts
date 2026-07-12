@@ -35,6 +35,7 @@ export const routes = {
     foundsAndLost: '/HK/FoundsAndLost',
     inventory: '/HK/Inventory',
     settings: '/HK/Settings',
+    roomStatus: '/HK/RoomStatus',
   },
   hrm: {
     dashboard: '/HRM/Dashboard',

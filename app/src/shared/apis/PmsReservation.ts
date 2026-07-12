@@ -1,4 +1,25 @@
-import { PmsReservation, PmsReservationDetails, PmsCheckInByDate, PmsInHouseReservation, PmsReservationFolio } from '../../models/PmsReservation'
+import {
+  PmsReservation,
+  PmsReservationDetails,
+  PmsCheckInByDate,
+  PmsInHouseReservation,
+  PmsReservationFolio,
+  ReservationPolicy,
+  ReservationPolicyEvaluationResult,
+  EvaluateLateCheckoutRequest,
+  EvaluateLateCheckoutResponse,
+  CompleteLateCheckoutRequest,
+  EvaluateExtendStayRequest,
+  EvaluateExtendStayResponse,
+  ExecuteExtendStayRequest,
+  ExecuteExtendStayResponse,
+  EvaluateRoomChangeRequest,
+  EvaluateRoomChangeResponse,
+  ChangeRoomRequest,
+  ChangeRoomResponse,
+  CancelReservationRequest,
+  CancelReservationResult,
+} from '../../models/PmsReservation'
 import { apiRequest, unwrapApiResponse } from './apiClient'
 
 const basePath = 'pms/reservations'
@@ -62,6 +83,96 @@ export function createReservationPayment(id: string, payload: CreateReservationP
     body: payload,
     signal,
   }).then((r) => unwrapApiResponse<unknown>(r))
+}
+
+export function getActiveCancellationPolicies(signal?: AbortSignal) {
+  const query = new URLSearchParams({
+    policyType: 'Cancellation',
+    isActive: 'true',
+  }).toString()
+
+  return apiRequest<ReservationPolicy[]>({
+    method: 'GET',
+    path: `admin/reservation-policies?${query}`,
+    signal,
+  }).then((r) => unwrapApiResponse<ReservationPolicy[]>(r))
+}
+
+export interface CancellationEvaluationRequest {
+  reservationId: string
+  evaluationDateTime: string
+}
+
+export function evaluateCancellationPolicy(payload: CancellationEvaluationRequest, signal?: AbortSignal) {
+  return apiRequest<ReservationPolicyEvaluationResult>({
+    method: 'POST',
+    path: 'reservation-policies/evaluate/cancellation',
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<ReservationPolicyEvaluationResult>(r))
+}
+
+export function evaluateLateCheckout(payload: EvaluateLateCheckoutRequest, signal?: AbortSignal) {
+  return apiRequest<EvaluateLateCheckoutResponse>({
+    method: 'POST',
+    path: 'reservation-policies/evaluate/late-checkout',
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<EvaluateLateCheckoutResponse>(r))
+}
+
+export function completeLateCheckout(reservationRoomId: string, payload: CompleteLateCheckoutRequest, signal?: AbortSignal) {
+  return apiRequest<unknown>({
+    method: 'POST',
+    path: `reservations/${reservationRoomId}/late-checkout`,
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<unknown>(r))
+}
+
+export function evaluateExtendStay(payload: EvaluateExtendStayRequest, signal?: AbortSignal) {
+  return apiRequest<EvaluateExtendStayResponse>({
+    method: 'POST',
+    path: 'reservation-policies/evaluate/extend-stay',
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<EvaluateExtendStayResponse>(r))
+}
+
+export function executeExtendStay(reservationId: string, payload: ExecuteExtendStayRequest, signal?: AbortSignal) {
+  return apiRequest<ExecuteExtendStayResponse>({
+    method: 'POST',
+    path: `reservations/${reservationId}/extend-stay`,
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<ExecuteExtendStayResponse>(r))
+}
+
+export function evaluateRoomChange(payload: EvaluateRoomChangeRequest, signal?: AbortSignal) {
+  return apiRequest<EvaluateRoomChangeResponse>({
+    method: 'POST',
+    path: 'reservation-policies/evaluate/room-change',
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<EvaluateRoomChangeResponse>(r))
+}
+
+export function changeReservationRoom(reservationRoomId: string, payload: ChangeRoomRequest, signal?: AbortSignal) {
+  return apiRequest<ChangeRoomResponse>({
+    method: 'POST',
+    path: `reservations/${reservationRoomId}/change-room`,
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<ChangeRoomResponse>(r))
+}
+
+export function cancelPmsReservation(id: string, payload: CancelReservationRequest, signal?: AbortSignal) {
+  return apiRequest<CancelReservationResult>({
+    method: 'POST',
+    path: `reservations/${id}/cancel`,
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<CancelReservationResult>(r))
 }
 
 export interface CheckOutPmsReservationParams {

@@ -74,6 +74,15 @@ function ReservationStatusBadge({ status }: { status: string }) {
   )
 }
 
+function normalizeStatus(value?: string | null) {
+  return (value || '').replace(/[\s_-]/g, '').toLowerCase()
+}
+
+function isPaidStatus(value?: string | null) {
+  const normalized = normalizeStatus(value)
+  return normalized === 'paid' || normalized === 'fullypaid'
+}
+
 export function ReservationDetailsPopup({
   open,
   onClose,
@@ -121,6 +130,9 @@ export function ReservationDetailsPopup({
   })
 
   const currentShift = useAppSelector((s) => s.shift.currentShift)
+
+  const currentResStatus = normalizeStatus(folio?.reservationStatus || reservationStatus)
+  const canAddService = currentResStatus !== 'cancelled' && currentResStatus !== 'canceled' && currentResStatus !== 'checkedout' && currentResStatus !== 'completed'
 
   const loadReservationDetails = useCallback(async (id: string, signal?: AbortSignal) => {
     const [folioRes, servicesRes] = await Promise.all([
@@ -627,8 +639,9 @@ export function ReservationDetailsPopup({
               )}
 
               {/* ── Add Service (Post Charge) ── */}
-              <div className="rounded-xl border border-[#0B4EA2] bg-blue-50/30 p-5">
-                <div className="flex items-center justify-between">
+              {canAddService && (
+                <div className="rounded-xl border border-[#0B4EA2] bg-blue-50/30 p-5">
+                  <div className="flex items-center justify-between">
                   <div>
                     <div className="text-base font-bold text-[#0B4EA2]">Post a Charge (Add Service)</div>
                     <div className="mt-1 text-sm text-slate-600">Add an additional service to this reservation's folio</div>
@@ -881,10 +894,11 @@ export function ReservationDetailsPopup({
                       >
                         {isPostingCharge ? 'Posting...' : 'Post Charge'}
                       </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* ── Financial Summary ── */}
               <Step4Card title="Financial Summary" titleIconBgClassName="bg-emerald-100">

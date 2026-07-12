@@ -3,6 +3,7 @@ import { routes } from '../../../shared/lib/routes'
 import { IoHomeOutline, IoSettingsOutline } from 'react-icons/io5'
 import { MdOutlineCleaningServices } from 'react-icons/md'
 import { FiFileText, FiArchive, FiBox } from 'react-icons/fi'
+import { BsBuilding } from 'react-icons/bs'
 import type { IconType } from 'react-icons'
 
 type NavItem = {
@@ -13,6 +14,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { to: routes.hk.dashboard, label: 'Overview', icon: IoHomeOutline },
+  { to: routes.hk.roomStatus, label: 'Room Status', icon: BsBuilding },
   { to: routes.hk.cleaningTasks, label: 'Cleaning Tasks', icon: MdOutlineCleaningServices },
   { to: routes.hk.guestRequests, label: 'Guest Requests', icon: FiFileText },
   { to: routes.hk.foundsAndLost, label: 'Founds&lost', icon: FiArchive },

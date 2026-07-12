@@ -6,7 +6,7 @@ import type { LostAndFoundReadDto } from '../../../../../models/HKmodels/LostAnd
 import { FiClock, FiBox, FiCheck, FiSearch } from 'react-icons/fi';
 import { useAppSelector } from '../../../../../store/hooks';
 import { fetchHrEmployees } from '../../../../../features/HRMfeatures/employees/hrEmployeesSlice';
-import { getGuestByPhoneNumber } from '../../../../../shared/apis/guestsApi';
+import { searchGuests } from '../../../../../shared/apis/guestsApi';
 import type { Guest } from '../../../../../models/Guest';
 import { useEffect } from 'react';
 
@@ -22,7 +22,7 @@ export function ItemDetailsModal({ isOpen, onClose, item }: ItemDetailsModalProp
   const [claimId, setClaimId] = useState('');
   
   // Guest search state for Found items
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [guestsResult, setGuestsResult] = useState<Guest[]>([]);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [isSearchingGuest, setIsSearchingGuest] = useState(false);
@@ -38,14 +38,14 @@ export function ItemDetailsModal({ isOpen, onClose, item }: ItemDetailsModalProp
   }, [isOpen, showClaimInput, item, dispatch]);
 
   const handleSearchGuest = async () => {
-    if (!phoneNumber) return;
+    if (!searchQuery) return;
     setIsSearchingGuest(true);
     setGuestSearchError('');
     setGuestsResult([]);
     setSelectedGuest(null);
     setClaimId('');
     try {
-      const g = await getGuestByPhoneNumber(phoneNumber);
+      const g = await searchGuests(searchQuery);
       if (g && Array.isArray(g) && g.length > 0) {
         setGuestsResult(g);
       } else {
@@ -198,19 +198,19 @@ export function ItemDetailsModal({ isOpen, onClose, item }: ItemDetailsModalProp
                   </>
                 ) : (
                   <>
-                    <label className="text-[13px] font-bold text-emerald-800">Guest Phone Number (who claimed it)</label>
+                    <label className="text-[13px] font-bold text-emerald-800">Search Guest (who claimed it)</label>
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
                         <input 
                           type="text" 
-                          value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)}
-                          placeholder="e.g., +12025550123"
+                          value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Name, ID, or phone..."
                           className="flex-1 px-4 py-2.5 rounded-xl border border-emerald-200 focus:outline-none focus:border-emerald-500"
                         />
                         <button
                           type="button"
                           onClick={handleSearchGuest}
-                          disabled={isSearchingGuest || !phoneNumber}
+                          disabled={isSearchingGuest || !searchQuery}
                           className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
                         >
                           {/* @ts-ignore */}
@@ -255,7 +255,7 @@ export function ItemDetailsModal({ isOpen, onClose, item }: ItemDetailsModalProp
                               setShowClaimInput(false);
                               setSelectedGuest(null);
                               setGuestsResult([]);
-                              setPhoneNumber('');
+                              setSearchQuery('');
                               setClaimId('');
                             }}
                             className="px-4 py-2 rounded-xl border border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-50"

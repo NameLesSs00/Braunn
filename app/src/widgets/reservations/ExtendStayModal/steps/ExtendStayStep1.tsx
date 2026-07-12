@@ -68,6 +68,19 @@ function daysBetween(start: Date | null, end: Date | null) {
   return Math.max(0, diff)
 }
 
+function openDatePicker(input: HTMLInputElement | null) {
+  if (!input) return
+  try {
+    if (typeof input.showPicker === 'function') {
+      input.showPicker()
+      return
+    }
+  } catch {
+    // Chrome can reject showPicker when user activation is lost; focus is the safe fallback.
+  }
+  input.focus()
+}
+
 
 
 export function ExtendStayStep1({ value, newCheckOutIso, onChangeNewCheckOutIso, onCancel, onConfirm }: Props) {
@@ -106,7 +119,7 @@ export function ExtendStayStep1({ value, newCheckOutIso, onChangeNewCheckOutIso,
         <button
           type="button"
           className="mt-4 flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm text-slate-700"
-          onClick={() => dateInputRef.current?.showPicker?.() ?? dateInputRef.current?.click()}
+          onClick={() => openDatePicker(dateInputRef.current)}
         >
           <span className="inline-flex items-center gap-3 text-slate-400">
             <Calendar className="h-5 w-5 text-slate-400" />

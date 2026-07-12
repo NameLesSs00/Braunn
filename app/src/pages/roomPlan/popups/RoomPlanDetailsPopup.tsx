@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import { Modal } from '../../../shared/ui/Modal'
 import { CheckInProcessPopup } from '../../reservations/pupops/CheckInProcessPopup'
-import { CheckOutProcessPopup } from '../../reservations/checkout/CheckOutProcessPopup'
+import { CheckOutProcessPopup, type CheckoutMode } from '../../reservations/checkout/CheckOutProcessPopup'
 
 import type { RoomPlanBlock, RoomPlanRoom } from '../roomPlanMock'
 import type { PmsReservation } from '../../../models/PmsReservation'
@@ -60,13 +60,18 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
   const [checkInReservationId, setCheckInReservationId] = useState<string | null>(null)
   const [checkOutOpen, setCheckOutOpen] = useState(false)
   const [checkOutReservation, setCheckOutReservation] = useState<PmsReservation | null>(null)
+  const [checkOutMode, setCheckOutMode] = useState<CheckoutMode>('regular')
 
   const checkoutDate = block?.checkOutDate ?? block?.end ?? ''
-  const isCheckoutDue = Boolean(checkoutDate) && checkoutDate <= localIsoDate()
+  const today = localIsoDate()
+  const isCheckoutDueToday = Boolean(checkoutDate) && checkoutDate === today
+  const isLateCheckout = Boolean(checkoutDate) && checkoutDate < today
   const primaryText =
     mode === 'check_out'
-      ? isCheckoutDue
-        ? 'Check-Out'
+      ? isLateCheckout
+        ? 'Late Check-out'
+        : isCheckoutDueToday
+          ? 'Check-Out'
         : 'Early Check-out'
       : 'Check-in'
   const primaryBtnClassName =
@@ -230,6 +235,7 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
                   setCheckInOpen(true)
                 } else {
                   setCheckOutReservation(checkoutReservation)
+                  setCheckOutMode(isLateCheckout ? 'late' : isCheckoutDueToday ? 'regular' : 'early')
                   onClose()
                   setCheckOutOpen(true)
                 }
@@ -258,8 +264,10 @@ export function RoomPlanDetailsPopup({ open, onClose, onViewReservation, room, b
         onClose={() => {
           setCheckOutOpen(false)
           setCheckOutReservation(null)
+          setCheckOutMode('regular')
         }}
         reservation={checkOutReservation}
+        mode={checkOutMode}
         onSuccess={onRefresh}
       />
 
