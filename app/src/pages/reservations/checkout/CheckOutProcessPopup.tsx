@@ -4,12 +4,15 @@ import { Step1Verification } from './Step1Verification'
 import { Step2Payment } from './Step2Payment'
 import { Step3Confirm } from './Step3Confirm'
 import { LateCheckoutEvaluationStep } from './LateCheckoutEvaluationStep'
-import type { EvaluateLateCheckoutResponse, PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
+import { EarlyCheckoutEvaluationStep } from './EarlyCheckoutEvaluationStep'
+import type { EvaluateEarlyCheckoutResponse, EvaluateLateCheckoutResponse, PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
 import { CheckCircle2 } from 'lucide-react'
 import {
   checkOutReservationRoom,
+  completeEarlyCheckout,
   completeLateCheckout,
   createReservationPayment,
+  evaluateEarlyCheckout,
   evaluateLateCheckout,
   getPmsReservationById,
   getPmsReservationFolio,
@@ -48,6 +51,11 @@ function lateCheckoutPaymentAmount(evaluation: EvaluateLateCheckoutResponse | nu
   return Math.max(0, evaluation.estimatedRemainingBalanceAfterPosting ?? evaluation.chargeAfterTax ?? 0)
 }
 
+function earlyCheckoutPaymentAmount(evaluation: EvaluateEarlyCheckoutResponse | null) {
+  if (!evaluation) return 0
+  return Math.max(0, Number(evaluation.estimatedRemainingBalanceAfterCredit) || 0)
+}
+
 function defaultPaymentReference(reservation: PmsReservation) {
   return `pay for ${reservation.guestName || 'guest'}`
 }
@@ -72,9 +80,12 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
   const [isCompletingCheckout, setIsCompletingCheckout] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [lateCheckoutEvaluation, setLateCheckoutEvaluation] = useState<EvaluateLateCheckoutResponse | null>(null)
+  const [earlyCheckoutEvaluation, setEarlyCheckoutEvaluation] = useState<EvaluateEarlyCheckoutResponse | null>(null)
   const [lateCheckoutError, setLateCheckoutError] = useState<string | null>(null)
+  const [earlyCheckoutError, setEarlyCheckoutError] = useState<string | null>(null)
 
   const isLateCheckout = mode === 'late'
+  const isEarlyCheckout = mode === 'early'
 
   const loadCheckoutData = async (reservationId: string, signal?: AbortSignal) => {
     const [detailsRes, folioRes] = await Promise.all([
@@ -97,41 +108,64 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
     setDetails(null)
     setFolio(null)
     setLateCheckoutEvaluation(null)
+    setEarlyCheckoutEvaluation(null)
     setLateCheckoutError(null)
+    setEarlyCheckoutError(null)
     setLoading(true)
 
     void loadCheckoutData(reservation.id, controller.signal)
       .then(async ({ details, folio }) => {
-        if (isLateCheckout) {
+        if (isLateCheckout || isEarlyCheckout) {
           const reservationRoomId = resolveReservationRoomId(details, folio)
           if (!reservationRoomId) {
-            setLateCheckoutError('No reservation room ID found for late check-out.')
+            if (isLateCheckout) {
+              setLateCheckoutError('No reservation room ID found for late check-out.')
+            } else {
+              setEarlyCheckoutError('No reservation room ID found for early check-out.')
+            }
             return
           }
 
           const now = new Date().toISOString()
           try {
-            const evaluation = await evaluateLateCheckout({
-              reservationRoomId,
-              actualCheckoutDateTime: now,
-              evaluationDateTime: now,
-              forceManualApprovalOverride: true,
-            }, controller.signal)
+            const evaluation = isLateCheckout
+              ? await evaluateLateCheckout({
+                reservationRoomId,
+                actualCheckoutDateTime: now,
+                evaluationDateTime: now,
+                forceManualApprovalOverride: true,
+              }, controller.signal)
+              : await evaluateEarlyCheckout({
+                reservationRoomId,
+                actualCheckoutDateTime: now,
+                evaluationDateTime: now,
+                forceManualApprovalOverride: true,
+              }, controller.signal)
 
-            setLateCheckoutEvaluation(evaluation)
-            const amountDue = lateCheckoutPaymentAmount(evaluation)
+            const amountDue = isLateCheckout
+              ? lateCheckoutPaymentAmount(evaluation as EvaluateLateCheckoutResponse)
+              : earlyCheckoutPaymentAmount(evaluation as EvaluateEarlyCheckoutResponse)
+            if (isLateCheckout) {
+              setLateCheckoutEvaluation(evaluation as EvaluateLateCheckoutResponse)
+            } else {
+              setEarlyCheckoutEvaluation(evaluation as EvaluateEarlyCheckoutResponse)
+            }
             setPaymentData({
               amount: String(amountDue),
               currency: evaluation.currency || folio.currency || 'EUR',
               paymentMethod: 'Cash',
-              paymentReference: defaultPaymentReference(reservation),
+              paymentReference: isLateCheckout ? defaultPaymentReference(reservation) : '',
               paymentDate: new Date().toISOString().substring(0, 16),
               paymentType: 'Payment',
               method: 'Cash',
             })
           } catch (e: unknown) {
             if (!controller.signal.aborted) {
-              setLateCheckoutError(e instanceof Error ? e.message : 'Failed to evaluate late check-out.')
+              if (isLateCheckout) {
+                setLateCheckoutError(e instanceof Error ? e.message : 'Failed to evaluate late check-out.')
+              } else {
+                setEarlyCheckoutError(e instanceof Error ? e.message : 'Failed to evaluate early check-out.')
+              }
             }
           }
           return
@@ -156,12 +190,13 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
       })
 
     return () => controller.abort()
-  }, [open, reservation?.id, isLateCheckout])
+  }, [open, reservation?.id, isLateCheckout, isEarlyCheckout])
 
   const remainingBalance = folio?.remainingBalance ?? reservation?.remainingAmount ?? 0
   const lateCheckoutAmountDue = lateCheckoutPaymentAmount(lateCheckoutEvaluation)
-  const requiredPaymentAmount = isLateCheckout ? lateCheckoutAmountDue : remainingBalance
-  const currency = lateCheckoutEvaluation?.currency || folio?.currency || details?.finance?.currency || reservation?.currency || 'EUR'
+  const earlyCheckoutAmountDue = earlyCheckoutPaymentAmount(earlyCheckoutEvaluation)
+  const requiredPaymentAmount = isLateCheckout ? lateCheckoutAmountDue : isEarlyCheckout ? earlyCheckoutAmountDue : remainingBalance
+  const currency = lateCheckoutEvaluation?.currency || earlyCheckoutEvaluation?.currency || folio?.currency || details?.finance?.currency || reservation?.currency || 'EUR'
 
   const guestCount = useMemo(() => {
     if (!details) return 1
@@ -191,7 +226,7 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
     }
 
     if (amount < requiredPaymentAmount) {
-      setPaymentError(isLateCheckout ? 'Payment amount must cover the late check-out amount before continuing.' : 'Payment amount must cover the remaining balance before check-out.')
+      setPaymentError(isLateCheckout ? 'Payment amount must cover the late check-out amount before continuing.' : isEarlyCheckout ? 'Payment amount must cover the early check-out balance before continuing.' : 'Payment amount must cover the remaining balance before check-out.')
       return
     }
 
@@ -222,7 +257,7 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
   const completeCheckout = async () => {
     if (!reservation) return
     if (!reservationRoomId) {
-      setPaymentError(isLateCheckout ? 'No reservation room ID found for late check-out.' : 'No reservation room ID found for check-out.')
+      setPaymentError(isLateCheckout ? 'No reservation room ID found for late check-out.' : isEarlyCheckout ? 'No reservation room ID found for early check-out.' : 'No reservation room ID found for check-out.')
       setStep(2)
       return
     }
@@ -235,6 +270,21 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
           reason: 'Late check-out completed from PMS',
           forceManualApprovalOverride: true,
         })
+      } else if (isEarlyCheckout) {
+        const suggestedRefundAmount = Math.max(0, earlyCheckoutEvaluation?.suggestedRefundAmount ?? 0)
+        await completeEarlyCheckout(reservationRoomId, {
+          actualCheckoutDate: new Date().toISOString(),
+          reason: 'Early check-out completed from PMS',
+          forceManualApprovalOverride: true,
+          processRefund: suggestedRefundAmount > 0,
+          manualPenaltyAmount: 0,
+          manualRefundAmount: suggestedRefundAmount,
+          externalReference: null,
+          refundPaymentMethod: suggestedRefundAmount > 0 ? paymentData.paymentMethod : null,
+          refundReference: suggestedRefundAmount > 0 ? paymentData.paymentReference || '' : null,
+          originalPaymentId: suggestedRefundAmount > 0 ? folio?.payments?.[0]?.paymentId || null : null,
+          refundExternalReference: null,
+        })
       } else {
         await checkOutReservationRoom(reservationRoomId, {
           notes: '',
@@ -244,7 +294,7 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
       await loadCheckoutData(reservation.id).catch(() => undefined)
       setShowSuccess(true)
     } catch (e: unknown) {
-      setPaymentError(e instanceof Error ? e.message : isLateCheckout ? 'Failed to complete late check-out.' : 'Failed to complete check-out.')
+      setPaymentError(e instanceof Error ? e.message : isLateCheckout ? 'Failed to complete late check-out.' : isEarlyCheckout ? 'Failed to complete early check-out.' : 'Failed to complete check-out.')
       setStep(2)
     } finally {
       setIsCompletingCheckout(false)
@@ -261,10 +311,12 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
 
   if (!reservation) return null
 
-  const headerTitle = isLateCheckout ? 'Late Check-Out' : mode === 'early' ? 'Early Check-Out' : 'Guest Check-Out'
-  const successTitle = isLateCheckout ? 'Late Check-Out Complete!' : 'Check-Out Complete!'
+  const headerTitle = isLateCheckout ? 'Late Check-Out' : isEarlyCheckout ? 'Early Check-Out' : 'Guest Check-Out'
+  const successTitle = isLateCheckout ? 'Late Check-Out Complete!' : isEarlyCheckout ? 'Early Check-Out Complete!' : 'Check-Out Complete!'
   const successBody = isLateCheckout
     ? `Guest ${reservation.guestName} has been successfully checked out.`
+    : isEarlyCheckout
+      ? `Guest ${reservation.guestName} has been successfully checked out early.`
     : `Guest ${reservation.guestName} has been successfully checked out.`
 
   return (
@@ -294,7 +346,7 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
         {/* Stepper */}
         <div className="px-8 py-8">
           <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-10">
-            <StepIcon active={step === 1} completed={step > 1} label={isLateCheckout ? 'Evaluation' : 'Verification'} icon="user" />
+            <StepIcon active={step === 1} completed={step > 1} label={isLateCheckout || isEarlyCheckout ? 'Evaluation' : 'Verification'} icon="user" />
             <div className={["h-[2px] flex-1 mx-4 transition-colors duration-500", step > 1 ? "bg-emerald-500" : "bg-slate-100"].join(' ')} />
             <StepIcon active={step === 2} completed={step > 2} label="Payment" icon="credit-card" />
             <div className={["h-[2px] flex-1 mx-4 transition-colors duration-500", step > 2 ? "bg-emerald-500" : "bg-slate-100"].join(' ')} />
@@ -319,6 +371,14 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
                 onNext={handleNext}
                 onBack={handleBack}
               />
+            ) : isEarlyCheckout ? (
+              <EarlyCheckoutEvaluationStep
+                evaluation={earlyCheckoutEvaluation}
+                loading={false}
+                error={earlyCheckoutError}
+                onNext={handleNext}
+                onBack={handleBack}
+              />
             ) : (
               <Step1Verification
                 reservation={reservation}
@@ -339,9 +399,10 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
               paymentData={paymentData}
               paymentError={paymentError}
               submitting={isSubmittingPayment}
-              requiredAmount={isLateCheckout ? requiredPaymentAmount : undefined}
-              requiredAmountLabel={isLateCheckout ? 'Late Check-out Amount Due' : undefined}
+              requiredAmount={isLateCheckout || isEarlyCheckout ? requiredPaymentAmount : undefined}
+              requiredAmountLabel={isLateCheckout ? 'Late Check-out Amount Due' : isEarlyCheckout ? 'Early Check-out Balance Due' : undefined}
               lateCheckoutEvaluation={isLateCheckout ? lateCheckoutEvaluation : null}
+              earlyCheckoutEvaluation={isEarlyCheckout ? earlyCheckoutEvaluation : null}
               onNext={submitPaymentAndContinue} 
               onBack={handleBack} 
               onPaymentChange={(data) => setPaymentData(prev => ({ ...prev, ...data }))}
@@ -355,10 +416,11 @@ export function CheckOutProcessPopup({ open, onClose, reservation, onSuccess, mo
               guestCount={guestCount}
               paymentData={paymentData}
               completing={isCompletingCheckout}
-              requiredAmount={isLateCheckout ? requiredPaymentAmount : undefined}
-              requiredAmountLabel={isLateCheckout ? 'Late Check-out Amount Due' : undefined}
-              completionLabel={isLateCheckout ? 'Complete Late Check-Out' : undefined}
+              requiredAmount={isLateCheckout || isEarlyCheckout ? requiredPaymentAmount : undefined}
+              requiredAmountLabel={isLateCheckout ? 'Late Check-out Amount Due' : isEarlyCheckout ? 'Early Check-out Balance Due' : undefined}
+              completionLabel={isLateCheckout ? 'Complete Late Check-Out' : isEarlyCheckout ? 'Complete Early Check-Out' : undefined}
               lateCheckoutEvaluation={isLateCheckout ? lateCheckoutEvaluation : null}
+              earlyCheckoutEvaluation={isEarlyCheckout ? earlyCheckoutEvaluation : null}
               onNext={completeCheckout} 
               onBack={handleBack} 
             />

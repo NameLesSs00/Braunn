@@ -354,7 +354,6 @@ export function GroupReservationDetailsPage() {
               const isCheckInToday = reservation?.checkInDate?.startsWith(today) ?? false
               const canShowCheckIn =
                 Boolean(reservationId) &&
-                (isCheckInToday || normalizedReservationStatus === 'reserved') &&
                 normalizedReservationStatus !== 'checkedin' &&
                 normalizedReservationStatus !== 'checkedout' &&
                 !isCancelledStatus
@@ -366,8 +365,13 @@ export function GroupReservationDetailsPage() {
                 normalizedReservationStatus === 'checkedin' &&
                 Boolean(reservation?.checkOutDate) &&
                 reservation?.checkOutDate.slice(0, 10) < today
+              const isEarlyCheckOut =
+                Boolean(reservation?.checkOutDate) &&
+                reservation?.checkOutDate.slice(0, 10) > today &&
+                normalizedReservationStatus !== 'checkedout' &&
+                !isCancelledStatus
               const canCancelReservation = Boolean(reservationId) && !isCancelledStatus
-              const canEarlyCheckOut = Boolean(reservationId) && normalizedReservationStatus === 'checkedin' && !isCheckOutDue && !isLateCheckOut
+              const canEarlyCheckOut = Boolean(reservationId) && isEarlyCheckOut
               const canMoveRoom = Boolean(reservationId) && !isCancelledStatus
               const canExtendStay = Boolean(reservationId) && !isCancelledStatus && normalizedReservationStatus !== 'checkedout'
               const hasMoreActions = canCancelReservation || canEarlyCheckOut || canMoveRoom || canExtendStay

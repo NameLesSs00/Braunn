@@ -9,6 +9,9 @@ import {
   EvaluateLateCheckoutRequest,
   EvaluateLateCheckoutResponse,
   CompleteLateCheckoutRequest,
+  EvaluateEarlyCheckoutRequest,
+  EvaluateEarlyCheckoutResponse,
+  CompleteEarlyCheckoutRequest,
   EvaluateExtendStayRequest,
   EvaluateExtendStayResponse,
   ExecuteExtendStayRequest,
@@ -125,6 +128,24 @@ export function completeLateCheckout(reservationRoomId: string, payload: Complet
   return apiRequest<unknown>({
     method: 'POST',
     path: `reservations/${reservationRoomId}/late-checkout`,
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<unknown>(r))
+}
+
+export function evaluateEarlyCheckout(payload: EvaluateEarlyCheckoutRequest, signal?: AbortSignal) {
+  return apiRequest<EvaluateEarlyCheckoutResponse>({
+    method: 'POST',
+    path: 'reservation-policies/evaluate/early-checkout',
+    body: payload,
+    signal,
+  }).then((r) => unwrapApiResponse<EvaluateEarlyCheckoutResponse>(r))
+}
+
+export function completeEarlyCheckout(reservationRoomId: string, payload: CompleteEarlyCheckoutRequest, signal?: AbortSignal) {
+  return apiRequest<unknown>({
+    method: 'POST',
+    path: `reservations/${reservationRoomId}/early-checkout`,
     body: payload,
     signal,
   }).then((r) => unwrapApiResponse<unknown>(r))

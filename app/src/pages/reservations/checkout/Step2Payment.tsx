@@ -1,4 +1,4 @@
-import type { EvaluateLateCheckoutResponse, PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
+import type { EvaluateEarlyCheckoutResponse, EvaluateLateCheckoutResponse, PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
 import type { CheckoutPaymentData } from './CheckOutProcessPopup'
 import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
 import { ChevronDown } from 'lucide-react'
@@ -14,6 +14,7 @@ type Props = {
   requiredAmount?: number
   requiredAmountLabel?: string
   lateCheckoutEvaluation?: EvaluateLateCheckoutResponse | null
+  earlyCheckoutEvaluation?: EvaluateEarlyCheckoutResponse | null
   onNext: () => void
   onBack: () => void
   onPaymentChange: (data: Partial<CheckoutPaymentData>) => void
@@ -28,9 +29,10 @@ function calcNights(checkIn?: string, checkOut?: string) {
   return Math.max(1, diff)
 }
 
-export function Step2Payment({ reservation, details, folio, guestCount, paymentData, paymentError, submitting, requiredAmount, requiredAmountLabel, lateCheckoutEvaluation, onNext, onBack, onPaymentChange }: Props) {
+export function Step2Payment({ reservation, details, folio, guestCount, paymentData, paymentError, submitting, requiredAmount, requiredAmountLabel, lateCheckoutEvaluation, earlyCheckoutEvaluation, onNext, onBack, onPaymentChange }: Props) {
   const isLateCheckout = Boolean(lateCheckoutEvaluation)
-  const currency = lateCheckoutEvaluation?.currency || folio?.currency || details?.finance?.currency || reservation.currency || 'EUR'
+  const isEarlyCheckout = Boolean(earlyCheckoutEvaluation)
+  const currency = lateCheckoutEvaluation?.currency || earlyCheckoutEvaluation?.currency || folio?.currency || details?.finance?.currency || reservation.currency || 'EUR'
   const nights = folio?.numberOfNights || calcNights(folio?.checkInDate || reservation.checkInDate, folio?.checkOutDate || reservation.checkOutDate)
   const roomCharge = folio?.totals?.roomChargesTotal ?? folio?.totalRoomRate ?? details?.finance?.baseRoomAmount ?? reservation.totalAmount
   const depositPaid = folio?.paidAmount ?? details?.finance?.paidAmount ?? reservation.paidAmount
@@ -47,8 +49,11 @@ export function Step2Payment({ reservation, details, folio, guestCount, paymentD
   const lateChargeAfterTax = lateCheckoutEvaluation?.chargeAfterTax ?? Math.max(0, lateChargeBeforeTax + lateTax)
   const lateOutstandingBalance = lateCheckoutEvaluation?.existingOutstandingBalance ?? 0
   const lateGrandTotal = lateCheckoutEvaluation?.estimatedRemainingBalanceAfterPosting ?? Math.max(0, lateOutstandingBalance + lateChargeAfterTax)
-  const effectiveRemainingBalance = isLateCheckout ? lateGrandTotal : remainingBalance
-  const effectiveGrandTotal = isLateCheckout ? lateGrandTotal : grandTotal
+  const earlyRemainingBalance = Math.max(0, earlyCheckoutEvaluation?.estimatedRemainingBalanceAfterCredit ?? 0)
+  const earlyGrandTotal = earlyCheckoutEvaluation?.estimatedChargeTotalAfterCredit ?? earlyRemainingBalance
+  const earlyRefund = Math.max(0, earlyCheckoutEvaluation?.suggestedRefundAmount ?? 0)
+  const effectiveRemainingBalance = isLateCheckout ? lateGrandTotal : isEarlyCheckout ? earlyRemainingBalance : remainingBalance
+  const effectiveGrandTotal = isLateCheckout ? lateGrandTotal : isEarlyCheckout ? earlyGrandTotal : grandTotal
   const amountDue = requiredAmount ?? remainingBalance
   const hasBalance = amountDue > 0
 
@@ -57,9 +62,9 @@ export function Step2Payment({ reservation, details, folio, guestCount, paymentD
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
         <div className="space-y-4">
           {/* Summary Rows */}
-          <SummaryRow label="Number of Night :" value={`${nights}`} amount={isLateCheckout ? formatMoney(lateChargeBeforeTax, currency) : formatMoney(roomCharge, currency)} />
+          <SummaryRow label="Number of Night :" value={`${isEarlyCheckout ? earlyCheckoutEvaluation?.unusedNights ?? nights : nights}`} amount={isLateCheckout ? formatMoney(lateChargeBeforeTax, currency) : isEarlyCheckout ? formatMoney(earlyCheckoutEvaluation?.activeChargeTotal, currency) : formatMoney(roomCharge, currency)} />
           <SummaryRow label="Number of Guest" value={`${guestCount}`} />
-          <SummaryRow label="Room Type" value={lateCheckoutEvaluation?.roomTypeName || folio?.roomTypeName || reservation.roomTypeName || '-----'} />
+          <SummaryRow label="Room Type" value={lateCheckoutEvaluation?.roomTypeName || earlyCheckoutEvaluation?.roomTypeName || folio?.roomTypeName || reservation.roomTypeName || '-----'} />
           
           <div className="my-4 h-px bg-slate-100" />
           
@@ -70,6 +75,14 @@ export function Step2Payment({ reservation, details, folio, guestCount, paymentD
               <SummaryRow label="Discounts" amount={`${lateCheckoutEvaluation?.percentage ?? 0}%`} amountClassName="text-emerald-500" />
               <SummaryRow label="Charge After Tax" amount={formatMoney(lateChargeAfterTax, currency)} />
               <SummaryRow label="Existing Outstanding Balance" amount={formatMoney(lateOutstandingBalance, currency)} />
+            </>
+          ) : isEarlyCheckout ? (
+            <>
+              <SummaryRow label="Active Charge Total" amount={formatMoney(earlyCheckoutEvaluation?.activeChargeTotal, currency)} />
+              <SummaryRow label="Net Paid Amount" amount={formatMoney(earlyCheckoutEvaluation?.netPaidAmount, currency)} amountClassName="text-emerald-500" />
+              <SummaryRow label="Credit Amount" amount={formatMoney(earlyCheckoutEvaluation?.creditAmount, currency)} amountClassName="text-emerald-500" />
+              <SummaryRow label="Charge Total After Credit" amount={formatMoney(earlyCheckoutEvaluation?.estimatedChargeTotalAfterCredit, currency)} />
+              <SummaryRow label="Suggested Refund" amount={formatMoney(earlyRefund, currency)} amountClassName={earlyRefund > 0 ? 'text-emerald-600' : undefined} />
             </>
           ) : (
             <>

@@ -428,6 +428,54 @@ export interface CompleteLateCheckoutRequest {
   externalReference?: string | null
 }
 
+export interface EvaluateEarlyCheckoutRequest {
+  reservationRoomId: string
+  actualCheckoutDateTime: string
+  evaluationDateTime: string
+  forceManualApprovalOverride: boolean
+}
+
+export interface EvaluateEarlyCheckoutResponse {
+  reservationId: string
+  reservationRoomId: string
+  roomId: string | null
+  roomNumber: string | null
+  roomTypeId: string
+  roomTypeName: string | null
+  scheduledCheckoutDateTime: string
+  actualCheckoutDateTime: string
+  unusedNights: number
+  policyId: number | null
+  policyCode: string | null
+  policyName: string | null
+  percentage: number
+  activeChargeTotal: number
+  netPaidAmount: number
+  creditAmount: number
+  estimatedChargeTotalAfterCredit: number
+  estimatedRemainingBalanceAfterCredit: number
+  maximumRefundableAmount: number
+  suggestedRefundAmount: number
+  currency: string | null
+  isAllowed: boolean
+  requiresManualApproval: boolean
+  warnings: string[] | null
+}
+
+export interface CompleteEarlyCheckoutRequest {
+  actualCheckoutDate: string
+  reason?: string | null
+  forceManualApprovalOverride: boolean
+  processRefund: boolean
+  manualPenaltyAmount?: number | null
+  manualRefundAmount?: number | null
+  externalReference?: string | null
+  refundPaymentMethod?: string | null
+  refundReference?: string | null
+  originalPaymentId?: string | null
+  refundExternalReference?: string | null
+}
+
 export interface EvaluateExtendStayRequest {
   reservationId: string
   newCheckoutDate: string

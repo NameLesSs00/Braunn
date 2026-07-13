@@ -7,7 +7,7 @@ import { fetchPmsReservations } from '../../../features/pms/pmsSlice'
 import { ReservationDetailsPopup } from '../../reservations/pupops/ReservationDetailsPopup'
 import { ExtendStayPopup } from '../../reservations/pupops/ExtendStayPopup'
 import { CheckInProcessPopup } from '../../reservations/pupops/CheckInProcessPopup'
-import { CheckOutProcessPopup } from '../../reservations/checkout/CheckOutProcessPopup'
+import { CheckOutProcessPopup, type CheckoutMode } from '../../reservations/checkout/CheckOutProcessPopup'
 import { MoveRoomPopup } from '../../reservations/pupops/MoveRoomPopup'
 
 type Props = {
@@ -68,6 +68,7 @@ export function InHouseMonthModal({ open, onClose }: Props) {
   const [checkInReservationId, setCheckInReservationId] = useState<string | null>(null)
   const [checkOutOpen, setCheckOutOpen] = useState(false)
   const [checkOutReservationId, setCheckOutReservationId] = useState<string | null>(null)
+  const [checkOutMode, setCheckOutMode] = useState<CheckoutMode>('regular')
   const [extendStayOpen, setExtendStayOpen] = useState(false)
   const [extendStayReservationId, setExtendStayReservationId] = useState<string | null>(null)
   const [moveRoomOpen, setMoveRoomOpen] = useState(false)
@@ -201,7 +202,9 @@ export function InHouseMonthModal({ open, onClose }: Props) {
                   rows.map((row, idx) => {
                     const paymentLabel = row.paidAmount >= row.totalAmount ? 'Fully Paid' : 'Unpaid'
                     const isCheckInToday = row.checkInDate.startsWith(today)
-                    const isCheckOutToday = row.checkOutDate.startsWith(today)
+                    const checkOutDate = row.checkOutDate?.slice(0, 10) || ''
+                    const isCheckOutToday = checkOutDate === today
+                    const isEarlyCheckOut = checkOutDate > today
 
                     return (
                       <div
@@ -231,9 +234,9 @@ export function InHouseMonthModal({ open, onClose }: Props) {
                             <button type="button" className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-emerald-700 px-3 text-[12px] font-semibold leading-none text-white" onClick={() => { setCheckInReservationId(row.id); setCheckInOpen(true) }}>
                               check in
                             </button>
-                          ) : isCheckOutToday && row.status === 'CheckedIn' ? (
-                            <button type="button" className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white" onClick={() => { setCheckOutReservationId(row.id); setCheckOutOpen(true) }}>
-                              check out
+                          ) : (isCheckOutToday || isEarlyCheckOut) && row.status === 'CheckedIn' ? (
+                            <button type="button" className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white" onClick={() => { setCheckOutReservationId(row.id); setCheckOutMode(isEarlyCheckOut ? 'early' : 'regular'); setCheckOutOpen(true) }}>
+                              {isEarlyCheckOut ? 'Early Check out' : 'check out'}
                             </button>
                           ) : (
                             <button type="button" className="inline-flex h-7 items-center justify-center rounded-lg bg-[#0B4EA2] px-4 text-white transition-colors hover:bg-[#0a3f85]" aria-label="View" onClick={() => { setDetailsReservationId(row.id); setDetailsOpen(true) }}>
@@ -250,9 +253,15 @@ export function InHouseMonthModal({ open, onClose }: Props) {
                                 <button type="button" className="flex w-full cursor-not-allowed items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-400" disabled>
                                   Cancel Reservation
                                 </button>
-                                <button type="button" className="flex w-full cursor-not-allowed items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-400" disabled>
-                                  Early Check out
-                                </button>
+                                {row.status === 'CheckedIn' && isEarlyCheckOut ? (
+                                  <button type="button" className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50" onClick={() => { setOpenMenuForId(null); setCheckOutReservationId(row.id); setCheckOutMode('early'); setCheckOutOpen(true) }}>
+                                    Early Check out
+                                  </button>
+                                ) : (
+                                  <button type="button" className="flex w-full cursor-not-allowed items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-400" disabled>
+                                    Early Check out
+                                  </button>
+                                )}
                                 <button type="button" className="flex w-full items-center gap-2 px-4 py-3 text-left text-[12px] text-slate-700 hover:bg-slate-50" onClick={() => { setOpenMenuForId(null); setMoveRoomReservationId(row.id); setMoveRoomOpen(true) }}>
                                   Move Room
                                 </button>
@@ -290,7 +299,7 @@ export function InHouseMonthModal({ open, onClose }: Props) {
       <ExtendStayPopup open={extendStayOpen} onClose={closeExtendStay} reservationId={extendStayReservationId} />
       <MoveRoomPopup open={moveRoomOpen} onClose={() => { setMoveRoomOpen(false); setMoveRoomReservationId(null) }} reservationId={moveRoomReservationId} onSuccess={refreshInHouseReservations} />
       <CheckInProcessPopup open={checkInOpen} onClose={() => { setCheckInOpen(false); setCheckInReservationId(null) }} reservationId={checkInReservationId} />
-      <CheckOutProcessPopup open={checkOutOpen} onClose={() => { setCheckOutOpen(false); setCheckOutReservationId(null) }} reservation={checkOutReservation} onSuccess={refreshInHouseReservations} />
+      <CheckOutProcessPopup open={checkOutOpen} onClose={() => { setCheckOutOpen(false); setCheckOutReservationId(null); setCheckOutMode('regular') }} reservation={checkOutReservation} mode={checkOutMode} onSuccess={refreshInHouseReservations} />
     </>
   )
 }
