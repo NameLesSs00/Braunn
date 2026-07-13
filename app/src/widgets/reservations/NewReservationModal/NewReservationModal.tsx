@@ -40,6 +40,16 @@ type Step = 1 | 2 | 3 | 4
 
 type Step4Page = 1 | 2
 
+type ValidationErrors = Record<string, string>
+
+function hasText(value?: string | null) {
+  return Boolean(value && value.trim())
+}
+
+function isPositiveNumber(value: unknown) {
+  return Number(value) > 0
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message
   if (typeof error === 'string') return error
@@ -75,6 +85,7 @@ export function NewReservationModal({
   const [creatingReservation, setCreatingReservation] = useState(false)
   const [creatingReservationResultUnknown, setCreatingReservationResultUnknown] = useState(false)
   const [savingOptionalReservation, setSavingOptionalReservation] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
   const creatingReservationRef = useRef(false)
   const savingOptionalReservationRef = useRef(false)
 
@@ -104,6 +115,13 @@ export function NewReservationModal({
   }, [activeDraftId, dispatch, draft, onActiveDraftIdChange, open, step, step4Page])
 
   const handleUpdateDraft = (patch: any) => {
+    const nextErrors = { ...validationErrors }
+    Object.keys(patch).forEach((key) => {
+      delete nextErrors[key]
+      if (key === 'rooms') delete nextErrors.rooms
+      if (key === 'childAges' || key === 'childCount') delete nextErrors.childAges
+    })
+    setValidationErrors(nextErrors)
     dispatch(updateDraft(patch))
   }
 
@@ -210,6 +228,59 @@ export function NewReservationModal({
     setStep4Page(1)
   }
 
+  const validateStep = (targetStep: Step, targetStep4Page: Step4Page = step4Page) => {
+    const nextErrors: ValidationErrors = {}
+    const addError = (key: string, label: string) => {
+      nextErrors[key] = label
+    }
+
+    if (targetStep === 1) {
+      if (!hasText(draft.bookingSource)) addError('bookingSource', 'Booking source')
+      if (!hasText(draft.firstName)) addError('firstName', 'First Name')
+      if (!hasText(draft.surName)) addError('surName', 'Last Name')
+      if (!hasText(draft.email)) addError('email', 'Email Address')
+      if (!hasText(draft.phone)) addError('phone', 'Phone Number')
+      if (!hasText(draft.nationality)) addError('nationality', 'Nationality')
+      if (!hasText(draft.idNumber)) addError('idNumber', 'ID / National ID')
+      if (!hasText(draft.addressLine)) addError('addressLine', 'Address')
+    }
+
+    if (targetStep === 2) {
+      const validRooms = draft.rooms.filter((room) => hasText(room.roomTypeId) && hasText(room.roomType) && isPositiveNumber(room.roomCount))
+      const nights = Number.parseInt(draft.nights, 10)
+      const checkIn = draft.checkInDate ? new Date(draft.checkInDate) : null
+      const checkOut = draft.checkOutDate ? new Date(draft.checkOutDate) : null
+
+      if (!hasText(draft.checkInDate)) addError('checkInDate', 'Check-in Date')
+      if (!hasText(draft.checkOutDate)) addError('checkOutDate', 'Check-out Date')
+      if (checkIn && checkOut && checkOut <= checkIn) addError('checkOutDate', 'Check-out Date must be after Check-in Date')
+      if (!Number.isFinite(nights) || nights <= 0) addError('nights', 'Nights')
+      if (validRooms.length !== draft.rooms.length || validRooms.length === 0) addError('rooms', 'Room Type and Room Count')
+      if (!hasText(draft.rateCode)) addError('rateCode', 'Rate Code')
+      if (!isPositiveNumber(draft.adultCount)) addError('adultCount', 'Adult Count')
+      if (draft.childCount > 0 && (draft.childAges || []).length < draft.childCount) addError('childAges', 'Children Ages')
+    }
+
+    if (targetStep === 4 && targetStep4Page === 1) {
+      if (!hasText(draft.paymentMethod)) addError('paymentMethod', 'Payment Method')
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setValidationErrors(nextErrors)
+      return false
+    }
+
+    setValidationErrors({})
+    return true
+  }
+
+  const validateThroughStep = (lastStep: Step) => {
+    for (let currentStep = 1; currentStep <= lastStep; currentStep += 1) {
+      if (!validateStep(currentStep as Step)) return false
+    }
+    return true
+  }
+
   return (
     <>
       <Modal open={open} onClose={handleClose}>
@@ -273,9 +344,9 @@ export function NewReservationModal({
 
           <div className="flex-1 px-8 pb-8">
             {step === 1 ? (
-              <NewReservationStep1 value={draft} onChange={handleUpdateDraft} />
+              <NewReservationStep1 value={draft} onChange={handleUpdateDraft} validationErrors={validationErrors} />
             ) : step === 2 ? (
-              <NewReservationStep2 value={draft} onChange={handleUpdateDraft} />
+              <NewReservationStep2 value={draft} onChange={handleUpdateDraft} validationErrors={validationErrors} />
             ) : step === 3 ? (
               <NewReservationStep3 value={draft} />
             ) : step === 4 ? (
@@ -285,6 +356,7 @@ export function NewReservationModal({
                 page={step4Page}
                 onOpenCheckIn={openCheckInProcess}
                 onOpenExtendStay={openExtendStay}
+                validationErrors={validationErrors}
               />
             ) : (
               <div className="rounded-xl border border-slate-200 p-6 text-sm text-slate-600">
@@ -322,6 +394,11 @@ export function NewReservationModal({
             </button>
 
             <div className="flex items-center gap-4">
+              {Object.keys(validationErrors).length > 0 ? (
+                <div className="max-w-md rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700">
+                  Please enter the required highlighted fields.
+                </div>
+              ) : null}
               {step === 3 && (
                 <button
                   type="button"
@@ -332,6 +409,8 @@ export function NewReservationModal({
                   disabled={optionalReservations.status === 'loading' || savingOptionalReservation || creatingReservation}
                   onClick={async () => {
                     if (savingOptionalReservationRef.current || creatingReservationRef.current) return
+                    if (!validateThroughStep(2)) return
+
                     savingOptionalReservationRef.current = true
                     setSavingOptionalReservation(true)
 
@@ -385,6 +464,8 @@ export function NewReservationModal({
 
                   if (step === 4) {
                     if (step4Page === 1) {
+                      if (!validateThroughStep(2) || !validateStep(4, 1)) return
+
                       creatingReservationRef.current = true
                       setCreatingReservation(true)
 
@@ -505,6 +586,7 @@ export function NewReservationModal({
                     }
                   }
 
+                  if (step < 4 && !validateStep(step)) return
                   setStep((prev) => (prev < 4 ? ((prev + 1) as Step) : prev))
                 }}
 

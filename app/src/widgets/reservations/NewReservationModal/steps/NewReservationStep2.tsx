@@ -21,10 +21,11 @@ import type { ReservationDraft } from '../../../../features/reservations/draftSl
 type LabeledProps = {
   label: string
   required?: boolean
+  error?: string
   children: React.ReactNode
 }
 
-function Labeled({ label, required, children }: LabeledProps) {
+function Labeled({ label, required, error, children }: LabeledProps) {
   return (
     <label className="block">
       <div className="mb-2 text-[12px] font-semibold text-slate-700">
@@ -32,6 +33,7 @@ function Labeled({ label, required, children }: LabeledProps) {
         {required ? <span className="text-rose-600"> *</span> : null}
       </div>
       {children}
+      {error ? <div className="mt-1 text-[11px] font-semibold text-rose-600">Please enter {error}.</div> : null}
     </label>
   )
 }
@@ -43,6 +45,7 @@ type ControlProps = {
   type?: 'text' | 'date'
   value?: string
   disabled?: boolean
+  error?: boolean
   min?: string
   max?: string
   onChange?: (value: string) => void
@@ -55,6 +58,7 @@ function InputControl({
   type = 'text',
   value,
   disabled,
+  error,
   min,
   max,
   onChange,
@@ -70,7 +74,8 @@ function InputControl({
       ) : null}
       <input
         className={[
-          'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-[#0B4EA2]',
+          'h-11 w-full rounded-xl border bg-white px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400',
+          error ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-[#0B4EA2]',
           type === 'date' ? '[&::-webkit-calendar-picker-indicator]:opacity-0' : '',
           leftIconSrc ? 'pl-11' : '',
           right !== 'none' ? 'pr-11' : '',
@@ -106,19 +111,36 @@ type SelectOption = {
   label: string
 }
 
+function dateOnly(value?: string | null) {
+  return (value || '').split('T')[0].split(' ')[0]
+}
+
+function isBillableStayDate(date: string | null | undefined, arrivalDate: string, departureDate: string) {
+  const rateDate = dateOnly(date)
+  if (!rateDate) return false
+  if (arrivalDate && rateDate < arrivalDate) return false
+  if (departureDate && rateDate >= departureDate) return false
+  return true
+}
+
 function SelectControlWithOptions({
   options,
   value,
+  error,
   onChange,
 }: {
   options: SelectOption[]
   value?: string
+  error?: boolean
   onChange?: (value: string) => void
 }) {
   return (
     <div className="relative">
       <select
-        className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-11 text-sm text-slate-500 outline-none focus:border-[#0B4EA2]"
+        className={[
+          'h-11 w-full appearance-none rounded-xl border bg-white px-4 pr-11 text-sm text-slate-500 outline-none',
+          error ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-[#0B4EA2]',
+        ].join(' ')}
         value={value ?? ''}
         onChange={(e) => onChange?.(e.target.value)}
       >
@@ -174,9 +196,10 @@ function Counter({ label, value, priceText, onIncrease, onDecrease }: CounterPro
 type Props = {
   value: ReservationDraft
   onChange: (patch: Partial<ReservationDraft>) => void
+  validationErrors?: Record<string, string>
 }
 
-export function NewReservationStep2({ value, onChange }: Props) {
+export function NewReservationStep2({ value, onChange, validationErrors = {} }: Props) {
   const dispatch = useAppDispatch()
   const roomTypesState = useAppSelector((state) => state.roomTypes)
   const localAriState = useAppSelector((state) => state.localAri)
@@ -409,39 +432,42 @@ export function NewReservationStep2({ value, onChange }: Props) {
       <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-5 space-y-5">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-12">
           <div className="md:col-span-3">
-            <Labeled label="Check-in Date" required>
+            <Labeled label="Check-in Date" required error={validationErrors.checkInDate}>
               <InputControl
                 placeholder="MM/DD/YY"
                 leftIconSrc={MdDateRange}
                 right="caret"
                 type="date"
                 value={value.checkInDate}
+                error={Boolean(validationErrors.checkInDate)}
                 onChange={(v) => onChange({ checkInDate: v })}
               />
             </Labeled>
           </div>
           <div className="md:col-span-3">
-            <Labeled label="Check-out Date" required>
+            <Labeled label="Check-out Date" required error={validationErrors.checkOutDate}>
               <InputControl
                 placeholder="MM/DD/YY"
                 leftIconSrc={MdDateRange}
                 right="caret"
                 type="date"
                 value={value.checkOutDate}
+                error={Boolean(validationErrors.checkOutDate)}
                 onChange={(v) => onChange({ checkOutDate: v })}
               />
             </Labeled>
           </div>
           <div className="md:col-span-2">
-            <Labeled label="Nights" required>
-              <InputControl placeholder="0" value={value.nights} onChange={(v) => onChange({ nights: v })} />
+            <Labeled label="Nights" required error={validationErrors.nights}>
+              <InputControl placeholder="0" value={value.nights} error={Boolean(validationErrors.nights)} onChange={(v) => onChange({ nights: v })} />
             </Labeled>
           </div>
           <div className="md:col-span-4">
-            <Labeled label="Rate Code (e.g. BAR)">
+            <Labeled label="Rate Code (e.g. BAR)" required error={validationErrors.rateCode}>
               <SelectControlWithOptions
                 options={ratePlanOptions}
                 value={value.rateCode}
+                error={Boolean(validationErrors.rateCode)}
                 onChange={(v) => onChange({ rateCode: v })}
               />
             </Labeled>
@@ -452,10 +478,11 @@ export function NewReservationStep2({ value, onChange }: Props) {
           {value.rooms.map((room, index) => (
             <div key={room.id} className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-12 items-end">
               <div className="md:col-span-4">
-                <Labeled label="Room Type" required>
+                <Labeled label="Room Type" required error={validationErrors.rooms}>
                   <SelectControlWithOptions
                     options={roomTypeOptions}
                     value={room.roomType}
+                    error={Boolean(validationErrors.rooms)}
                     onChange={(v) => {
                       const selectedType = roomTypesState.items.find((t) => t.name === v)
                       const isSingle = v.trim().toLowerCase() === 'single'
@@ -591,7 +618,10 @@ export function NewReservationStep2({ value, onChange }: Props) {
 
         {/* Nightly Rates Table */}
         {localAriState.rates.length > 0 && (() => {
-          const allZero = localAriState.rates.every(r => r.basePriceBeforeTax === 0 && r.finalRateAfterTax === 0)
+          const billableRates = localAriState.rates.filter((rate) =>
+            isBillableStayDate(rate.date, value.checkInDate, value.checkOutDate)
+          )
+          const allZero = billableRates.length > 0 && billableRates.every(r => r.basePriceBeforeTax === 0 && r.finalRateAfterTax === 0)
           return (
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -631,13 +661,13 @@ export function NewReservationStep2({ value, onChange }: Props) {
               </div>
 
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                {allZero ? (
+                {allZero || billableRates.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 py-10 text-center px-6">
                     <svg className="h-8 w-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                     </svg>
-                    <p className="text-sm font-bold text-slate-700">No rate data available for this period</p>
-                    <p className="text-xs text-slate-400 max-w-xs">The rate plan code <span className="font-mono font-semibold text-slate-600">"{value.rateCode}"</span> has not been configured for this room type and date range yet. Please verify the rate plan exists or contact your revenue manager.</p>
+                    <p className="text-sm font-bold text-slate-700">No billable rate data available for this period</p>
+                    <p className="text-xs text-slate-400 max-w-xs">The departure date is the day the guest leaves, so it is not included in Nightly Rates.</p>
                   </div>
                 ) : (
                   <table className="w-full text-left border-collapse">
@@ -654,7 +684,7 @@ export function NewReservationStep2({ value, onChange }: Props) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {localAriState.rates.map((rate, index) => {
+                      {billableRates.map((rate, index) => {
                         const dateObj = new Date(rate.date)
                         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
                         return (

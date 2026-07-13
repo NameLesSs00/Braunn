@@ -14,9 +14,10 @@ type Props = {
   page: 1 | 2
   onOpenCheckIn: () => void
   onOpenExtendStay: () => void
+  validationErrors?: Record<string, string>
 }
 
-export const NewReservationStep4: any = ({ value, onChange, page, onOpenCheckIn, onOpenExtendStay }: Props) => {
+export const NewReservationStep4: any = ({ value, onChange, page, onOpenCheckIn, onOpenExtendStay, validationErrors = {} }: Props) => {
   const nights = useMemo(() => {
     const n = Number.parseInt(value.nights, 10)
     return Number.isFinite(n) && n > 0 ? n : 0
@@ -37,6 +38,6 @@ export const NewReservationStep4: any = ({ value, onChange, page, onOpenCheckIn,
       onOpenExtendStay={onOpenExtendStay}
     />
   ) : (
-    <Step4PaymentForm value={value} onChange={onChange} nights={nights} guestsTotal={guestsTotal} pricing={pricing} />
+    <Step4PaymentForm value={value} onChange={onChange} nights={nights} guestsTotal={guestsTotal} pricing={pricing} validationErrors={validationErrors} />
   )
 }

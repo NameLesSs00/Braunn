@@ -3,6 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
 import { ComplaintsPage } from './pages/complaints/ComplaintsPage'
 import { ReservationsPage } from './pages/reservations/ReservationsPage'
+import { GroupReservationDetailsPage } from './pages/groupReservations/GroupReservationDetailsPage'
+import { GroupReservationsPage } from './pages/groupReservations/GroupReservationsPage'
 import { RoomPlanPage } from './pages/roomPlan/RoomPlanPage'
 import { GuestsPage } from './pages/guests/GuestsPage'
 import { HousekeepingPage } from './pages/housekeeping/HousekeepingPage'
@@ -65,6 +67,8 @@ export default function App() {
           <Route element={<DashboardLayout />}>
             <Route path={routes.dashboard} element={<DashboardPage />} />
             <Route path={routes.reservations} element={<ReservationsPage />} />
+            <Route path={routes.groupReservations} element={<GroupReservationsPage />} />
+            <Route path={routes.groupReservationDetails} element={<GroupReservationDetailsPage />} />
             <Route path={routes.roomPlan} element={<RoomPlanPage />} />
             <Route path={routes.guests} element={<GuestsPage />} />
             <Route path={routes.reports} element={<ReportsPage />} />

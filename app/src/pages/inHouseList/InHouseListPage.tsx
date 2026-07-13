@@ -79,6 +79,23 @@ function isCurrentInHouseReservation(reservation: PmsReservation) {
   return status !== 'checkedout' && status !== 'cancelled' && status !== 'canceled'
 }
 
+function getVisiblePageNumbers(page: number, pages: number) {
+  const visible = new Set<number>([1, pages, page - 1, page, page + 1])
+  if (page <= 3) {
+    visible.add(2)
+    visible.add(3)
+    visible.add(4)
+  }
+  if (page >= pages - 2) {
+    visible.add(pages - 3)
+    visible.add(pages - 2)
+    visible.add(pages - 1)
+  }
+  return Array.from(visible)
+    .filter((p) => p >= 1 && p <= pages)
+    .sort((a, b) => a - b)
+}
+
 export function InHouseListPage() {
   const dispatch = useAppDispatch()
   const [searchParams] = useSearchParams()
@@ -110,7 +127,7 @@ export function InHouseListPage() {
   const [checkInTo, setCheckInTo] = useState(initialFilters.checkInTo)
 
   const [page, setPage] = useState(1)
-  const pageSize = 8
+  const pageSize = 15
 
   // Action menu state
   const [openMenuForId, setOpenMenuForId] = useState<string | null>(null)
@@ -175,7 +192,7 @@ export function InHouseListPage() {
 
     if (q) {
       result = result.filter((r) =>
-        [r.guestName, r.id, r.roomNumber, r.roomTypeName, r.channelName, r.bookingSource]
+        [r.guestName, r.bookingReference, r.id, r.roomNumber, r.roomTypeName, r.channelName, r.bookingSource]
           .some((v) => (v ?? '').toLowerCase().includes(q))
       )
     }
@@ -266,7 +283,7 @@ export function InHouseListPage() {
       'Source',
     ]
     const tableRows = exportRows.map((r) => [
-      r.guestName || '-----',
+      `${r.guestName || '-----'}\n${r.bookingReference || r.id || '-----'}`,
       r.roomNumber || '-----',
       r.roomTypeName || '-----',
       formatDateForDisplay(r.checkInDate),
@@ -442,8 +459,11 @@ export function InHouseListPage() {
                   idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
                 ].join(' ')}
               >
-                <div className="flex items-center gap-2 text-slate-700">
-                  <span className="truncate">{r.guestName || '-----'}</span>
+                <div className="min-w-0 leading-tight text-slate-700">
+                  <div className="truncate font-medium">{r.guestName || '-----'}</div>
+                  <div className="truncate text-[11px] text-slate-500" title={r.bookingReference || r.id}>
+                    {r.bookingReference || r.id || '-----'}
+                  </div>
                 </div>
                 <div className="text-slate-600">
                   <div className="font-medium text-slate-700">{r.roomNumber || '-----'}</div>
@@ -536,7 +556,7 @@ export function InHouseListPage() {
           <ChevronLeft className="h-4 w-4" />
         </button>
 
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+        {getVisiblePageNumbers(safePage, totalPages).map((p) => (
           <button
             key={p}
             type="button"

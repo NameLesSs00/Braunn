@@ -8,7 +8,6 @@ const tabs = [
   { label: 'Pricing', to: routes.salesRevenue.pricing },
   { label: 'Discounts', to: routes.salesRevenue.discounts },
   { label: 'Corporate Account', to: routes.salesRevenue.corporateAccount },
-  { label: 'Group contracts', to: routes.salesRevenue.groupContracts },
   { label: 'production Report', to: routes.salesRevenue.productionReport },
   { label: 'Rates & Packages', to: routes.salesRevenue.packages },
 ]

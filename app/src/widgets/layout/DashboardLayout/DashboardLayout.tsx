@@ -25,6 +25,7 @@ import type { GroupReservationDraftValue, GroupWizardStep } from '../../../model
 const titleByPath: Record<string, string> = {
   [routes.dashboard]: 'Dashboard',
   [routes.reservations]: 'Reservations',
+  [routes.groupReservations]: 'Group Reservations',
   [routes.roomPlan]: 'Room Plan',
   [routes.guests]: 'Guests',
   [routes.reports]: 'Reports',
@@ -47,7 +48,9 @@ const titleByPath: Record<string, string> = {
 export function DashboardLayout() {
   const dispatch = useAppDispatch()
   const location = useLocation()
-  const title = titleByPath[location.pathname] ?? 'Dashboard'
+  const title = location.pathname.startsWith('/group-reservations/')
+    ? 'Group Reservations Details'
+    : titleByPath[location.pathname] ?? 'Dashboard'
   const [selectReservationTypeOpen, setSelectReservationTypeOpen] = useState(false)
   const [newReservationOpen, setNewReservationOpen] = useState(false)
   const [otaReservationOpen, setOtaReservationOpen] = useState(false)

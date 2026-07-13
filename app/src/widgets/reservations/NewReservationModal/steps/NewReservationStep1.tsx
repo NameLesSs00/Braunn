@@ -15,6 +15,7 @@ countries.registerLocale(enLocale)
 type FieldProps = {
   label: string
   required?: boolean
+  error?: string
   placeholder?: string
   iconSrc?: string|IconType
   rightIconSrc?: string
@@ -28,6 +29,7 @@ type FieldProps = {
 function Field({
   label,
   required,
+  error,
   placeholder,
   iconSrc,
   rightIconSrc,
@@ -38,7 +40,10 @@ function Field({
   onChange,
 }: FieldProps) {
   const baseClassName =
-    'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-[#0B4EA2]'
+    [
+      'h-11 w-full rounded-xl border bg-white px-4 text-sm text-slate-800 outline-none placeholder:text-slate-400',
+      error ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-[#0B4EA2]',
+    ].join(' ')
 
   const leftPaddingClassName = iconSrc ? 'pl-11' : ''
   const rightPaddingClassName = rightIconSrc || as === 'select' ? 'pr-11' : ''
@@ -117,6 +122,7 @@ function Field({
           </span>
         ) : null}
       </div>
+      {error ? <div className="mt-1 text-[11px] font-semibold text-rose-600">Please enter {error}.</div> : null}
     </label>
   )
 }
@@ -147,9 +153,10 @@ function Section({ title, iconSrc, iconBgClassName, children }: SectionProps) {
 type Props = {
   value: ReservationDraft
   onChange: (patch: Partial<ReservationDraft>) => void
+  validationErrors?: Record<string, string>
 }
 
-export function NewReservationStep1({ value, onChange }: Props) {
+export function NewReservationStep1({ value, onChange, validationErrors = {} }: Props) {
   const nationalityOptions: { value: string; label: string }[] = useMemo(() => {
     return Object.entries(countries.getNames('en', { select: 'official' }))
       .map(([code, name]) => ({ value: code, label: name }))
@@ -175,7 +182,10 @@ export function NewReservationStep1({ value, onChange }: Props) {
           <div className="mb-2 text-[12px] font-semibold text-slate-700">Booking source</div>
           <div className="relative">
             <select
-              className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-sm text-slate-500 outline-none focus:border-[#0B4EA2]"
+              className={[
+                'h-11 w-full appearance-none rounded-xl border bg-white px-4 pr-10 text-sm text-slate-500 outline-none',
+                validationErrors.bookingSource ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-[#0B4EA2]',
+              ].join(' ')}
               value={value.bookingSource}
               onChange={(e) => {
                 const next = e.target.value
@@ -189,6 +199,7 @@ export function NewReservationStep1({ value, onChange }: Props) {
             </select>
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">▾</span>
           </div>
+          {validationErrors.bookingSource ? <div className="mt-1 text-[11px] font-semibold text-rose-600">Please select Booking source.</div> : null}
         </div>
       </div>
 
@@ -204,6 +215,7 @@ export function NewReservationStep1({ value, onChange }: Props) {
             placeholder="John"
             value={value.firstName}
             onChange={(v) => onChange({ firstName: v })}
+            error={validationErrors.firstName}
           />
           <Field
             label="Last Name"
@@ -211,6 +223,7 @@ export function NewReservationStep1({ value, onChange }: Props) {
             placeholder="Doe"
             value={value.surName}
             onChange={(v) => onChange({ surName: v })}
+            error={validationErrors.surName}
           />
         </div>
       </Section>
@@ -228,6 +241,7 @@ export function NewReservationStep1({ value, onChange }: Props) {
             iconSrc={MdEmail}
             value={value.email}
             onChange={(v) => onChange({ email: v })}
+            error={validationErrors.email}
           />
           <Field
             label="Phone Number"
@@ -236,6 +250,7 @@ export function NewReservationStep1({ value, onChange }: Props) {
             iconSrc={BsTelephone}
             value={value.phone}
             onChange={(v) => onChange({ phone: v })}
+            error={validationErrors.phone}
           />
         </div>
       </Section>
@@ -253,6 +268,7 @@ export function NewReservationStep1({ value, onChange }: Props) {
             options={nationalityOptions}
             value={value.nationality}
             onChange={(v) => onChange({ nationality: v, countryCode: v })}
+            error={validationErrors.nationality}
           />
           <Field
             label="ID / National ID"
@@ -260,6 +276,7 @@ export function NewReservationStep1({ value, onChange }: Props) {
             placeholder="123456789"
             value={value.idNumber}
             onChange={(v) => onChange({ idNumber: v })}
+            error={validationErrors.idNumber}
           />
         </div>
       </Section>
@@ -275,6 +292,7 @@ export function NewReservationStep1({ value, onChange }: Props) {
             placeholder="123 Main St, New York, NY 10001"
             value={value.addressLine}
             onChange={(v) => onChange({ addressLine: v })}
+            error={validationErrors.addressLine}
           />
         </div>
       </Section>

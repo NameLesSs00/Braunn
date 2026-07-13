@@ -2,8 +2,22 @@ import type { ReservationDraft } from '../../../../../features/reservations/draf
 import type { Pricing } from '../../../CheckInProcessModal/types'
 import type { LocalARIState } from '../../../../../features/localAri/localAriSlice'
 
+function dateOnly(value?: string | null) {
+  return (value || '').split('T')[0].split(' ')[0]
+}
+
+function isBillableStayDate(date: string | null | undefined, arrivalDate: string, departureDate: string) {
+  const rateDate = dateOnly(date)
+  if (!rateDate) return false
+  if (arrivalDate && rateDate < arrivalDate) return false
+  if (departureDate && rateDate >= departureDate) return false
+  return true
+}
+
 export function computePricing(value: ReservationDraft, nights: number, localAriState: LocalARIState): Pricing {
-  const rates = localAriState?.rates || []
+  const rates = (localAriState?.rates || []).filter((rate) =>
+    isBillableStayDate(rate.date, value.checkInDate, value.checkOutDate)
+  )
   const firstRate = rates[0]
   const taxPercentage = firstRate?.taxPercentage || 0
 

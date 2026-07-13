@@ -14,9 +14,10 @@ type Props = {
   nights: number
   guestsTotal: number
   pricing: Pricing
+  validationErrors?: Record<string, string>
 }
 
-export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing }: Props) {
+export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing, validationErrors = {} }: Props) {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-[#F2F8FF] p-5">
@@ -211,7 +212,10 @@ export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing
           <div className="text-[12px] font-semibold text-slate-700">Payment Method</div>
           <div className="relative">
             <select
-              className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-11 text-sm text-slate-500 outline-none focus:border-[#0B4EA2]"
+              className={[
+                'h-11 w-full appearance-none rounded-xl border bg-white px-4 pr-11 text-sm text-slate-500 outline-none',
+                validationErrors.paymentMethod ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-[#0B4EA2]',
+              ].join(' ')}
               value={value.paymentMethod}
               onChange={(e) => onChange({ paymentMethod: e.target.value })}
             >
@@ -222,6 +226,7 @@ export function Step4PaymentForm({ value, onChange, nights, guestsTotal, pricing
             </select>
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">v</span>
           </div>
+          {validationErrors.paymentMethod ? <div className="mt-1 text-[11px] font-semibold text-rose-600">Please select Payment Method.</div> : null}
         </div>
       </div>
     </div>

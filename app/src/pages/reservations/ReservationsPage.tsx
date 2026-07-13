@@ -125,6 +125,23 @@ function getBookingSourceTagClass(source?: string | null) {
   }
 }
 
+function getVisiblePageNumbers(page: number, pages: number) {
+  const visible = new Set<number>([1, pages, page - 1, page, page + 1])
+  if (page <= 3) {
+    visible.add(2)
+    visible.add(3)
+    visible.add(4)
+  }
+  if (page >= pages - 2) {
+    visible.add(pages - 3)
+    visible.add(pages - 2)
+    visible.add(pages - 1)
+  }
+  return Array.from(visible)
+    .filter((p) => p >= 1 && p <= pages)
+    .sort((a, b) => a - b)
+}
+
 function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (page: number) => void }) {
   if (pages <= 1) return null
 
@@ -139,7 +156,7 @@ function Pagination({ page, pages, onChange }: { page: number; pages: number; on
         <ChevronLeft className="h-4 w-4" />
       </button>
 
-      {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
+      {getVisiblePageNumbers(page, pages).map((p) => (
         <button
           key={p}
           type="button"
@@ -219,7 +236,7 @@ export function ReservationsPage() {
   const [otaOpen, setOtaOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [page, setPage] = useState(1)
-  const perPage = 6
+  const perPage = 15
 
   useEffect(() => {
     reservationsFiltersCache = {
@@ -250,7 +267,7 @@ export function ReservationsPage() {
     let result = [...pmsReservations]
 
     if (q) {
-      result = result.filter((r) => [r.guestName, r.id, r.roomTypeName, getReservationSourceLabel(r)].some((v) => (v ?? '').toLowerCase().includes(q)))
+      result = result.filter((r) => [r.guestName, r.bookingReference, r.id, r.roomTypeName, getReservationSourceLabel(r)].some((v) => (v ?? '').toLowerCase().includes(q)))
     }
 
     if (statusFilter !== '') {
@@ -329,7 +346,7 @@ export function ReservationsPage() {
 
     if (normalizedQuery) {
       exportRows = exportRows.filter((reservation) =>
-        [reservation.guestName, reservation.id, reservation.roomTypeName, getReservationSourceLabel(reservation)]
+        [reservation.guestName, reservation.bookingReference, reservation.id, reservation.roomTypeName, getReservationSourceLabel(reservation)]
           .some((value) => (value ?? '').toLowerCase().includes(normalizedQuery))
       )
     }
@@ -373,7 +390,7 @@ export function ReservationsPage() {
         'Source',
       ]],
       body: exportRows.map((reservation) => [
-        reservation.guestName || '-----',
+        `${reservation.guestName || '-----'}\n${reservation.bookingReference || reservation.id || '-----'}`,
         reservation.roomNumber || '-----',
         reservation.roomTypeName || '-----',
         formatDateForDisplay(reservation.checkInDate),
@@ -652,8 +669,11 @@ export function ReservationsPage() {
                   idx % 2 === 1 ? 'bg-[#F4F9FF]' : 'bg-white',
                 ].join(' ')}
               >
-                <div className="flex items-center gap-3">
-                  <div className="font-medium text-slate-800">{row.guestName}</div>
+                <div className="min-w-0 leading-tight">
+                  <div className="truncate font-medium text-slate-800">{row.guestName}</div>
+                  <div className="truncate text-[11px] text-slate-500" title={row.bookingReference || row.id}>
+                    {row.bookingReference || row.id || '-----'}
+                  </div>
                 </div>
 
                 <div>

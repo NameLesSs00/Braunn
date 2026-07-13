@@ -162,6 +162,28 @@ function nightsBetween(arrivalDate: string, departureDate: string) {
   return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86400000))
 }
 
+function dateOnly(value?: string | null) {
+  return (value || '').split('T')[0].split(' ')[0]
+}
+
+function isBillableStayDate(date: string | null | undefined, arrivalDate: string, departureDate: string) {
+  const rateDate = dateOnly(date)
+  if (!rateDate) return false
+  if (arrivalDate && rateDate < arrivalDate) return false
+  if (departureDate && rateDate >= departureDate) return false
+  return true
+}
+
+function sumBillableRates(
+  rates: LocalARIState['rates'],
+  arrivalDate: string,
+  departureDate: string,
+) {
+  return rates
+    .filter((rate) => isBillableStayDate(rate.date, arrivalDate, departureDate))
+    .reduce((sum, rate) => sum + (rate.amountBeforeTax ?? rate.basePriceBeforeTax ?? 0), 0)
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message
   if (typeof error === 'string') return error
@@ -761,7 +783,7 @@ export function GroupReservationModal({
     const selectedServiceNames = reservationForm.selectedServices
       .map((selected) => financialSettings.services.find((service) => service.id === selected.additionalServiceId)?.name)
       .filter(Boolean) as string[]
-    const fetchedRateTotal = localAriState.rates.reduce((sum, rate) => sum + (rate.amountBeforeTax ?? rate.basePriceBeforeTax ?? 0), 0)
+    const fetchedRateTotal = sumBillableRates(localAriState.rates, groupInfo.arrivalDate, groupInfo.departureDate)
     const roomRequestsWithRates = reservationForm.roomRequests.map((room) => ({
       ...room,
       rateTotal: room.roomTypeId === selectedFormRoom?.roomTypeId && room.ratePlanCode === selectedFormRoom?.ratePlanCode ? fetchedRateTotal : room.rateTotal,
@@ -1651,7 +1673,12 @@ function ReservationFormView({
                 </div>
               </div>
             ))}
-            <AvailabilityTables localAriState={localAriState} roomsState={roomsState} />
+            <AvailabilityTables
+              localAriState={localAriState}
+              roomsState={roomsState}
+              arrivalDate={groupInfo.arrivalDate}
+              departureDate={groupInfo.departureDate}
+            />
           </div>
         </Section>
 
@@ -1814,12 +1841,17 @@ function ReservationFormView({
 function AvailabilityTables({
   localAriState,
   roomsState,
+  arrivalDate,
+  departureDate,
 }: {
   localAriState: LocalARIState
   roomsState: RoomsAvailabilityState
+  arrivalDate: string
+  departureDate: string
 }) {
-  const rateTotal = localAriState.rates.reduce((sum, rate) => sum + (rate.amountBeforeTax ?? rate.basePriceBeforeTax ?? 0), 0)
-  const allZeroRates = localAriState.rates.length > 0 && localAriState.rates.every((rate) => rate.basePriceBeforeTax === 0 && rate.finalRateAfterTax === 0)
+  const billableRates = localAriState.rates.filter((rate) => isBillableStayDate(rate.date, arrivalDate, departureDate))
+  const rateTotal = sumBillableRates(localAriState.rates, arrivalDate, departureDate)
+  const allZeroRates = billableRates.length > 0 && billableRates.every((rate) => rate.basePriceBeforeTax === 0 && rate.finalRateAfterTax === 0)
   const availabilityByType = roomsState.availability.reduce<Record<string, number>>((acc, room) => {
     acc[room.roomTypeName] = (acc[room.roomTypeName] || 0) + 1
     return acc
@@ -1839,9 +1871,9 @@ function AvailabilityTables({
             <div className="text-sm font-extrabold text-[#0B4EA2]">Total: {formatMoney(rateTotal)}</div>
           </div>
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-            {allZeroRates || (localAriState.status === 'succeeded' && localAriState.rates.length === 0) ? (
+            {allZeroRates || (localAriState.status === 'succeeded' && billableRates.length === 0) ? (
               <div className="px-5 py-8 text-center text-sm font-semibold text-amber-700">
-                No rate data available for this room type and rate plan.
+                No billable rate data available for this room type and rate plan.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -1856,7 +1888,7 @@ function AvailabilityTables({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {localAriState.rates.map((rate, index) => {
+                    {billableRates.map((rate, index) => {
                       const dateObj = new Date(rate.date)
                       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
                       return (

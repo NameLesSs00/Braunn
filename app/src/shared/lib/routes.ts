@@ -1,6 +1,8 @@
 export const routes = {
   dashboard: '/dashboard',
   reservations: '/reservations',
+  groupReservations: '/group-reservations',
+  groupReservationDetails: '/group-reservations/:groupReservationId',
   roomPlan: '/room-plan',
   guests: '/guests',
   reports: '/reports',

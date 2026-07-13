@@ -159,6 +159,28 @@ export type CreatedGroupReservationChild = {
   currency?: string | null
 }
 
+export type GroupChildReservation = CreatedGroupReservationChild
+
+export type GroupReservationListItem = {
+  id?: string | null
+  groupId?: string | null
+  groupReservationId?: string | null
+  groupReference?: string | null
+  groupName?: string | null
+  status?: string | null
+  arrivalDate?: string | null
+  departureDate?: string | null
+  groupDiscountPercentage?: number | null
+  childReservationCount?: number | null
+  totalBeforeDiscount?: number | null
+  totalDiscountAmount?: number | null
+  totalAfterDiscount?: number | null
+  childReservations?: GroupChildReservation[] | null
+  reservations?: GroupChildReservation[] | null
+  localReservations?: GroupChildReservation[] | null
+  warnings?: string[] | null
+}
+
 export type CreateGroupReservationResponse = {
   id?: string | null
   groupId?: string | null

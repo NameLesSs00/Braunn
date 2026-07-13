@@ -102,6 +102,7 @@ export interface PmsReservationDetails extends PmsReservation {
 }
 export interface PmsCheckInByDate {
   reservationId: string
+  bookingReference?: string | null
   guestFullName: string
   roomNumber: string
   roomTypeName: string
@@ -112,6 +113,7 @@ export interface PmsCheckInByDate {
 }
 export interface PmsInHouseReservation {
   reservationId: string
+  bookingReference?: string | null
   guestFullName: string
   roomNumber: string
   roomTypeName: string

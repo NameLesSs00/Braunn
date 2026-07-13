@@ -5,8 +5,8 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { IconImage } from '../../../shared/ui/IconImage'
 import { Modal } from '../../../shared/ui/Modal'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
-import { fetchPmsCheckInsByDate } from '../../../features/pms/pmsSlice'
-import type { PmsCheckInByDate } from '../../../models/PmsReservation'
+import { fetchPmsReservations } from '../../../features/pms/pmsSlice'
+import type { PmsReservation } from '../../../models/PmsReservation'
 import { CheckInProcessPopup } from '../../reservations/pupops/CheckInProcessPopup'
 import { IoSearchSharp } from "react-icons/io5";
 import { FiLogIn } from "react-icons/fi";
@@ -18,6 +18,34 @@ function formatDateForDisplay(isoDate: string): string {
   return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 }
 
+function getLocalYYYYMMDD(d: Date = new Date()) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function normalizeStatus(value?: string | null) {
+  return (value || '').replace(/[\s_-]/g, '').toLowerCase()
+}
+
+function getVisiblePageNumbers(page: number, pages: number) {
+  const visible = new Set<number>([1, pages, page - 1, page, page + 1])
+  if (page <= 3) {
+    visible.add(2)
+    visible.add(3)
+    visible.add(4)
+  }
+  if (page >= pages - 2) {
+    visible.add(pages - 3)
+    visible.add(pages - 2)
+    visible.add(pages - 1)
+  }
+  return Array.from(visible)
+    .filter((p) => p >= 1 && p <= pages)
+    .sort((a, b) => a - b)
+}
+
 type Props = {
   open: boolean
   onClose: () => void
@@ -25,7 +53,9 @@ type Props = {
 
 export function CheckInTodayModal({ open, onClose }: Props) {
   const dispatch = useAppDispatch()
-  const pmsCheckIns = useAppSelector((s) => s.pms.checkInsByDate)
+  const pmsReservations = useAppSelector((s) => s.pms.reservations)
+  const reservationsLoading = useAppSelector((s) => s.pms.status === 'loading')
+  const today = useMemo(() => getLocalYYYYMMDD(), [])
 
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -36,10 +66,9 @@ export function CheckInTodayModal({ open, onClose }: Props) {
 
   useEffect(() => {
     if (open) {
-      const currentToday = new Date().toISOString().split('T')[0]
-      void dispatch(fetchPmsCheckInsByDate(currentToday))
+      void dispatch(fetchPmsReservations({ startDate: today, endDate: today }))
     }
-  }, [dispatch, open])
+  }, [dispatch, open, today])
 
   useEffect(() => {
     if (!open) return
@@ -53,21 +82,21 @@ export function CheckInTodayModal({ open, onClose }: Props) {
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    let result = pmsCheckIns.filter((reservation) => {
-      const status = (reservation.status ?? '').replace(/[\s_-]/g, '').toLowerCase()
-      return status !== 'checkedin'
+    let result = pmsReservations.filter((reservation) => {
+      const status = normalizeStatus(reservation.status)
+      return reservation.checkInDate?.slice(0, 10) === today && status !== 'checkedin'
     })
 
     if (q) {
       result = result.filter((r) => 
-        [r.guestFullName, r.reservationId, r.roomTypeName].some((v) => (v ?? '').toLowerCase().includes(q))
+        [r.guestName, r.bookingReference, r.roomNumber, r.roomTypeName].some((v) => (v ?? '').toLowerCase().includes(q))
       )
     }
 
     return result
-  }, [pmsCheckIns, query])
+  }, [pmsReservations, query, today])
 
-  const PAGE_SIZE = 8
+  const PAGE_SIZE = 15
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const rows = useMemo(() => {
@@ -86,8 +115,7 @@ export function CheckInTodayModal({ open, onClose }: Props) {
           }}
           reservationId={checkInReservationId}
           onSuccess={() => {
-            const currentToday = new Date().toISOString().split('T')[0]
-            void dispatch(fetchPmsCheckInsByDate(currentToday))
+            void dispatch(fetchPmsReservations({ startDate: today, endDate: today }))
           }}
         />
 
@@ -134,22 +162,33 @@ export function CheckInTodayModal({ open, onClose }: Props) {
               </div>
 
             <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
-              {rows.length === 0 ? (
+              {reservationsLoading ? (
+                <div className="flex h-full flex-col items-center justify-center py-16 text-center">
+                  <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#0B4EA2]/20 border-t-[#0B4EA2]" />
+                  <p className="mt-3 text-sm font-medium text-slate-500">Loading arrivals...</p>
+                </div>
+              ) : rows.length === 0 ? (
                 <div className="flex h-full items-center justify-center py-16 text-center text-sm text-slate-500">No arrivals found</div>
               ) : (
-                rows.map((row: PmsCheckInByDate, idx) => {
-                  const paymentLabel = row.remainingBalance === 0 ? 'Fully Paid' : 'Unpaid'
+                rows.map((row: PmsReservation, idx) => {
+                  const remainingBalance = row.remainingAmount ?? Math.max(0, row.totalAmount - row.paidAmount)
+                  const paymentLabel = remainingBalance <= 0 ? 'Fully Paid' : row.paidAmount > 0 ? 'Partial' : 'Unpaid'
 
                   return (
                     <div
-                      key={row.reservationId}
+                      key={row.id}
                       className={[
                         'grid grid-cols-[1.5fr_1fr_1fr_1fr_.9fr_1fr_1.2fr] items-center px-6 py-3 text-[12px] text-slate-700',
                         idx % 2 === 1 ? 'bg-[#F4F9FF]' : 'bg-white',
                       ].join(' ')}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="font-medium text-slate-800">{row.guestFullName}</div>
+                      <div className="min-w-0 leading-tight">
+                        <div className="truncate font-medium text-slate-800">{row.guestName}</div>
+                        {row.bookingReference ? (
+                          <div className="truncate text-[11px] text-slate-500" title={row.bookingReference}>
+                            {row.bookingReference}
+                          </div>
+                        ) : null}
                       </div>
                       <div>
                         {row.roomNumber && row.roomNumber !== 'Pending' ? (
@@ -171,7 +210,7 @@ export function CheckInTodayModal({ open, onClose }: Props) {
                           type="button"
                           className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-3 py-1.5 text-[12px] font-semibold text-white"
                           onClick={() => {
-                            setCheckInReservationId(row.reservationId)
+                            setCheckInReservationId(row.id)
                             setCheckInOpen(true)
                           }}
                         >
@@ -200,7 +239,7 @@ export function CheckInTodayModal({ open, onClose }: Props) {
               <ChevronLeft className="h-4 w-4" />
             </button>
 
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            {getVisiblePageNumbers(safePage, totalPages).map((p) => (
               <button
                 key={p}
                 type="button"

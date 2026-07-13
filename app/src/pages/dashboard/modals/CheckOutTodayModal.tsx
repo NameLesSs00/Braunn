@@ -3,8 +3,7 @@ import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 
 import { Modal } from '../../../shared/ui/Modal'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
-import { fetchPmsInHouseReservations } from '../../../features/pms/pmsSlice'
-import type { PmsInHouseReservation, PmsReservation } from '../../../models/PmsReservation'
+import { fetchPmsReservations } from '../../../features/pms/pmsSlice'
 import { CheckOutProcessPopup } from '../../reservations/checkout/CheckOutProcessPopup'
 
 type Props = {
@@ -19,34 +18,57 @@ function formatDateForDisplay(isoDate: string): string {
   return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 }
 
-function toPmsReservation(row: PmsInHouseReservation): PmsReservation {
+function getLocalYYYYMMDD(d: Date = new Date()) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getDepartureLookupRange(today: string) {
+  const start = new Date(today)
+  start.setDate(start.getDate() - 90)
   return {
-    id: row.reservationId,
-    guestName: row.guestFullName,
-    roomNumber: row.roomNumber,
-    roomTypeName: row.roomTypeName,
-    checkInDate: row.checkInDate,
-    checkOutDate: row.checkOutDate,
-    status: row.status,
-    totalAmount: row.remainingBalance,
-    paidAmount: 0,
-    channelName: null,
-    remainingAmount: row.remainingBalance,
+    startDate: getLocalYYYYMMDD(start),
+    endDate: today,
   }
+}
+
+function normalizeStatus(value?: string | null) {
+  return (value || '').replace(/[\s_-]/g, '').toLowerCase()
+}
+
+function getVisiblePageNumbers(page: number, pages: number) {
+  const visible = new Set<number>([1, pages, page - 1, page, page + 1])
+  if (page <= 3) {
+    visible.add(2)
+    visible.add(3)
+    visible.add(4)
+  }
+  if (page >= pages - 2) {
+    visible.add(pages - 3)
+    visible.add(pages - 2)
+    visible.add(pages - 1)
+  }
+  return Array.from(visible)
+    .filter((p) => p >= 1 && p <= pages)
+    .sort((a, b) => a - b)
 }
 
 export function CheckOutTodayModal({ open, onClose }: Props) {
   const dispatch = useAppDispatch()
-  const inHouseReservations = useAppSelector((s) => s.pms.inHouseReservations)
+  const reservations = useAppSelector((s) => s.pms.reservations)
+  const reservationsLoading = useAppSelector((s) => s.pms.status === 'loading')
 
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [checkOutOpen, setCheckOutOpen] = useState(false)
   const [checkOutReservationId, setCheckOutReservationId] = useState<string | null>(null)
   const fetchedForOpenRef = useRef(false)
-  const pageSize = 8
+  const pageSize = 15
 
-  const today = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const today = useMemo(() => getLocalYYYYMMDD(), [])
+  const departureLookupRange = useMemo(() => getDepartureLookupRange(today), [today])
 
   useEffect(() => {
     if (!open) {
@@ -57,22 +79,22 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
     setPage(1)
     if (fetchedForOpenRef.current) return
     fetchedForOpenRef.current = true
-    void dispatch(fetchPmsInHouseReservations())
-  }, [dispatch, open])
+    void dispatch(fetchPmsReservations(departureLookupRange))
+  }, [departureLookupRange, dispatch, open])
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
 
-    return inHouseReservations
+    return reservations
       .filter((r) => r.checkOutDate?.slice(0, 10) === today)
-      .filter((r) => r.status === 'CheckedIn')
+      .filter((r) => normalizeStatus(r.status) === 'checkedin')
       .filter((r) => {
         if (!q) return true
-        return [r.guestFullName, r.reservationId, r.roomNumber, r.roomTypeName].some((value) =>
+        return [r.guestName, r.bookingReference, r.roomNumber, r.roomTypeName].some((value) =>
           (value ?? '').toLowerCase().includes(q),
         )
       })
-  }, [inHouseReservations, query, today])
+  }, [query, reservations, today])
 
   useEffect(() => {
     setPage(1)
@@ -88,12 +110,11 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
 
   const checkOutReservation = useMemo(() => {
     if (!checkOutReservationId) return null
-    const found = inHouseReservations.find((r) => r.reservationId === checkOutReservationId)
-    return found ? toPmsReservation(found) : null
-  }, [checkOutReservationId, inHouseReservations])
+    return reservations.find((r) => r.id === checkOutReservationId) ?? null
+  }, [checkOutReservationId, reservations])
 
   const refreshDepartures = () => {
-    void dispatch(fetchPmsInHouseReservations())
+    void dispatch(fetchPmsReservations(departureLookupRange))
   }
 
   return (
@@ -140,7 +161,12 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
                   <div className="text-right">Action</div>
                 </div>
 
-                {rows.length === 0 ? (
+                {reservationsLoading ? (
+                  <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
+                    <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#0B4EA2]/20 border-t-[#0B4EA2]" />
+                    <p className="mt-3 text-sm font-medium text-slate-500">Loading departures...</p>
+                  </div>
+                ) : rows.length === 0 ? (
                   <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
                     <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-slate-100 text-slate-400">
                       <Search className="h-6 w-6" />
@@ -154,14 +180,19 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
 
                     return (
                       <div
-                        key={`${row.reservationId}-${idx}`}
+                        key={`${row.id}-${idx}`}
                         className={[
                           'grid grid-cols-[1.4fr_1fr_1fr_1fr_.9fr_1fr_1.1fr] items-center px-5 py-3 text-[13px]',
                           idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
                         ].join(' ')}
                       >
-                        <div className="flex items-center gap-2 text-slate-700">
-                          <span className="truncate">{row.guestFullName || '-----'}</span>
+                        <div className="min-w-0 leading-tight text-slate-700">
+                          <div className="truncate font-medium">{row.guestName || '-----'}</div>
+                          {row.bookingReference ? (
+                            <div className="truncate text-[11px] text-slate-500" title={row.bookingReference}>
+                              {row.bookingReference}
+                            </div>
+                          ) : null}
                         </div>
                         <div className="text-slate-600">
                           <div className="font-medium text-slate-700">{row.roomNumber || '-----'}</div>
@@ -176,7 +207,7 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
                             type="button"
                             className="inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md bg-rose-600 px-3 text-[12px] font-semibold leading-none text-white"
                             onClick={() => {
-                              setCheckOutReservationId(row.reservationId)
+                              setCheckOutReservationId(row.id)
                               setCheckOutOpen(true)
                             }}
                           >
@@ -201,7 +232,7 @@ export function CheckOutTodayModal({ open, onClose }: Props) {
                     <ChevronLeft className="h-4 w-4" />
                   </button>
 
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                  {getVisiblePageNumbers(safePage, totalPages).map((pageNumber) => (
                     <button
                       key={pageNumber}
                       type="button"

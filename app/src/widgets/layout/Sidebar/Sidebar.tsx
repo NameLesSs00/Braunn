@@ -21,6 +21,7 @@ type NavItem = {
 const mainNavItems: NavItem[] = [
   { to: routes.dashboard, label: 'Dashboard', iconSrc: IoHomeOutline },
   { to: routes.reservations, label: 'Reservations', iconSrc: FaRegCalendar },
+  { to: routes.groupReservations, label: 'Group Reservations', iconSrc: MdGroup },
   { to: routes.roomPlan, label: 'Room Plan', iconSrc: PiSquaresFourLight },
   { to: routes.guests, label: 'Guests', iconSrc: MdGroup },
   { to: routes.reports, label: 'Reports', iconSrc: FaPoll },

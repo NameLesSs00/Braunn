@@ -35,6 +35,23 @@ function formatDateForDisplay(isoDate: string): string {
   return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 }
 
+function getVisiblePageNumbers(page: number, pages: number) {
+  const visible = new Set<number>([1, pages, page - 1, page, page + 1])
+  if (page <= 3) {
+    visible.add(2)
+    visible.add(3)
+    visible.add(4)
+  }
+  if (page >= pages - 2) {
+    visible.add(pages - 3)
+    visible.add(pages - 2)
+    visible.add(pages - 1)
+  }
+  return Array.from(visible)
+    .filter((p) => p >= 1 && p <= pages)
+    .sort((a, b) => a - b)
+}
+
 export function SearchReservationModal({ open, onClose }: Props) {
   const dispatch = useAppDispatch()
   const reservations = useAppSelector((s) => s.pms.reservations)
@@ -58,7 +75,7 @@ export function SearchReservationModal({ open, onClose }: Props) {
   const [moveRoomOpen, setMoveRoomOpen] = useState(false)
   const [moveRoomReservationId, setMoveRoomReservationId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const pageSize = 8
+  const pageSize = 15
 
   useEffect(() => {
     if (!open) return
@@ -275,8 +292,11 @@ export function SearchReservationModal({ open, onClose }: Props) {
                           idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
                         ].join(' ')}
                       >
-                        <div className="flex items-center gap-2 text-slate-700">
-                          <span className="truncate">{row.guestName || '-----'}</span>
+                        <div className="min-w-0 leading-tight text-slate-700">
+                          <div className="truncate font-medium">{row.guestName || '-----'}</div>
+                          <div className="truncate text-[11px] text-slate-500" title={row.bookingReference || row.id}>
+                            {row.bookingReference || row.id || '-----'}
+                          </div>
                         </div>
                         <div className="text-slate-600">
                           <div className="font-medium text-slate-700">{row.roomNumber || '-----'}</div>
@@ -322,7 +342,7 @@ export function SearchReservationModal({ open, onClose }: Props) {
                   <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-50" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+                  {getVisiblePageNumbers(safePage, totalPages).map((pageNumber) => (
                     <button key={pageNumber} type="button" className={['inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold', safePage === pageNumber ? 'bg-[#0B4EA2] text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'].join(' ')} onClick={() => setPage(pageNumber)}>
                       {pageNumber}
                     </button>
