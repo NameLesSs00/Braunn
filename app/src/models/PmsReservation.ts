@@ -18,6 +18,7 @@ export interface PmsReservation {
   roomType?: any
   actualCheckOutDate?: string | null
   bookingSource?: string
+  sourceType?: string | null
   reservationType?: string
   corporateAccountId?: string | null
   groupContractId?: string | null

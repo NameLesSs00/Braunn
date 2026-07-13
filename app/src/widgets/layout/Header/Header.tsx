@@ -4,8 +4,14 @@ import { routes } from '../../../shared/lib/routes'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { useNewReservationModal } from '../../layout/DashboardLayout/NewReservationModalContext'
 import { setDraft } from '../../../features/reservations/draftSlice'
-import { Notification, removeNotification, removeReservationDraftNotification } from '../../../features/notifications/notificationsSlice'
+import {
+  Notification,
+  removeGroupReservationDraftNotification,
+  removeNotification,
+  removeReservationDraftNotification,
+} from '../../../features/notifications/notificationsSlice'
 import { getSavedReservationDraft } from '../../../features/reservations/reservationDraftStorage'
+import { getSavedGroupReservationDraft } from '../../../features/reservations/groupReservationDraftStorage'
 
 import { IconImage } from '../../../shared/ui/IconImage'
 import { ShiftCloseModal } from '../../../features/shiftClose'
@@ -17,9 +23,10 @@ import { FaBell } from "react-icons/fa6";
 type Props = {
   title: string
   onAddReservationClick?: () => void
+  onOpenGroupReservationDraft?: (draftId: string) => void
 }
 
-export function Header({ title, onAddReservationClick }: Props) {
+export function Header({ title, onAddReservationClick, onOpenGroupReservationDraft }: Props) {
   const dispatch = useAppDispatch()
   const { openNewReservation } = useNewReservationModal()
   const notifications = useAppSelector((state) => state.notifications.items)
@@ -75,6 +82,17 @@ export function Header({ title, onAddReservationClick }: Props) {
         step: savedDraft.step,
         step4Page: savedDraft.step4Page,
       })
+    } else if (notification.type === 'group_reservation_draft') {
+      if (!notification.draftId) return
+
+      const savedDraft = getSavedGroupReservationDraft(notification.draftId)
+      if (!savedDraft) {
+        dispatch(removeGroupReservationDraftNotification(notification.draftId))
+        setNotificationsOpen(false)
+        return
+      }
+
+      onOpenGroupReservationDraft?.(savedDraft.id)
     } else if (notification.type === 'shift_start') {
       setShiftStartOpen(true)
       dispatch(removeNotification(notification.id))
@@ -152,6 +170,14 @@ export function Header({ title, onAddReservationClick }: Props) {
                                 {item.isOptional && '. would you like to complete it'}
                               </div>
                             </>
+                          ) : item.type === 'group_reservation_draft' ? (
+                            <div className="text-[13px] font-medium text-slate-800">
+                              you have uncompleted group reservation
+                              <span className="font-bold text-[#0B4EA2]">
+                                {' '}
+                                {item.groupName || item.contactName || 'Group'}
+                              </span>
+                            </div>
                           ) : (
                             <div className="text-[13px] font-medium text-slate-800">
                               You must <span className="font-bold text-amber-600">start your shift</span> now to continue working.

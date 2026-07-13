@@ -7,7 +7,7 @@ import { Sidebar } from '../Sidebar/Sidebar'
 import { NewReservationModal } from '../../reservations/NewReservationModal/NewReservationModal'
 import { NewReservationModalProvider, type OpenNewReservationOptions } from './NewReservationModalContext'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
-import { addNotification, hydrateReservationDraftNotifications, removeNotification } from '../../../features/notifications/notificationsSlice'
+import { addNotification, hydrateGroupReservationDraftNotifications, hydrateReservationDraftNotifications, removeNotification } from '../../../features/notifications/notificationsSlice'
 import { resetDraft } from '../../../features/reservations/draftSlice'
 import { ShiftStartModal } from '../../../features/shiftStart'
 import { selectIsShiftActive, fetchBusinessDate, fetchCurrentShift } from '../../../features/shift/shiftSlice'
@@ -16,6 +16,11 @@ import { OtaReservationModal } from '../../reservations/OtaReservationModal/OtaR
 import { GroupReservationModal } from '../../reservations/GroupReservationModal/GroupReservationModal'
 import { useEffect } from 'react'
 import { getSavedReservationDrafts, type SavedReservationStep, type SavedReservationStep4Page } from '../../../features/reservations/reservationDraftStorage'
+import {
+  getSavedGroupReservationDraft,
+  getSavedGroupReservationDrafts,
+} from '../../../features/reservations/groupReservationDraftStorage'
+import type { GroupReservationDraftValue, GroupWizardStep } from '../../../models/GroupReservation'
 
 const titleByPath: Record<string, string> = {
   [routes.dashboard]: 'Dashboard',
@@ -51,6 +56,9 @@ export function DashboardLayout() {
   const [activeReservationDraftId, setActiveReservationDraftId] = useState<string | null>(null)
   const [initialReservationStep, setInitialReservationStep] = useState<SavedReservationStep>(1)
   const [initialReservationStep4Page, setInitialReservationStep4Page] = useState<SavedReservationStep4Page>(1)
+  const [activeGroupReservationDraftId, setActiveGroupReservationDraftId] = useState<string | null>(null)
+  const [initialGroupReservationStep, setInitialGroupReservationStep] = useState<GroupWizardStep>(1)
+  const [initialGroupReservationDraft, setInitialGroupReservationDraft] = useState<GroupReservationDraftValue | null>(null)
 
   const isShiftActive = useAppSelector(selectIsShiftActive)
   const shiftStatus = useAppSelector((state) => state.shift.shiftStatus)
@@ -61,6 +69,7 @@ export function DashboardLayout() {
     void dispatch(fetchBusinessDate())
     void dispatch(fetchCurrentShift())
     dispatch(hydrateReservationDraftNotifications(getSavedReservationDrafts()))
+    dispatch(hydrateGroupReservationDraftNotifications(getSavedGroupReservationDrafts()))
   }, [dispatch])
 
   const openNewReservation = (options?: OpenNewReservationOptions) => {
@@ -72,6 +81,15 @@ export function DashboardLayout() {
     setInitialReservationStep(options?.step ?? 1)
     setInitialReservationStep4Page(options?.step4Page ?? 1)
     setNewReservationOpen(true)
+  }
+
+  const openGroupReservation = (draftId?: string) => {
+    const savedDraft = draftId ? getSavedGroupReservationDraft(draftId) : null
+
+    setActiveGroupReservationDraftId(savedDraft?.id ?? null)
+    setInitialGroupReservationStep(savedDraft?.step ?? 1)
+    setInitialGroupReservationDraft(savedDraft?.draft ?? null)
+    setGroupReservationOpen(true)
   }
 
   useEffect(() => {
@@ -120,7 +138,11 @@ export function DashboardLayout() {
                 </p>
               </div>
             )}
-            <Header title={title} onAddReservationClick={() => setSelectReservationTypeOpen(true)} />
+            <Header
+              title={title}
+              onAddReservationClick={() => setSelectReservationTypeOpen(true)}
+              onOpenGroupReservationDraft={openGroupReservation}
+            />
             <main className="min-w-0 flex-1 overflow-y-auto px-8 pb-10">
               <Outlet />
             </main>
@@ -142,7 +164,7 @@ export function DashboardLayout() {
         }}
         onSelectGroup={() => {
           setSelectReservationTypeOpen(false)
-          setGroupReservationOpen(true)
+          openGroupReservation()
         }}
       />
       <NewReservationModal
@@ -154,7 +176,14 @@ export function DashboardLayout() {
         onClose={() => setNewReservationOpen(false)}
       />
       <OtaReservationModal open={otaReservationOpen} onClose={() => setOtaReservationOpen(false)} />
-      <GroupReservationModal open={groupReservationOpen} onClose={() => setGroupReservationOpen(false)} />
+      <GroupReservationModal
+        open={groupReservationOpen}
+        activeDraftId={activeGroupReservationDraftId}
+        initialDraft={initialGroupReservationDraft}
+        initialStep={initialGroupReservationStep}
+        onActiveDraftIdChange={setActiveGroupReservationDraftId}
+        onClose={() => setGroupReservationOpen(false)}
+      />
       <ShiftStartModal open={shiftStartOpen} onClose={() => setShiftStartOpen(false)} />
     </div>
   )

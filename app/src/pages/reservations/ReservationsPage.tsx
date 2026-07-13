@@ -31,6 +31,7 @@ const lastDayOfMonth = getLocalYYYYMMDD(new Date(new Date().getFullYear(), new D
 interface ReservationsFilters {
   query: string
   statusFilter: string
+  bookingSourceFilter: string
   roomTypeFilter: string
   paymentStatusFilter: string
   checkInFrom: string
@@ -38,6 +39,18 @@ interface ReservationsFilters {
 }
 
 let reservationsFiltersCache: ReservationsFilters | null = null
+
+const bookingSourceOptions = [
+  'CorporateAccount',
+  'GroupContract',
+  'Phone',
+  'Email',
+  'WalkIn',
+  'Direct',
+  'Group',
+] as const
+
+type BookingSourceOption = typeof bookingSourceOptions[number]
 
 function formatDateForDisplay(isoDate: string): string {
   if (!isoDate) return '—'
@@ -48,6 +61,24 @@ function formatDateForDisplay(isoDate: string): string {
 
 function normalizeStatus(value?: string | null) {
   return (value || '').replace(/[\s_-]/g, '').toLowerCase()
+}
+
+function normalizeBookingSource(value?: string | null) {
+  return (value || '').replace(/[\s_-]/g, '').toLowerCase()
+}
+
+function getReservationBookingSource(reservation: PmsReservation): BookingSourceOption | '' {
+  const normalizedValues = [
+    reservation.bookingSource,
+    reservation.sourceType,
+    reservation.channelName,
+  ].map(normalizeBookingSource)
+
+  return bookingSourceOptions.find((source) => normalizedValues.includes(normalizeBookingSource(source))) || ''
+}
+
+function getReservationSourceLabel(reservation: PmsReservation) {
+  return getReservationBookingSource(reservation) || reservation.channelName || reservation.bookingSource || '-----'
 }
 
 function getStatusTagClass(status?: string | null) {
@@ -70,6 +101,27 @@ function getStatusTagClass(status?: string | null) {
       return 'border-orange-200 bg-orange-50 text-orange-700'
     default:
       return 'border-slate-200 bg-white text-slate-600'
+  }
+}
+
+function getBookingSourceTagClass(source?: string | null) {
+  switch (normalizeBookingSource(source)) {
+    case 'corporateaccount':
+      return 'border-violet-200 bg-violet-50 text-violet-700'
+    case 'groupcontract':
+      return 'border-cyan-200 bg-cyan-50 text-cyan-700'
+    case 'phone':
+      return 'border-amber-200 bg-amber-50 text-amber-700'
+    case 'email':
+      return 'border-sky-200 bg-sky-50 text-sky-700'
+    case 'walkin':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    case 'direct':
+      return 'border-blue-200 bg-blue-50 text-blue-700'
+    case 'group':
+      return 'border-rose-200 bg-rose-50 text-rose-700'
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-600'
   }
 }
 
@@ -117,14 +169,16 @@ export function ReservationsPage() {
   const dispatch = useAppDispatch()
   const pmsReservations = useAppSelector((s) => s.pms.reservationsTableRows)
   const reservationsLoading = useAppSelector((s) => s.pms.reservationsTableStatus === 'loading')
-  const initialFilters = useMemo<ReservationsFilters>(() => reservationsFiltersCache ?? {
+  const initialFilters = useMemo<ReservationsFilters>(() => ({
     query: '',
     statusFilter: '',
+    bookingSourceFilter: 'all',
     roomTypeFilter: 'all',
     paymentStatusFilter: 'all',
     checkInFrom: today,
     checkInTo: lastDayOfMonth,
-  }, [])
+    ...reservationsFiltersCache,
+  }), [])
 
   const [checkInFrom, setCheckInFrom] = useState(initialFilters.checkInFrom)
   const [checkInTo, setCheckInTo] = useState(initialFilters.checkInTo)
@@ -158,6 +212,7 @@ export function ReservationsPage() {
   const [moveRoomReservationId, setMoveRoomReservationId] = useState<string | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<string>(initialFilters.statusFilter)
+  const [bookingSourceFilter, setBookingSourceFilter] = useState(initialFilters.bookingSourceFilter)
   const [roomTypeFilter, setRoomTypeFilter] = useState(initialFilters.roomTypeFilter)
   const [paymentStatusFilter, setPaymentStatusFilter] = useState(initialFilters.paymentStatusFilter)
 
@@ -170,12 +225,13 @@ export function ReservationsPage() {
     reservationsFiltersCache = {
       query,
       statusFilter,
+      bookingSourceFilter,
       roomTypeFilter,
       paymentStatusFilter,
       checkInFrom,
       checkInTo,
     }
-  }, [query, statusFilter, roomTypeFilter, paymentStatusFilter, checkInFrom, checkInTo])
+  }, [query, statusFilter, bookingSourceFilter, roomTypeFilter, paymentStatusFilter, checkInFrom, checkInTo])
 
   useEffect(() => {
     if (!openMenuForId) return
@@ -194,11 +250,15 @@ export function ReservationsPage() {
     let result = [...pmsReservations]
 
     if (q) {
-      result = result.filter((r) => [r.guestName, r.id, r.roomTypeName].some((v) => (v ?? '').toLowerCase().includes(q)))
+      result = result.filter((r) => [r.guestName, r.id, r.roomTypeName, getReservationSourceLabel(r)].some((v) => (v ?? '').toLowerCase().includes(q)))
     }
 
     if (statusFilter !== '') {
       result = result.filter((r) => r.status === statusFilter)
+    }
+
+    if (bookingSourceFilter !== 'all') {
+      result = result.filter((r) => getReservationBookingSource(r) === bookingSourceFilter)
     }
 
     if (roomTypeFilter !== 'all') {
@@ -214,11 +274,11 @@ export function ReservationsPage() {
     }
 
     return result
-  }, [pmsReservations, query, statusFilter, roomTypeFilter, paymentStatusFilter])
+  }, [pmsReservations, query, statusFilter, bookingSourceFilter, roomTypeFilter, paymentStatusFilter])
 
   useEffect(() => {
     setPage(1)
-  }, [query, statusFilter, roomTypeFilter, paymentStatusFilter, checkInFrom, checkInTo])
+  }, [query, statusFilter, bookingSourceFilter, roomTypeFilter, paymentStatusFilter, checkInFrom, checkInTo])
 
   const pages = Math.max(1, Math.ceil(filteredRows.length / perPage))
   const safePage = Math.min(page, pages)
@@ -269,12 +329,15 @@ export function ReservationsPage() {
 
     if (normalizedQuery) {
       exportRows = exportRows.filter((reservation) =>
-        [reservation.guestName, reservation.id, reservation.roomTypeName]
+        [reservation.guestName, reservation.id, reservation.roomTypeName, getReservationSourceLabel(reservation)]
           .some((value) => (value ?? '').toLowerCase().includes(normalizedQuery))
       )
     }
     if (statusFilter) {
       exportRows = exportRows.filter((reservation) => reservation.status === statusFilter)
+    }
+    if (bookingSourceFilter !== 'all') {
+      exportRows = exportRows.filter((reservation) => getReservationBookingSource(reservation) === bookingSourceFilter)
     }
     if (roomTypeFilter !== 'all') {
       exportRows = exportRows.filter((reservation) =>
@@ -321,7 +384,7 @@ export function ReservationsPage() {
           : reservation.paidAmount > 0
             ? 'Deposit Paid'
             : 'Unpaid',
-        reservation.channelName || reservation.bookingSource || '-----',
+        getReservationSourceLabel(reservation),
       ]),
       theme: 'grid',
       headStyles: { fillColor: [11, 78, 162], textColor: [255, 255, 255] },
@@ -440,6 +503,20 @@ export function ReservationsPage() {
             </select>
           </div>
 
+          <div className="flex-1 min-w-[150px] space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Booking Source</div>
+            <select
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none"
+              value={bookingSourceFilter}
+              onChange={(e) => setBookingSourceFilter(e.target.value)}
+            >
+              <option value="all">All Booking Sources</option>
+              {bookingSourceOptions.map((source) => (
+                <option key={source} value={source}>{source}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex-1 min-w-[120px] space-y-1.5">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Room Type</div>
             <select
@@ -543,6 +620,7 @@ export function ReservationsPage() {
           ) : (
             pageRows.map((row: PmsReservation, idx) => {
               const statusLabel = row.status
+            const sourceLabel = getReservationSourceLabel(row)
             const paymentLabel = row.paidAmount >= row.totalAmount ? 'Fully Paid' : row.paidAmount > 0 ? 'deposit paid' : 'Unpaid'
 
             const isCheckInToday = row.checkInDate?.startsWith(today) ?? false
@@ -603,7 +681,17 @@ export function ReservationsPage() {
                   </span>
                 </div>
                 <div>{paymentLabel}</div>
-                <div>{row.channelName || '—'}</div>
+                <div>
+                  <span
+                    className={[
+                      'inline-flex max-w-full items-center rounded-full border px-3 py-1 text-[11px] font-semibold leading-none',
+                      getBookingSourceTagClass(sourceLabel),
+                    ].join(' ')}
+                    title={sourceLabel}
+                  >
+                    <span className="truncate">{sourceLabel}</span>
+                  </span>
+                </div>
 
                 <div className="relative flex items-center justify-center gap-2">
                   {canShowCheckIn ? (
