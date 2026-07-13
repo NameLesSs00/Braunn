@@ -9,8 +9,19 @@ import type { GroupChildReservation, GroupReservationListItem } from '../../mode
 import { getGroupReservations } from '../../shared/apis/GroupReservations'
 import { routes } from '../../shared/lib/routes'
 import { IconImage } from '../../shared/ui/IconImage'
+import { ExportInHouseListPopup } from '../inHouseList/ExportInHouseListPopup'
 
 type LoadStatus = 'idle' | 'loading' | 'success' | 'error'
+
+const getLocalYYYYMMDD = (d: Date = new Date()) => {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const today = getLocalYYYYMMDD()
+const lastDayOfMonth = getLocalYYYYMMDD(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0))
 
 function getGroupId(group: GroupReservationListItem) {
   return group.groupReservationId || group.groupId || group.id || ''
@@ -130,77 +141,80 @@ export function GroupReservationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [arrivalFrom, setArrivalFrom] = useState(today)
+  const [arrivalTo, setArrivalTo] = useState(lastDayOfMonth)
+  const [exportOpen, setExportOpen] = useState(false)
   const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const perPage = 15
 
-  const loadGroups = () => {
+  useEffect(() => {
+    setPage(1)
+  }, [query, statusFilter, arrivalFrom, arrivalTo])
+
+  useEffect(() => {
     const controller = new AbortController()
     setStatus('loading')
     setError(null)
 
-    getGroupReservations(controller.signal)
+    getGroupReservations(
+      {
+        pageNumber: page,
+        pageSize: perPage,
+        status: statusFilter || undefined,
+        fromDate: arrivalFrom || undefined,
+        toDate: arrivalTo || undefined,
+        groupName: query.trim() || undefined,
+      },
+      controller.signal,
+    )
       .then((data) => {
-        setGroups(Array.isArray(data) ? data : [])
+        setGroups(data.items)
+        setTotalCount(data.totalCount)
+        setTotalPages(data.totalPages)
         setStatus('success')
       })
       .catch((err) => {
         if (controller.signal.aborted) return
+        setGroups([])
+        setTotalCount(0)
+        setTotalPages(1)
         setError(err instanceof Error ? err.message : 'Could not load group reservations.')
         setStatus('error')
       })
 
     return () => controller.abort()
-  }
+  }, [page, query, statusFilter, arrivalFrom, arrivalTo])
 
-  useEffect(() => loadGroups(), [])
-
-  const filteredGroups = useMemo(() => {
-    const value = query.trim().toLowerCase()
-    let result = [...groups]
-
-    if (value) {
-      result = result.filter((group) => {
-        const children = getChildReservations(group)
-        return [
-          group.groupName,
-          group.groupReference,
-          group.status,
-          ...children.map((child) => child.guestName),
-        ]
-          .filter(Boolean)
-          .some((item) => String(item).toLowerCase().includes(value))
-      })
-    }
-
-    if (statusFilter) {
-      result = result.filter((group) => group.status === statusFilter)
-    }
-
-    return result
-  }, [groups, query, statusFilter])
-
-  useEffect(() => {
-    setPage(1)
-  }, [query, statusFilter])
-
-  const pages = Math.max(1, Math.ceil(filteredGroups.length / perPage))
+  const pages = Math.max(1, totalPages || Math.ceil(totalCount / perPage))
   const safePage = Math.min(page, pages)
 
   const pageRows = useMemo(() => {
-    const start = (safePage - 1) * perPage
-    return filteredGroups.slice(start, start + perPage)
-  }, [filteredGroups, safePage])
+    return groups
+  }, [groups])
 
-  const exportGroups = () => {
+  const exportGroups = async (from: string, to: string) => {
+    const data = await getGroupReservations({
+      pageNumber: 1,
+      pageSize: Math.max(totalCount, perPage, 1000),
+      status: statusFilter || undefined,
+      fromDate: from || undefined,
+      toDate: to || undefined,
+      groupName: query.trim() || undefined,
+    })
+    const exportRows = data.items
+
     const doc = new jsPDF()
     doc.setFontSize(18)
     doc.text('Group Reservations List', 14, 20)
     doc.setFontSize(11)
     doc.setTextColor(100)
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 29)
+    doc.text(`Arrival date range: ${from} to ${to}`, 14, 29)
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 36)
 
     autoTable(doc, {
-      startY: 38,
+      startY: 44,
       head: [[
         'Group Name',
         'Reference',
@@ -211,7 +225,7 @@ export function GroupReservationsPage() {
         'Reservations',
         'Guests',
       ]],
-      body: filteredGroups.map((group) => [
+      body: exportRows.map((group) => [
         group.groupName || '-----',
         group.groupReference || '-----',
         group.status || '-----',
@@ -227,11 +241,21 @@ export function GroupReservationsPage() {
       styles: { fontSize: 8, cellPadding: 2.5 },
     })
 
-    doc.save('Group_Reservations.pdf')
+    doc.save(`Group_Reservations_${from}_to_${to}.pdf`)
   }
 
   return (
     <div className="space-y-6">
+      <ExportInHouseListPopup
+        open={exportOpen}
+        initialFrom={arrivalFrom}
+        initialTo={arrivalTo}
+        onClose={() => setExportOpen(false)}
+        onExport={exportGroups}
+        title="Export Group Reservations"
+        subject="group reservations"
+      />
+
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="relative w-full max-w-2xl">
@@ -246,7 +270,7 @@ export function GroupReservationsPage() {
             </div>
           </div>
 
-          <div className="text-sm font-semibold text-slate-600">{filteredGroups.length} results</div>
+          <div className="text-sm font-semibold text-slate-600">{totalCount} results</div>
         </div>
 
         <div className="mt-5 flex flex-wrap items-end gap-3">
@@ -263,12 +287,33 @@ export function GroupReservationsPage() {
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
+
+          <div className="flex-1 min-w-[160px] space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Arrival From</div>
+            <input
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none"
+              type="date"
+              value={arrivalFrom}
+              onChange={(e) => setArrivalFrom(e.target.value)}
+            />
+          </div>
+
+          <div className="flex-1 min-w-[160px] space-y-1.5">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Arrival To</div>
+            <input
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none"
+              type="date"
+              min={arrivalFrom || undefined}
+              value={arrivalTo}
+              onChange={(e) => setArrivalTo(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-5">
           <button
             type="button"
-            onClick={exportGroups}
+            onClick={() => setExportOpen(true)}
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0B4EA2] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <Download className="h-4 w-4" />
@@ -359,7 +404,7 @@ export function GroupReservationsPage() {
 
         <div className="mt-4 flex justify-between items-center px-6 pb-5">
           <div className="text-[13px] text-slate-500 font-medium">
-            Showing {pageRows.length} of {filteredGroups.length} group reservations
+            Showing {pageRows.length} of {totalCount} group reservations
           </div>
           <Pagination page={safePage} pages={pages} onChange={setPage} />
         </div>

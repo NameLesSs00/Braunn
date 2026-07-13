@@ -43,6 +43,7 @@ countries.registerLocale(enLocale)
 
 type Mode = 'wizard' | 'reservationForm'
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
+type ValidationErrors = Record<string, string>
 type RoomsAvailabilityState = {
   availability: RoomAvailability[]
   availabilityStatus: AsyncStatus
@@ -149,7 +150,7 @@ function formatDate(value: string) {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function formatMoney(value: number | undefined | null, currency = '$') {
+function formatMoney(value: number | undefined | null, currency = 'EUR') {
   const amount = Number(value) || 0
   return `${currency} ${amount.toFixed(2)}`
 }
@@ -242,6 +243,10 @@ function getCreatedGroupCurrency(result: CreateGroupReservationResponse | null |
   return getCreatedGroupChildren(result).find((child) => child.currency)?.currency || fallback
 }
 
+function getDraftCurrency(reservations: GroupReservationDraftItem[], fallback = 'EUR') {
+  return reservations.find((reservation) => reservation.currency)?.currency || fallback
+}
+
 function getCreatedGroupRemainingTotal(result: CreateGroupReservationResponse | null | undefined) {
   const remaining = getCreatedGroupChildren(result).reduce((sum, child) => sum + Math.max(0, Number(child.remainingBalance) || 0), 0)
   return remaining || Math.max(0, Number(result?.totalAfterDiscount) || 0)
@@ -319,6 +324,10 @@ function initials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.trim().toUpperCase() || 'G'
 }
 
+function formValue(value: string | number | null | undefined) {
+  return String(value ?? '').trim()
+}
+
 function Field({
   label,
   value,
@@ -328,6 +337,7 @@ function Field({
   type = 'text',
   min,
   max,
+  error,
 }: {
   label: string
   value: string
@@ -337,6 +347,7 @@ function Field({
   type?: 'text' | 'email' | 'tel' | 'number' | 'date'
   min?: string
   max?: string
+  error?: string
 }) {
   return (
     <label className="block">
@@ -351,8 +362,12 @@ function Field({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#0B4EA2]"
+        className={[
+          'h-11 w-full rounded-lg border bg-white px-4 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400',
+          error ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-[#0B4EA2]',
+        ].join(' ')}
       />
+      {error ? <div className="mt-1 text-[11px] font-semibold text-rose-600">{error}</div> : null}
     </label>
   )
 }
@@ -387,12 +402,14 @@ function SelectField({
   onChange,
   options,
   required,
+  error,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   options: { value: string; label: string }[]
   required?: boolean
+  error?: string
 }) {
   return (
     <label className="block">
@@ -404,7 +421,10 @@ function SelectField({
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-11 w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 pr-10 text-sm text-slate-700 outline-none transition-colors focus:border-[#0B4EA2]"
+          className={[
+            'h-11 w-full appearance-none rounded-lg border bg-white px-4 pr-10 text-sm text-slate-700 outline-none transition-colors',
+            error ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-[#0B4EA2]',
+          ].join(' ')}
         >
           <option value="">select</option>
           {options.map((option) => (
@@ -415,6 +435,7 @@ function SelectField({
         </select>
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">v</span>
       </div>
+      {error ? <div className="mt-1 text-[11px] font-semibold text-rose-600">{error}</div> : null}
     </label>
   )
 }
@@ -493,6 +514,7 @@ export function GroupReservationModal({
   const [createdReservationIds, setCreatedReservationIds] = useState<string[]>([])
   const [createdGroupResult, setCreatedGroupResult] = useState<CreateGroupReservationResponse | null>(null)
   const [paymentWarning, setPaymentWarning] = useState<string | null>(null)
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
   const submittingRef = useRef(false)
   const paymentSubmittingRef = useRef(false)
 
@@ -526,6 +548,7 @@ export function GroupReservationModal({
     setCreatedReservationIds([])
     setCreatedGroupResult(null)
     setPaymentWarning(null)
+    setValidationErrors({})
     submittingRef.current = false
     paymentSubmittingRef.current = false
   }, [initialDraft, initialStep, open])
@@ -653,11 +676,23 @@ export function GroupReservationModal({
     )
   }, [query, reservations])
 
+  const clearValidationErrors = (keys: string[]) => {
+    setValidationErrors((current) => {
+      const next = { ...current }
+      keys.forEach((key) => {
+        delete next[key]
+      })
+      return next
+    })
+  }
+
   const updateGroupInfo = (patch: Partial<GroupInfoDraft>) => {
+    clearValidationErrors(Object.keys(patch))
     setGroupInfo((current) => ({ ...current, ...patch }))
   }
 
   const updateRoomRequest = (id: number, patch: Partial<GroupRoomRequestDraft>) => {
+    clearValidationErrors(Object.keys(patch).map((key) => `roomRequests.${id}.${key}`))
     setReservationForm((current) => ({
       ...current,
       roomRequests: current.roomRequests.map((room) => (room.id === id ? { ...room, ...patch } : room)),
@@ -751,6 +786,7 @@ export function GroupReservationModal({
   }
 
   const openReservationForm = (reservation?: GroupReservationDraftItem) => {
+    setValidationErrors({})
     if (reservation) {
       setEditingReservationId(reservation.id)
       setReservationForm({
@@ -776,7 +812,68 @@ export function GroupReservationModal({
     setMode('reservationForm')
   }
 
+  const validateGroupInfoStep = () => {
+    const errors: ValidationErrors = {}
+    const today = todayDate()
+    if (!groupInfo.groupName.trim()) errors.groupName = 'Please enter Group Name.'
+    if (!groupInfo.contactPerson.trim()) errors.contactPerson = 'Please enter Contact Person.'
+    if (!groupInfo.email.trim()) errors.email = 'Please enter Email.'
+    if (!groupInfo.phone.trim()) errors.phone = 'Please enter Phone.'
+    if (!groupInfo.arrivalDate) errors.arrivalDate = 'Please select Arrival Date.'
+    if (!groupInfo.departureDate) errors.departureDate = 'Please select Departure Date.'
+    if (!groupInfo.discountPercentage.trim()) errors.discountPercentage = 'Please enter Group Discount.'
+    if (groupInfo.discountPercentage.trim() && Number(groupInfo.discountPercentage) <= 1) {
+      errors.discountPercentage = 'Group Discount must be bigger than 1.'
+    }
+    if (groupInfo.arrivalDate && groupInfo.arrivalDate < today) errors.arrivalDate = 'Arrival Date cannot be before today.'
+    if (groupInfo.arrivalDate && groupInfo.departureDate && groupInfo.departureDate < groupInfo.arrivalDate) {
+      errors.departureDate = 'Departure Date cannot be before Arrival Date.'
+    }
+    return errors
+  }
+
+  const validateReservationsStep = () => {
+    const errors: ValidationErrors = {}
+    if (reservations.length === 0) errors.reservations = 'Please add at least one reservation before continuing.'
+    return errors
+  }
+
+  const validateReservationForm = () => {
+    const errors: ValidationErrors = {}
+    if (!groupInfo.arrivalDate) errors.arrivalDate = 'Please select Arrival Date before adding reservations.'
+    if (!groupInfo.departureDate) errors.departureDate = 'Please select Departure Date before adding reservations.'
+    if (!formValue(reservationForm.firstName)) errors.firstName = 'Please enter First Name.'
+    if (!formValue(reservationForm.lastName)) errors.lastName = 'Please enter Last Name.'
+    if (!formValue(reservationForm.email)) errors.email = 'Please enter Email.'
+    if (!formValue(reservationForm.phone)) errors.phone = 'Please enter Phone.'
+    if (!formValue(reservationForm.nationalId)) errors.nationalId = 'Please enter National ID.'
+    if (!formValue(reservationForm.country)) errors.country = 'Please select Country.'
+    if (!formValue(reservationForm.address)) errors.address = 'Please enter Address.'
+    if (!formValue(reservationForm.currency)) errors.currency = 'Please select Currency.'
+
+    reservationForm.roomRequests.forEach((room) => {
+      if (!room.roomTypeId) errors[`roomRequests.${room.id}.roomTypeId`] = 'Please select Room Type.'
+      if (!room.ratePlanCode) errors[`roomRequests.${room.id}.ratePlanCode`] = 'Please select Rate Plan.'
+      if (!room.quantity || Number(room.quantity) < 1) errors[`roomRequests.${room.id}.quantity`] = 'Rooms must be at least 1.'
+      if (!room.adults || Number(room.adults) < 1) errors[`roomRequests.${room.id}.adults`] = 'Adults must be at least 1.'
+    })
+
+    return errors
+  }
+
+  const canContinueWizard = () => {
+    const errors = step === 1 ? validateGroupInfoStep() : step === 2 ? validateReservationsStep() : {}
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   const saveReservationForm = () => {
+    const errors = validateReservationForm()
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors)
+      return
+    }
+
     const selectedMealPlanNames = reservationForm.selectedMealPlans
       .map((selected) => mealPlansState.items.find((mealPlan) => mealPlan.id === selected.mealPlanId)?.name)
       .filter(Boolean) as string[]
@@ -808,6 +905,7 @@ export function GroupReservationModal({
     setEditingReservationId(null)
     setMode('wizard')
     setStep(2)
+    setValidationErrors({})
   }
 
   const removeReservation = (id: number) => {
@@ -836,6 +934,7 @@ export function GroupReservationModal({
     setCreatedReservationIds([])
     setCreatedGroupResult(null)
     setPaymentWarning(null)
+    setValidationErrors({})
     submittingRef.current = false
     paymentSubmittingRef.current = false
   }
@@ -949,17 +1048,14 @@ export function GroupReservationModal({
   }
 
   const validateGroupPayload = () => {
-    if (!groupInfo.groupName.trim()) return 'Group Name is required.'
-    if (!groupInfo.contactPerson.trim()) return 'Contact Person is required.'
-    if (!groupInfo.arrivalDate) return 'Arrival Date is required.'
-    if (!groupInfo.departureDate) return 'Departure Date is required.'
-    if (groupInfo.arrivalDate < todayDate()) return 'Arrival Date cannot be before today.'
-    if (groupInfo.departureDate < groupInfo.arrivalDate) return 'Departure Date cannot be before Arrival Date.'
-    if (reservations.length === 0) return 'Add at least one reservation before confirming the group.'
-    if (reservations.some((reservation) => reservation.roomRequests.every((room) => !room.roomTypeId))) {
-      return 'Each reservation needs at least one room type.'
+    const errors: ValidationErrors = {
+      ...validateGroupInfoStep(),
+      ...validateReservationsStep(),
     }
-    return null
+    if (reservations.some((reservation) => reservation.roomRequests.every((room) => !room.roomTypeId))) {
+      errors.reservations = 'Each reservation needs at least one room type.'
+    }
+    return errors
   }
 
   const submitGroupReservation = async () => {
@@ -969,14 +1065,10 @@ export function GroupReservationModal({
       return
     }
 
-    const validationMessage = validateGroupPayload()
-    if (validationMessage) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'Missing information',
-        text: validationMessage,
-        confirmButtonColor: '#0B4EA2',
-      })
+    const errors = validateGroupPayload()
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors)
+      setStep(errors.reservations ? 2 : 1)
       return
     }
 
@@ -1113,7 +1205,6 @@ export function GroupReservationModal({
   if (!open) return null
 
   const footerBackLabel = step === 1 ? 'cancel' : 'Back'
-  const canGoNext = step !== 2 || reservations.length > 0
   const primaryLabel = resultUnknown ? 'Check Reservations List' : step === 3 ? 'Confirm Group Reservation' : step === 4 ? 'Done' : 'Next'
 
   return (
@@ -1146,119 +1237,131 @@ export function GroupReservationModal({
           </div>
         </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col">
             {mode === 'reservationForm' ? (
-              <ReservationFormView
-                form={reservationForm}
-                groupInfo={groupInfo}
-                countryOptions={countryOptions}
-                roomTypeOptions={roomTypeOptions}
-                ratePlanOptions={ratePlanOptions}
-                mealPlanOptions={mealPlanOptions}
-                serviceOptions={serviceOptions}
-                getMealPlanPrice={getMealPlanPrice}
-                getServicePrice={getServicePrice}
-                localAriState={localAriState}
-                roomsState={roomsState}
-                onChange={(patch) => setReservationForm((current) => ({ ...current, ...patch }))}
-                onRoomChange={updateRoomRequest}
-                onRemoveRoomRequest={removeRoomRequest}
-                onCompanionChange={updateCompanion}
-                onAddCompanion={addCompanion}
-                onRemoveCompanion={removeCompanion}
-                onServiceChange={updateSelectedService}
-                onAddService={addSelectedService}
-                onRemoveService={removeSelectedService}
-                onMealPlanChange={updateSelectedMealPlan}
-                onAddMealPlan={addSelectedMealPlan}
-                onRemoveMealPlan={removeSelectedMealPlan}
-                onRecalculateAvailability={() => {
-                  if (!groupInfo.arrivalDate || !groupInfo.departureDate || !selectedFormRoom?.roomTypeId || !selectedFormRoom.ratePlanCode) return
-                  dispatch(fetchLocalARIRates({
-                    roomTypeId: selectedFormRoom.roomTypeId,
-                    ratePlanCode: selectedFormRoom.ratePlanCode,
-                    startDate: groupInfo.arrivalDate,
-                    endDate: groupInfo.departureDate,
-                    roomCount: selectedFormRoom.quantity || 1,
-                    adults: selectedFormRoom.adults || 1,
-                    children: selectedFormRoom.children || 0,
-                    extraBeds: 0,
-                    groupName: groupInfo.groupName || undefined,
-                  }))
-                  dispatch(fetchRoomsAvailability({
-                    StartDate: groupInfo.arrivalDate,
-                    EndDate: groupInfo.departureDate,
-                    RoomTypeId: selectedFormRoom.roomTypeId,
-                  }))
-                }}
-                onCancel={() => {
-                  setReservationForm(emptyReservationForm())
-                  setEditingReservationId(null)
-                  setMode('wizard')
-                }}
-                onSave={saveReservationForm}
-              />
-            ) : (
-              <>
-            <div className="px-8">
-              <Stepper step={step} />
-            </div>
-
-            <main className="w-full px-8 pb-8">
-              {step === 1 ? (
-                <GroupInfoStep groupInfo={groupInfo} onChange={updateGroupInfo} />
-              ) : step === 2 ? (
-                <ReservationsStep
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <ReservationFormView
+                  form={reservationForm}
                   groupInfo={groupInfo}
-                  nights={nights}
-                  totals={totals}
-                  reservations={filteredReservations}
-                  allReservationCount={reservations.length}
-                  query={query}
-                  onQueryChange={setQuery}
-                  onAddReservation={() => openReservationForm()}
-                  onEditReservation={openReservationForm}
-                  onRemoveReservation={removeReservation}
+                  validationErrors={validationErrors}
+                  countryOptions={countryOptions}
+                  roomTypeOptions={roomTypeOptions}
+                  ratePlanOptions={ratePlanOptions}
+                  mealPlanOptions={mealPlanOptions}
+                  serviceOptions={serviceOptions}
                   getMealPlanPrice={getMealPlanPrice}
                   getServicePrice={getServicePrice}
+                  localAriState={localAriState}
+                  roomsState={roomsState}
+                  onChange={(patch) => {
+                    clearValidationErrors(Object.keys(patch))
+                    setReservationForm((current) => ({ ...current, ...patch }))
+                  }}
+                  onRoomChange={updateRoomRequest}
+                  onRemoveRoomRequest={removeRoomRequest}
+                  onCompanionChange={updateCompanion}
+                  onAddCompanion={addCompanion}
+                  onRemoveCompanion={removeCompanion}
+                  onServiceChange={updateSelectedService}
+                  onAddService={addSelectedService}
+                  onRemoveService={removeSelectedService}
+                  onMealPlanChange={updateSelectedMealPlan}
+                  onAddMealPlan={addSelectedMealPlan}
+                  onRemoveMealPlan={removeSelectedMealPlan}
+                  onRecalculateAvailability={() => {
+                    if (!groupInfo.arrivalDate || !groupInfo.departureDate || !selectedFormRoom?.roomTypeId || !selectedFormRoom.ratePlanCode) return
+                    dispatch(fetchLocalARIRates({
+                      roomTypeId: selectedFormRoom.roomTypeId,
+                      ratePlanCode: selectedFormRoom.ratePlanCode,
+                      startDate: groupInfo.arrivalDate,
+                      endDate: groupInfo.departureDate,
+                      roomCount: selectedFormRoom.quantity || 1,
+                      adults: selectedFormRoom.adults || 1,
+                      children: selectedFormRoom.children || 0,
+                      extraBeds: 0,
+                      groupName: groupInfo.groupName || undefined,
+                    }))
+                    dispatch(fetchRoomsAvailability({
+                      StartDate: groupInfo.arrivalDate,
+                      EndDate: groupInfo.departureDate,
+                      RoomTypeId: selectedFormRoom.roomTypeId,
+                    }))
+                  }}
+                  onCancel={() => {
+                    setReservationForm(emptyReservationForm())
+                    setEditingReservationId(null)
+                    setMode('wizard')
+                  }}
+                  onSave={saveReservationForm}
                 />
-              ) : step === 3 ? (
-                <ConfirmationStep
-                  groupInfo={groupInfo}
-                  totals={totals}
-                  reservations={reservations}
-                  createdGroupResult={createdGroupResult}
-                  createdReservationIds={createdReservationIds}
-                  paymentWarning={paymentWarning}
-                />
-              ) : (
-                <PaymentStep
-                  groupInfo={groupInfo}
-                  totals={totals}
-                  reservations={reservations}
-                  createdGroupResult={createdGroupResult}
-                  createdReservationIds={createdReservationIds}
-                  paymentWarning={paymentWarning}
-                  payment={payment}
-                  paymentSubmitting={paymentSubmitting}
-                  paymentPosted={paymentPosted}
-                  onPaymentChange={(patch) => setPayment((current) => ({ ...current, ...patch }))}
-                  onSubmitPayment={submitGroupPayment}
-                />
-              )}
-            </main>
+              </div>
+            ) : (
+              <>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="px-8">
+                <Stepper step={step} />
+              </div>
 
-            <div className="sticky bottom-0 flex items-center justify-between border-t border-slate-200 bg-white px-8 py-6">
+              <main className="w-full px-8 pb-8">
+                {step === 1 ? (
+                  <GroupInfoStep groupInfo={groupInfo} validationErrors={validationErrors} onChange={updateGroupInfo} />
+                ) : step === 2 ? (
+                  <ReservationsStep
+                    groupInfo={groupInfo}
+                    nights={nights}
+                    totals={totals}
+                    currency={getDraftCurrency(reservations, payment.currency || 'EUR')}
+                    reservations={filteredReservations}
+                    allReservationCount={reservations.length}
+                    validationError={validationErrors.reservations}
+                    query={query}
+                    onQueryChange={setQuery}
+                    onAddReservation={() => openReservationForm()}
+                    onEditReservation={openReservationForm}
+                    onRemoveReservation={removeReservation}
+                    getMealPlanPrice={getMealPlanPrice}
+                    getServicePrice={getServicePrice}
+                  />
+                ) : step === 3 ? (
+                  <ConfirmationStep
+                    groupInfo={groupInfo}
+                    totals={totals}
+                    reservations={reservations}
+                    fallbackCurrency={getDraftCurrency(reservations, payment.currency || 'EUR')}
+                    createdGroupResult={createdGroupResult}
+                    createdReservationIds={createdReservationIds}
+                    paymentWarning={paymentWarning}
+                  />
+                ) : (
+                  <PaymentStep
+                    groupInfo={groupInfo}
+                    totals={totals}
+                    reservations={reservations}
+                    createdGroupResult={createdGroupResult}
+                    createdReservationIds={createdReservationIds}
+                    paymentWarning={paymentWarning}
+                    payment={payment}
+                    paymentSubmitting={paymentSubmitting}
+                    paymentPosted={paymentPosted}
+                    onPaymentChange={(patch) => setPayment((current) => ({ ...current, ...patch }))}
+                    onSubmitPayment={submitGroupPayment}
+                  />
+                )}
+              </main>
+            </div>
+
+            <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-white px-8 py-6">
               <button
                 type="button"
                 disabled={submitting}
-                className="h-12 min-w-[160px] rounded-lg border border-[#0B4EA2] px-8 text-sm font-semibold text-[#0B4EA2] transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-12 min-w-[160px] cursor-pointer rounded-lg border border-[#0B4EA2] px-8 text-sm font-semibold text-[#0B4EA2] transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => {
                   if (submitting) return
                   if (step === 1) {
                     handleClose()
                     return
                   }
+                  setValidationErrors({})
                   setStep((current) => (current > 1 ? ((current - 1) as GroupWizardStep) : current))
                 }}
               >
@@ -1266,10 +1369,10 @@ export function GroupReservationModal({
               </button>
               <button
                 type="button"
-                disabled={!canGoNext || submitting || resultUnknown}
+                disabled={submitting || resultUnknown}
                 className={[
                   'inline-flex h-12 min-w-[220px] items-center justify-center gap-2 rounded-lg px-10 text-sm font-semibold text-white transition-colors',
-                  canGoNext && !submitting && !resultUnknown ? 'bg-[#0B4EA2] hover:bg-[#093d81]' : 'cursor-not-allowed bg-blue-300',
+                  !submitting && !resultUnknown ? 'cursor-pointer bg-[#0B4EA2] hover:bg-[#093d81]' : 'cursor-not-allowed bg-blue-300',
                 ].join(' ')}
                 onClick={() => {
                   if (submitting || resultUnknown) return
@@ -1281,6 +1384,7 @@ export function GroupReservationModal({
                     completeSuccessfulGroupFlow()
                     return
                   }
+                  if (!canContinueWizard()) return
                   setStep((current) => (current < 4 ? ((current + 1) as GroupWizardStep) : current))
                 }}
               >
@@ -1321,7 +1425,15 @@ export function GroupReservationModal({
   )
 }
 
-function GroupInfoStep({ groupInfo, onChange }: { groupInfo: GroupInfoDraft; onChange: (patch: Partial<GroupInfoDraft>) => void }) {
+function GroupInfoStep({
+  groupInfo,
+  validationErrors,
+  onChange,
+}: {
+  groupInfo: GroupInfoDraft
+  validationErrors: ValidationErrors
+  onChange: (patch: Partial<GroupInfoDraft>) => void
+}) {
   const today = todayDate()
   const departureMin = groupInfo.arrivalDate || today
 
@@ -1333,11 +1445,11 @@ function GroupInfoStep({ groupInfo, onChange }: { groupInfo: GroupInfoDraft; onC
       </div>
 
       <div className="space-y-4 px-1">
-        <Field label="Group Name" required placeholder="e.g. TechCorp Annual Conference 2026" value={groupInfo.groupName} onChange={(value) => onChange({ groupName: value })} />
+        <Field label="Group Name" required placeholder="e.g. TechCorp Annual Conference 2026" value={groupInfo.groupName} error={validationErrors.groupName} onChange={(value) => onChange({ groupName: value })} />
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          <Field label="Contact Person" required placeholder="Full name" value={groupInfo.contactPerson} onChange={(value) => onChange({ contactPerson: value })} />
-          <Field label="Email" type="email" placeholder="contact@company.com" value={groupInfo.email} onChange={(value) => onChange({ email: value })} />
-          <Field label="Phone" type="tel" placeholder="+1 000-000-0000" value={groupInfo.phone} onChange={(value) => onChange({ phone: value })} />
+          <Field label="Contact Person" required placeholder="Full name" value={groupInfo.contactPerson} error={validationErrors.contactPerson} onChange={(value) => onChange({ contactPerson: value })} />
+          <Field label="Email" required type="email" placeholder="contact@company.com" value={groupInfo.email} error={validationErrors.email} onChange={(value) => onChange({ email: value })} />
+          <Field label="Phone" required type="tel" placeholder="+1 000-000-0000" value={groupInfo.phone} error={validationErrors.phone} onChange={(value) => onChange({ phone: value })} />
         </div>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <Field
@@ -1346,6 +1458,7 @@ function GroupInfoStep({ groupInfo, onChange }: { groupInfo: GroupInfoDraft; onC
             type="date"
             min={today}
             value={groupInfo.arrivalDate}
+            error={validationErrors.arrivalDate}
             onChange={(value) => onChange({
               arrivalDate: value,
               departureDate: groupInfo.departureDate && groupInfo.departureDate < value ? '' : groupInfo.departureDate,
@@ -1357,9 +1470,17 @@ function GroupInfoStep({ groupInfo, onChange }: { groupInfo: GroupInfoDraft; onC
             type="date"
             min={departureMin}
             value={groupInfo.departureDate}
+            error={validationErrors.departureDate}
             onChange={(value) => onChange({ departureDate: value })}
           />
-          <Field label="Group Discount (%)" type="number" value={groupInfo.discountPercentage} onChange={(value) => onChange({ discountPercentage: value })} />
+          <Field
+            label="Group Discount (%)"
+            required
+            type="number"
+            value={groupInfo.discountPercentage}
+            error={validationErrors.discountPercentage}
+            onChange={(value) => onChange({ discountPercentage: value })}
+          />
         </div>
         <TextArea label="Notes" placeholder="Special requirements, notes for the front desk team..." value={groupInfo.notes} onChange={(value) => onChange({ notes: value })} />
       </div>
@@ -1371,8 +1492,10 @@ function ReservationsStep({
   groupInfo,
   nights,
   totals,
+  currency,
   reservations,
   allReservationCount,
+  validationError,
   query,
   onQueryChange,
   onAddReservation,
@@ -1384,8 +1507,10 @@ function ReservationsStep({
   groupInfo: GroupInfoDraft
   nights: number
   totals: { rooms: number; guests: number; amount: number }
+  currency: string
   reservations: GroupReservationDraftItem[]
   allReservationCount: number
+  validationError?: string
   query: string
   onQueryChange: (value: string) => void
   onAddReservation: () => void
@@ -1400,7 +1525,7 @@ function ReservationsStep({
     { value: String(nights), label: 'Nights' },
     { value: String(totals.rooms), label: 'Rooms Reserved' },
     { value: String(totals.guests), label: 'Guests' },
-    { value: `$${totals.amount.toLocaleString()}`, label: 'Total Revenue' },
+    { value: formatMoney(totals.amount, currency), label: 'Total Revenue' },
   ]
 
   return (
@@ -1433,6 +1558,11 @@ function ReservationsStep({
         />
         <Search className="pointer-events-none absolute right-6 top-1/2 h-6 w-6 -translate-y-1/2 text-slate-400" />
       </div>
+      {validationError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          {validationError}
+        </div>
+      ) : null}
 
       {reservations.length === 0 ? (
         <div className="flex min-h-[200px] flex-col items-center justify-center gap-4 text-slate-500">
@@ -1481,7 +1611,7 @@ function ReservationsStep({
                           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{reservation.serviceNames.length} services</span>
                         ) : '-'}
                       </td>
-                      <td className="px-4 py-4 text-sm font-extrabold text-slate-900">${amount.toLocaleString()}</td>
+                      <td className="px-4 py-4 text-sm font-extrabold text-slate-900">{formatMoney(amount, reservation.currency || currency)}</td>
                       <td className="px-4 py-4">
                         <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{reservation.paymentStatus}</span>
                       </td>
@@ -1490,10 +1620,10 @@ function ReservationsStep({
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <button type="button" className="text-slate-600 hover:text-[#0B4EA2]" onClick={() => onEditReservation(reservation)} aria-label="Edit reservation">
+                          <button type="button" className="cursor-pointer rounded-md p-1 text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#0B4EA2]" onClick={() => onEditReservation(reservation)} aria-label="Edit reservation">
                             <Pencil className="h-5 w-5" />
                           </button>
-                          <button type="button" className="text-rose-500 hover:text-rose-700" onClick={() => onRemoveReservation(reservation.id)} aria-label="Remove reservation">
+                          <button type="button" className="cursor-pointer rounded-md p-1 text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700" onClick={() => onRemoveReservation(reservation.id)} aria-label="Remove reservation">
                             <Trash2 className="h-5 w-5" />
                           </button>
                         </div>
@@ -1506,7 +1636,7 @@ function ReservationsStep({
           </div>
           <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm font-medium text-slate-500">
             <span>{reservations.length} reservations</span>
-            <span className="font-bold text-slate-700">Total: ${totals.amount.toLocaleString()}</span>
+            <span className="font-bold text-slate-700">Total: {formatMoney(totals.amount, currency)}</span>
           </div>
         </div>
       )}
@@ -1517,6 +1647,7 @@ function ReservationsStep({
 function ReservationFormView({
   form,
   groupInfo,
+  validationErrors,
   countryOptions,
   roomTypeOptions,
   ratePlanOptions,
@@ -1544,6 +1675,7 @@ function ReservationFormView({
 }: {
   form: GroupReservationFormDraft
   groupInfo: GroupInfoDraft
+  validationErrors: ValidationErrors
   countryOptions: { value: string; label: string }[]
   roomTypeOptions: { value: string; label: string }[]
   ratePlanOptions: { value: string; label: string }[]
@@ -1576,16 +1708,21 @@ function ReservationFormView({
   return (
     <div className="w-full px-8 py-7">
       <div className="space-y-4">
+        {validationErrors.arrivalDate || validationErrors.departureDate ? (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+            {validationErrors.arrivalDate || validationErrors.departureDate}
+          </div>
+        ) : null}
         <Section title="Guest Information">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="First Name" value={form.firstName} onChange={(value) => onChange({ firstName: value })} />
-            <Field label="Last Name" value={form.lastName} onChange={(value) => onChange({ lastName: value })} />
-            <Field label="Email" type="email" value={form.email} onChange={(value) => onChange({ email: value })} />
-            <Field label="Phone" type="tel" value={form.phone} onChange={(value) => onChange({ phone: value })} />
-            <Field label="National ID" value={form.nationalId} onChange={(value) => onChange({ nationalId: value })} />
-            <SelectField label="Country" value={form.country} options={countryOptions} onChange={(value) => onChange({ country: value })} />
+            <Field label="First Name" required value={form.firstName} error={validationErrors.firstName} onChange={(value) => onChange({ firstName: value })} />
+            <Field label="Last Name" required value={form.lastName} error={validationErrors.lastName} onChange={(value) => onChange({ lastName: value })} />
+            <Field label="Email" required type="email" value={form.email} error={validationErrors.email} onChange={(value) => onChange({ email: value })} />
+            <Field label="Phone" required type="tel" value={form.phone} error={validationErrors.phone} onChange={(value) => onChange({ phone: value })} />
+            <Field label="National ID" required value={form.nationalId} error={validationErrors.nationalId} onChange={(value) => onChange({ nationalId: value })} />
+            <SelectField label="Country" required value={form.country} error={validationErrors.country} options={countryOptions} onChange={(value) => onChange({ country: value })} />
             <div className="md:col-span-2">
-              <Field label="Address" value={form.address} onChange={(value) => onChange({ address: value })} />
+              <Field label="Address" required value={form.address} error={validationErrors.address} onChange={(value) => onChange({ address: value })} />
             </div>
           </div>
         </Section>
@@ -1603,7 +1740,9 @@ function ReservationFormView({
             <div className="md:col-span-4">
               <SelectField
                 label="Currency"
+                required
                 value={form.currency}
+                error={validationErrors.currency}
                 onChange={(value) => onChange({ currency: value })}
                 options={[
                   { value: 'USD', label: 'USD' },
@@ -1634,7 +1773,9 @@ function ReservationFormView({
                   <div className="md:col-span-3">
                     <SelectField
                       label="Room Type"
+                      required
                       value={room.roomTypeId}
+                      error={validationErrors[`roomRequests.${room.id}.roomTypeId`]}
                       options={roomTypeOptions}
                       onChange={(value) => {
                         const selected = roomTypeOptions.find((option) => option.value === value)
@@ -1644,10 +1785,10 @@ function ReservationFormView({
                     />
                   </div>
                   <div className="md:col-span-3">
-                    <Field label="Rooms" type="number" value={String(room.quantity)} onChange={(value) => onRoomChange(room.id, { quantity: Math.max(1, Number(value) || 1) })} />
+                    <Field label="Rooms" required type="number" value={String(room.quantity)} error={validationErrors[`roomRequests.${room.id}.quantity`]} onChange={(value) => onRoomChange(room.id, { quantity: Math.max(1, Number(value) || 1) })} />
                   </div>
                   <div className="md:col-span-2">
-                    <Field label="Adults" type="number" value={String(room.adults)} onChange={(value) => onRoomChange(room.id, { adults: Math.max(1, Number(value) || 1) })} />
+                    <Field label="Adults" required type="number" value={String(room.adults)} error={validationErrors[`roomRequests.${room.id}.adults`]} onChange={(value) => onRoomChange(room.id, { adults: Math.max(1, Number(value) || 1) })} />
                   </div>
                   {!(room.roomTypeName || '').trim().toLowerCase().includes('single') ? (
                     <div className="md:col-span-2">
@@ -1655,7 +1796,7 @@ function ReservationFormView({
                     </div>
                   ) : null}
                   <div className="md:col-span-6">
-                    <SelectField label="Rate Plan" value={room.ratePlanCode} options={ratePlanOptions} onChange={(value) => onRoomChange(room.id, { ratePlanCode: value })} />
+                    <SelectField label="Rate Plan" required value={room.ratePlanCode} error={validationErrors[`roomRequests.${room.id}.ratePlanCode`]} options={ratePlanOptions} onChange={(value) => onRoomChange(room.id, { ratePlanCode: value })} />
                   </div>
                   <div className="md:col-span-6 md:self-end">
                     <button
@@ -2130,6 +2271,7 @@ function ConfirmationStep({
   groupInfo,
   totals,
   reservations,
+  fallbackCurrency,
   createdGroupResult,
   createdReservationIds,
   paymentWarning,
@@ -2137,11 +2279,12 @@ function ConfirmationStep({
   groupInfo: GroupInfoDraft
   totals: { rooms: number; guests: number; amount: number }
   reservations: GroupReservationDraftItem[]
+  fallbackCurrency: string
   createdGroupResult: CreateGroupReservationResponse | null
   createdReservationIds: string[]
   paymentWarning: string | null
 }) {
-  const responseCurrency = getCreatedGroupCurrency(createdGroupResult, 'USD')
+  const responseCurrency = getCreatedGroupCurrency(createdGroupResult, fallbackCurrency || 'EUR')
   const discount = Math.max(0, Number(createdGroupResult?.groupDiscountPercentage ?? groupInfo.discountPercentage) || 0)
   const subtotal = Number(createdGroupResult?.totalBeforeDiscount ?? totals.amount) || 0
   const discountAmount = Number(createdGroupResult?.totalDiscountAmount ?? (subtotal * (discount / 100))) || 0
