@@ -164,14 +164,6 @@ export function SettingsHKPage() {
         <nav aria-label="breadcrumb">
           <ol className="flex flex-wrap items-center gap-1.5 text-[13px] text-slate-500">
             <li>
-              <Link to={routes.housekeeping} className="font-medium text-slate-500 hover:text-[#0B4EA2] transition-colors">
-                Housekeeping
-              </Link>
-            </li>
-            <li>
-              <span className="text-slate-300">/</span>
-            </li>
-            <li>
               <Link to={routes.hk.settings} className="font-medium text-slate-500 hover:text-[#0B4EA2] transition-colors">
                 Settings
               </Link>

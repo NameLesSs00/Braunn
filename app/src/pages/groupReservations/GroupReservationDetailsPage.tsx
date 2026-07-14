@@ -285,7 +285,7 @@ export function GroupReservationDetailsPage() {
           <div className="min-w-0">
             <button
               type="button"
-              onClick={() => navigate(routes.groupReservations)}
+              onClick={() => navigate(`${routes.reservations}?tab=group`)}
               className="mb-4 inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 active:scale-95"
             >
               <ArrowLeft className="h-4 w-4" />

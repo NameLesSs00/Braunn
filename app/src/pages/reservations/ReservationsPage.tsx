@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
-import { ChevronLeft, ChevronRight, Eye, LogIn, MoreHorizontal, Download } from 'lucide-react'
+import { Building2, ChevronLeft, ChevronRight, Download, Eye, Globe, LogIn, MoreHorizontal, User, Users } from 'lucide-react'
 import { IoSearchSharp } from "react-icons/io5";
 
 import { IconImage } from '../../shared/ui/IconImage'
@@ -16,6 +17,7 @@ import { CancelReservationProcessPopup } from './cancel/CancelReservationProcess
 import { OtaReservationModal } from '../../widgets/reservations/OtaReservationModal/OtaReservationModal'
 import { MoveRoomPopup } from './pupops/MoveRoomPopup'
 import { ExportInHouseListPopup } from '../inHouseList/ExportInHouseListPopup'
+import { GroupReservationsPage } from '../groupReservations/GroupReservationsPage'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -51,6 +53,47 @@ const bookingSourceOptions = [
 ] as const
 
 type BookingSourceOption = typeof bookingSourceOptions[number]
+type ReservationsTabId = 'normal' | 'group' | 'corporate' | 'ota'
+
+const reservationTabs: Array<{ id: ReservationsTabId; label: string; Icon: typeof User }> = [
+  { id: 'normal', label: 'Normal Reservations', Icon: User },
+  { id: 'group', label: 'Group Reservations', Icon: Users },
+  { id: 'corporate', label: 'Corporate Reservations', Icon: Building2 },
+  { id: 'ota', label: 'OTA Reservations', Icon: Globe },
+]
+
+function normalizeReservationsTab(value: string | null): ReservationsTabId {
+  if (value === 'group' || value === 'corporate' || value === 'ota') return value
+  return 'normal'
+}
+
+function ReservationsTabs({ activeTab, onTabChange }: { activeTab: ReservationsTabId; onTabChange: (tab: ReservationsTabId) => void }) {
+  return (
+    <div className="flex w-full items-center justify-between overflow-x-auto rounded-t-xl border-b border-slate-200 bg-slate-50/50">
+      {reservationTabs.map((tab) => {
+        const isActive = activeTab === tab.id
+        const Icon = tab.Icon
+
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onTabChange(tab.id)}
+            className={[
+              'relative flex flex-1 items-center justify-center gap-2 whitespace-nowrap border-b-[3px] px-4 py-3.5 text-[14px] font-semibold transition-colors',
+              isActive
+                ? 'border-[#0B4EA2] bg-white text-[#0B4EA2] shadow-sm'
+                : 'border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700',
+            ].join(' ')}
+          >
+            <Icon className="h-4 w-4" />
+            {tab.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 function formatDateForDisplay(isoDate: string): string {
   if (!isoDate) return '—'
@@ -65,6 +108,41 @@ function normalizeStatus(value?: string | null) {
 
 function normalizeBookingSource(value?: string | null) {
   return (value || '').replace(/[\s_-]/g, '').toLowerCase()
+}
+
+function isCorporateReservation(reservation: PmsReservation) {
+  if (reservation.corporateAccountId) return true
+  return [
+    reservation.bookingSource,
+    reservation.sourceType,
+    reservation.channelName,
+    reservation.reservationType,
+  ].map(normalizeBookingSource).some((value) => value === 'corporate' || value === 'corporateaccount')
+}
+
+function isOtaReservation(reservation: PmsReservation) {
+  return [
+    reservation.bookingSource,
+    reservation.sourceType,
+    reservation.channelName,
+    reservation.reservationType,
+  ].map(normalizeBookingSource).some((value) => value === 'ota' || value === 'onlinetravelagency')
+}
+
+function isGroupSourceReservation(reservation: PmsReservation) {
+  return [
+    reservation.bookingSource,
+    reservation.sourceType,
+    reservation.channelName,
+    reservation.reservationType,
+  ].map(normalizeBookingSource).some((value) => value === 'group' || value === 'groupcontract')
+}
+
+function matchesReservationsTab(reservation: PmsReservation, tab: ReservationsTabId) {
+  if (tab === 'corporate') return isCorporateReservation(reservation)
+  if (tab === 'ota') return isOtaReservation(reservation)
+  if (tab === 'normal') return !isCorporateReservation(reservation) && !isOtaReservation(reservation) && !isGroupSourceReservation(reservation)
+  return true
 }
 
 function getReservationBookingSource(reservation: PmsReservation): BookingSourceOption | '' {
@@ -184,6 +262,8 @@ function Pagination({ page, pages, onChange }: { page: number; pages: number; on
 
 export function ReservationsPage() {
   const dispatch = useAppDispatch()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = normalizeReservationsTab(searchParams.get('tab'))
   const pmsReservations = useAppSelector((s) => s.pms.reservationsTableRows)
   const reservationsLoading = useAppSelector((s) => s.pms.reservationsTableStatus === 'loading')
   const initialFilters = useMemo<ReservationsFilters>(() => ({
@@ -201,9 +281,10 @@ export function ReservationsPage() {
   const [checkInTo, setCheckInTo] = useState(initialFilters.checkInTo)
 
   useEffect(() => {
+    if (activeTab === 'group') return
     const request = dispatch(fetchReservationsTable({ startDate: checkInFrom, endDate: checkInTo }))
     return () => request.abort()
-  }, [dispatch, checkInFrom, checkInTo])
+  }, [activeTab, dispatch, checkInFrom, checkInTo])
 
   const [query, setQuery] = useState(initialFilters.query)
   const [openMenuForId, setOpenMenuForId] = useState<string | null>(null)
@@ -238,6 +319,26 @@ export function ReservationsPage() {
   const [page, setPage] = useState(1)
   const perPage = 15
 
+  const onTabChange = (tab: ReservationsTabId) => {
+    const nextParams = new URLSearchParams(searchParams)
+    if (tab === 'normal') {
+      nextParams.delete('tab')
+    } else {
+      nextParams.set('tab', tab)
+    }
+    setSearchParams(nextParams)
+    setOpenMenuForId(null)
+    setPage(1)
+  }
+
+  const activeTabLabel = reservationTabs.find((tab) => tab.id === activeTab)?.label || 'Reservations'
+  const searchPlaceholder =
+    activeTab === 'corporate'
+      ? 'Search corporate reservations by Guest Name ,ID...'
+      : activeTab === 'ota'
+        ? 'Search OTA reservations by Guest Name ,ID...'
+        : 'Search by Guest Name ,ID...'
+
   useEffect(() => {
     reservationsFiltersCache = {
       query,
@@ -264,7 +365,7 @@ export function ReservationsPage() {
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    let result = [...pmsReservations]
+    let result = pmsReservations.filter((reservation) => matchesReservationsTab(reservation, activeTab))
 
     if (q) {
       result = result.filter((r) => [r.guestName, r.bookingReference, r.id, r.roomTypeName, getReservationSourceLabel(r)].some((v) => (v ?? '').toLowerCase().includes(q)))
@@ -274,7 +375,7 @@ export function ReservationsPage() {
       result = result.filter((r) => r.status === statusFilter)
     }
 
-    if (bookingSourceFilter !== 'all') {
+    if (activeTab === 'normal' && bookingSourceFilter !== 'all') {
       result = result.filter((r) => getReservationBookingSource(r) === bookingSourceFilter)
     }
 
@@ -291,11 +392,11 @@ export function ReservationsPage() {
     }
 
     return result
-  }, [pmsReservations, query, statusFilter, bookingSourceFilter, roomTypeFilter, paymentStatusFilter])
+  }, [activeTab, pmsReservations, query, statusFilter, bookingSourceFilter, roomTypeFilter, paymentStatusFilter])
 
   useEffect(() => {
     setPage(1)
-  }, [query, statusFilter, bookingSourceFilter, roomTypeFilter, paymentStatusFilter, checkInFrom, checkInTo])
+  }, [activeTab, query, statusFilter, bookingSourceFilter, roomTypeFilter, paymentStatusFilter, checkInFrom, checkInTo])
 
   const pages = Math.max(1, Math.ceil(filteredRows.length / perPage))
   const safePage = Math.min(page, pages)
@@ -341,7 +442,8 @@ export function ReservationsPage() {
   }
 
   const exportReservations = async (from: string, to: string) => {
-    let exportRows = await getPmsReservations({ startDate: from, endDate: to })
+    let exportRows = (await getPmsReservations({ startDate: from, endDate: to }))
+      .filter((reservation) => matchesReservationsTab(reservation, activeTab))
     const normalizedQuery = query.trim().toLowerCase()
 
     if (normalizedQuery) {
@@ -353,7 +455,7 @@ export function ReservationsPage() {
     if (statusFilter) {
       exportRows = exportRows.filter((reservation) => reservation.status === statusFilter)
     }
-    if (bookingSourceFilter !== 'all') {
+    if (activeTab === 'normal' && bookingSourceFilter !== 'all') {
       exportRows = exportRows.filter((reservation) => getReservationBookingSource(reservation) === bookingSourceFilter)
     }
     if (roomTypeFilter !== 'all') {
@@ -371,7 +473,7 @@ export function ReservationsPage() {
 
     const doc = new jsPDF()
     doc.setFontSize(18)
-    doc.text('Reservations List', 14, 20)
+    doc.text(`${activeTabLabel} List`, 14, 20)
     doc.setFontSize(11)
     doc.setTextColor(100)
     doc.text(`Date range: ${from} to ${to}`, 14, 29)
@@ -409,11 +511,17 @@ export function ReservationsPage() {
       styles: { fontSize: 8, cellPadding: 2.5 },
     })
 
-    doc.save(`Reservations_${from}_to_${to}.pdf`)
+    doc.save(`${activeTabLabel.replace(/\s+/g, '_')}_${from}_to_${to}.pdf`)
   }
 
   return (
     <div className="space-y-6">
+      <ReservationsTabs activeTab={activeTab} onTabChange={onTabChange} />
+
+      {activeTab === 'group' ? (
+        <GroupReservationsPage />
+      ) : (
+        <>
       <ReservationDetailsPopup
         open={detailsOpen}
         onClose={closeDetails}
@@ -491,7 +599,7 @@ export function ReservationsPage() {
           <div className="relative w-full max-w-2xl">
             <input
               className="h-11 w-full rounded-full bg-[#F3F5FF] px-6 pr-12 text-sm text-slate-700 outline-none placeholder:text-slate-400"
-              placeholder="Search by Guest Name ,ID..."
+              placeholder={searchPlaceholder}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -520,19 +628,21 @@ export function ReservationsPage() {
             </select>
           </div>
 
-          <div className="flex-1 min-w-[150px] space-y-1.5">
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Booking Source</div>
-            <select
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none"
-              value={bookingSourceFilter}
-              onChange={(e) => setBookingSourceFilter(e.target.value)}
-            >
-              <option value="all">All Booking Sources</option>
-              {bookingSourceOptions.map((source) => (
-                <option key={source} value={source}>{source}</option>
-              ))}
-            </select>
-          </div>
+          {activeTab === 'normal' ? (
+            <div className="flex-1 min-w-[150px] space-y-1.5">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Booking Source</div>
+              <select
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-600 outline-none"
+                value={bookingSourceFilter}
+                onChange={(e) => setBookingSourceFilter(e.target.value)}
+              >
+                <option value="all">All Booking Sources</option>
+                {bookingSourceOptions.map((source) => (
+                  <option key={source} value={source}>{source}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
 
           <div className="flex-1 min-w-[120px] space-y-1.5">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Room Type</div>
@@ -836,6 +946,8 @@ export function ReservationsPage() {
           <Pagination page={safePage} pages={pages} onChange={setPage} />
         </div>
       </div>
+        </>
+      )}
     </div>
   )
 }
