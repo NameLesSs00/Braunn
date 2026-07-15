@@ -21,7 +21,11 @@ import { CorporateAccountPage } from './pages/salesRevenue/CorporateAccountPage'
 import { GroupContractsPage } from './pages/salesRevenue/GroupContractsPage'
 import { ProductionReportPage } from './pages/salesRevenue/ProductionReportPage'
 import { DiscountsPage } from './pages/salesRevenue/DiscountsPage'
-import { PackagesPage } from './pages/salesRevenue/PackagesPage'
+import { CorporateCancellationPoliciesPage } from './pages/policies/CorporateCancellationPoliciesPage'
+import { EarlyCheckoutPoliciesPage } from './pages/policies/EarlyCheckoutPoliciesPage'
+import { RoomChangePoliciesPage } from './pages/policies/RoomChangePoliciesPage'
+import { LateCheckoutPoliciesPage } from './pages/policies/LateCheckoutPoliciesPage'
+import { ExtendStayPoliciesPage } from './pages/policies/ExtendStayPoliciesPage'
 import { routes } from './shared/lib/routes'
 import { DashboardLayout } from './widgets/layout/DashboardLayout/DashboardLayout'
 import { LaundryLayout } from './widgets/layout/LaundryLayout/LaundryLayout'
@@ -86,7 +90,13 @@ export default function App() {
             <Route path={routes.salesRevenue.groupContracts} element={<GroupContractsPage />} />
             <Route path={routes.salesRevenue.productionReport} element={<ProductionReportPage />} />
             <Route path={routes.salesRevenue.discounts} element={<DiscountsPage />} />
-            <Route path={routes.salesRevenue.packages} element={<PackagesPage />} />
+            
+            {/* Policies Module */}
+            <Route path={routes.policies.corporateCancellation} element={<CorporateCancellationPoliciesPage />} />
+            <Route path={routes.policies.earlyCheckout} element={<EarlyCheckoutPoliciesPage />} />
+            <Route path={routes.policies.roomChange} element={<RoomChangePoliciesPage />} />
+            <Route path={routes.policies.lateCheckout} element={<LateCheckoutPoliciesPage />} />
+            <Route path={routes.policies.extendStay} element={<ExtendStayPoliciesPage />} />
           </Route>
 
           <Route element={<LaundryLayout />}>

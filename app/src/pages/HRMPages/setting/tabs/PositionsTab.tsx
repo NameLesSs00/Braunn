@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Briefcase, Trash2 } from 'lucide-react';
-import Swal from 'sweetalert2';
+import { appAlert } from '../../../../shared/ui/AppAlert';
 import { useSettingsContext } from '../SettingsContext';
 import { AddPositionPopup } from '../popups/AddPositionPopup';
 import { DeletePositionPopup } from '../popups/DeletePositionPopup';
@@ -31,7 +31,7 @@ export function PositionsTab() {
   // Error Toast Notification
   useEffect(() => {
     if (status === 'failed' && error) {
-      Swal.fire({
+      appAlert.fire({
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
@@ -107,7 +107,7 @@ export function PositionsTab() {
         onSubmit={async (data) => {
           const result = await dispatch(createPosition(data));
           if (createPosition.fulfilled.match(result)) {
-            Swal.fire({
+            appAlert.fire({
               toast: true,
               position: 'top-end',
               showConfirmButton: false,
@@ -138,7 +138,7 @@ export function PositionsTab() {
               })
             );
             if (updatePosition.fulfilled.match(result)) {
-              Swal.fire({
+              appAlert.fire({
                 toast: true,
                 position: 'top-end',
                 showConfirmButton: false,
@@ -162,7 +162,7 @@ export function PositionsTab() {
             dispatch(deletePosition(deleteTarget.id))
               .unwrap()
               .then(() => {
-                Swal.fire({
+                appAlert.fire({
                   toast: true,
                   position: 'top-end',
                   showConfirmButton: false,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Swal from 'sweetalert2'
+import { appAlert } from '../../../shared/ui/AppAlert'
 import countries from 'i18n-iso-countries'
 import enLocale from 'i18n-iso-countries/langs/en.json'
 import { BedDouble, CheckCircle2, CreditCard, Loader2, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
@@ -1103,14 +1103,14 @@ export function GroupReservationModal({
       const message = getErrorMessage(error)
       if (isPossiblyStillProcessingError(message)) {
         setResultUnknown(true)
-        await Swal.fire({
+        await appAlert.fire({
           icon: 'warning',
           title: 'Group reservation may still be processing',
           text: 'The server did not confirm the result in time. Please check Reservations before trying again, so the same group is not created twice.',
           confirmButtonColor: '#0B4EA2',
         })
       } else {
-        await Swal.fire({
+        await appAlert.fire({
           icon: 'error',
           title: 'Group reservation failed',
           text: message,
@@ -1135,7 +1135,7 @@ export function GroupReservationModal({
     }
 
     if (paymentAmount <= 0) {
-      await Swal.fire({
+      await appAlert.fire({
         icon: 'warning',
         title: 'Payment amount required',
         text: 'Enter a payment amount before posting payment.',
@@ -1146,7 +1146,7 @@ export function GroupReservationModal({
 
     const remainingTotal = getCreatedGroupRemainingTotal(createdGroupResult)
     if (remainingTotal > 0 && paymentAmount > remainingTotal + 0.01) {
-      await Swal.fire({
+      await appAlert.fire({
         icon: 'warning',
         title: 'Payment exceeds balance',
         text: `The payment amount is higher than the returned remaining balance of ${formatMoney(remainingTotal, payment.currency || '$')}.`,
@@ -1180,7 +1180,7 @@ export function GroupReservationModal({
         ),
       )
 
-      await Swal.fire({
+      await appAlert.fire({
         icon: 'success',
         title: 'Payment posted',
         text: 'The group payment was posted to the created reservations.',
@@ -1190,7 +1190,7 @@ export function GroupReservationModal({
     } catch (error) {
       const message = getErrorMessage(error)
       setPaymentWarning(`Group was created, but payment posting failed: ${message}`)
-      await Swal.fire({
+      await appAlert.fire({
         icon: 'error',
         title: 'Payment failed',
         text: message,

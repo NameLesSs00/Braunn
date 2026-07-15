@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Clock, Trash2 } from 'lucide-react';
-import Swal from 'sweetalert2';
+import { appAlert } from '../../../../shared/ui/AppAlert';
 import { useSettingsContext } from '../SettingsContext';
 import { AddShiftPopup } from '../popups/AddShiftPopup';
 import { DeleteShiftPopup } from '../popups/DeleteShiftPopup';
@@ -25,7 +25,7 @@ export function ShiftsTab() {
   // Error Toast Notification
   useEffect(() => {
     if (status === 'failed' && error) {
-      Swal.fire({
+      appAlert.fire({
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
@@ -128,7 +128,7 @@ export function ShiftsTab() {
           shiftName={deleteTarget.name}
           onDelete={() => {
             dispatch(deleteHrShift(deleteTarget.id)).unwrap().then(() => {
-              Swal.fire({
+              appAlert.fire({
                 toast: true,
                 position: 'top-end',
                 showConfirmButton: false,

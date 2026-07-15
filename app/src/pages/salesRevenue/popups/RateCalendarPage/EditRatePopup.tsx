@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppDispatch } from '../../../../store/hooks';
 import { updateLocalARISingleDayRate } from '../../../../features/localAri/localAriSlice';
-import Swal from 'sweetalert2';
+import { appAlert } from '../../../../shared/ui/AppAlert';
 import { X } from 'lucide-react';
 
 interface EditRatePopupProps {
@@ -51,7 +51,7 @@ export function EditRatePopup({ isOpen, onClose, singleDayData, onSaveSuccess }:
         }));
 
         if (updateLocalARISingleDayRate.fulfilled.match(resultAction)) {
-          Swal.fire({
+          appAlert.fire({
             icon: 'success',
             title: 'Success!',
             text: 'Rate updated successfully.',

@@ -6,8 +6,10 @@ import { addPackageToContract, removePackageFromContract, fetchCorporateContract
 import { fetchPackages } from '../../../../features/packages/packagesSlice'
 import { fetchMealPlans } from '../../../../features/admin/mealPlansSlice'
 import { fetchAdditionalServices } from '../../../../features/admin/additionalServicesSlice'
-import { BillingCycle, ContractType, RateCalculationMethod, type CorporateContract } from '../../../../models/CorporateContract'
-import Swal from 'sweetalert2'
+import { fetchCorporateCancellationPolicies } from '../../../../features/policies/corporateCancellationPoliciesSlice'
+import { ContractType, type CorporateContract } from '../../../../models/CorporateContract'
+import { ConfirmActionModal } from '../../../../shared/ui/ConfirmActionModal'
+import { appAlert } from '../../../../shared/ui/AppAlert'
 
 interface CorporateContractDetailsPopupProps {
   contract: CorporateContract
@@ -21,25 +23,26 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
   const { packages, status: packagesStatus } = useAppSelector((state) => state.packages)
   const { items: mealPlans } = useAppSelector((state) => state.mealPlans)
   const { items: additionalServices } = useAppSelector((state) => state.additionalServices)
+  const { items: cancellationPolicies, status: policiesStatus } = useAppSelector((state) => state.corporateCancellationPolicies)
   const selectedContractFromStore = useAppSelector((state) => state.corporateContract.selected?.id === contract.id ? state.corporateContract.selected : undefined)
   const activeContract = selectedContractFromStore ?? contract
+  const contractStatus = activeContract.status ?? activeContract.contractStatus ?? '---'
+  const activeCreditLimit = activeContract.creditLimit ?? activeContract.credit?.creditLimit ?? 0
   const [activeTab, setActiveTab] = useState<TabKey>('Overview')
   const [isAddingPackage, setIsAddingPackage] = useState(false)
   const [isSubmittingPackage, setIsSubmittingPackage] = useState(false)
   const [isSavingContract, setIsSavingContract] = useState(false)
   const [isEditContractOpen, setIsEditContractOpen] = useState(false)
+  const [packageRemovalTarget, setPackageRemovalTarget] = useState<{ id: string; name: string } | null>(null)
+  const [isRemovingPackage, setIsRemovingPackage] = useState(false)
+  const [packageRemovalError, setPackageRemovalError] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
-    contractNumber: activeContract.contractNumber,
-    contractType: activeContract.contractType,
-    billingCycle: activeContract.billingCycle,
-    rateCalculationMethod: activeContract.rateCalculationMethod,
-    releaseDaysBefore: activeContract.releaseDaysBefore ?? 0,
+    corporateCancellationPolicyId: String(activeContract.corporateCancellationPolicy?.id ?? activeContract.corporateCancellationPolicyId ?? ''),
+    creditLimit: String(activeCreditLimit),
+    releaseDaysBefore: String(activeContract.releaseDaysBefore ?? ''),
     startDate: activeContract.startDate ? new Date(activeContract.startDate).toISOString().slice(0, 16) : '',
     endDate: activeContract.endDate ? new Date(activeContract.endDate).toISOString().slice(0, 16) : '',
-    depositAmount: activeContract.depositAmount,
     currency: activeContract.currency,
-    penaltyPercentage: activeContract.penaltyPercentage,
-    cancellationPolicy: activeContract.cancellationPolicy,
     notes: activeContract.notes,
   })
   const [newPackageForm, setNewPackageForm] = useState({
@@ -56,21 +59,23 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
   }, [dispatch])
 
   useEffect(() => {
+    dispatch(fetchCorporateCancellationPolicies({
+      ContractType: activeContract.contractType,
+      IsActive: true,
+    }))
+  }, [dispatch, activeContract.contractType])
+
+  useEffect(() => {
     setEditForm({
-      contractNumber: activeContract.contractNumber,
-      contractType: activeContract.contractType,
-      billingCycle: activeContract.billingCycle,
-      rateCalculationMethod: activeContract.rateCalculationMethod,
-      releaseDaysBefore: activeContract.releaseDaysBefore ?? 0,
+      corporateCancellationPolicyId: String(activeContract.corporateCancellationPolicy?.id ?? activeContract.corporateCancellationPolicyId ?? ''),
+      creditLimit: String(activeCreditLimit),
+      releaseDaysBefore: String(activeContract.releaseDaysBefore ?? ''),
       startDate: activeContract.startDate ? new Date(activeContract.startDate).toISOString().slice(0, 16) : '',
       endDate: activeContract.endDate ? new Date(activeContract.endDate).toISOString().slice(0, 16) : '',
-      depositAmount: activeContract.depositAmount,
       currency: activeContract.currency,
-      penaltyPercentage: activeContract.penaltyPercentage,
-      cancellationPolicy: activeContract.cancellationPolicy,
       notes: activeContract.notes,
     })
-  }, [activeContract.id])
+  }, [activeContract.id, activeCreditLimit])
 
   const packageLookup = useMemo(() => new Map(packages.map((item) => [item.id, item])), [packages])
   const mealPlanLookup = useMemo(() => new Map(mealPlans.map((m) => [m.id, m])), [mealPlans])
@@ -79,10 +84,30 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
     if (!newPackageForm.packageId) return null
     return packages.find((item) => item.id === newPackageForm.packageId) ?? null
   }, [newPackageForm.packageId, packages])
+  const filteredCancellationPolicies = useMemo(
+    () => cancellationPolicies.filter((policy) => policy.appliesToContractType === activeContract.contractType && policy.isActive),
+    [cancellationPolicies, activeContract.contractType]
+  )
 
   const handleSaveContract = async () => {
-    if (!editForm.contractNumber.trim()) {
-      Swal.fire('Error', 'Contract number is required.', 'error')
+    if (!editForm.startDate || !editForm.endDate) {
+      appAlert.fire('Error', 'Start date and end date are required.', 'error')
+      return
+    }
+    if (new Date(editForm.endDate).getTime() <= new Date(editForm.startDate).getTime()) {
+      appAlert.fire('Error', 'End date must be after start date.', 'error')
+      return
+    }
+    if (!editForm.corporateCancellationPolicyId) {
+      appAlert.fire('Error', 'Please select a cancellation policy.', 'error')
+      return
+    }
+    if (!editForm.creditLimit || Number(editForm.creditLimit) < 0) {
+      appAlert.fire('Error', 'Credit limit must be zero or more.', 'error')
+      return
+    }
+    if (activeContract.contractType === ContractType.Allotment && (editForm.releaseDaysBefore === '' || Number(editForm.releaseDaysBefore) < 0)) {
+      appAlert.fire('Error', 'Release days before is required for Allotment contracts.', 'error')
       return
     }
 
@@ -92,18 +117,12 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
       await dispatch(updateCorporateContractAction({
         id: activeContract.id,
         payload: {
-          contractNumber: editForm.contractNumber.trim(),
-          contractType: editForm.contractType,
-          contractStatus: activeContract.contractStatus,
           startDate: new Date(editForm.startDate).toISOString(),
           endDate: new Date(editForm.endDate).toISOString(),
-          cancellationPolicy: editForm.cancellationPolicy,
-          penaltyPercentage: Number(editForm.penaltyPercentage),
-          depositAmount: Number(editForm.depositAmount),
-          currency: editForm.currency,
-          releaseDaysBefore: editForm.contractType === ContractType.Commitment ? null : Number(editForm.releaseDaysBefore || 0),
-          billingCycle: editForm.billingCycle,
-          rateCalculationMethod: editForm.rateCalculationMethod,
+          corporateCancellationPolicyId: Number(editForm.corporateCancellationPolicyId),
+          creditLimit: Number(editForm.creditLimit),
+          currency: editForm.currency.trim().toUpperCase(),
+          releaseDaysBefore: activeContract.contractType === ContractType.Commitment ? null : Number(editForm.releaseDaysBefore),
           notes: editForm.notes,
         },
       })).unwrap()
@@ -111,10 +130,10 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
       await dispatch(fetchCorporateContractById(activeContract.id)).unwrap()
       await dispatch(fetchCorporateContractsByAccount(activeContract.corporateAccountId)).unwrap()
 
-      Swal.fire('Success', 'Contract updated successfully.', 'success')
+      appAlert.fire('Success', 'Contract updated successfully.', 'success')
       setIsEditContractOpen(false)
     } catch (err: any) {
-      Swal.fire('Error', err?.message || 'Could not update contract.', 'error')
+      appAlert.fire('Error', err?.message || 'Could not update contract.', 'error')
     } finally {
       setIsSavingContract(false)
     }
@@ -122,7 +141,7 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
 
   const handleAddPackage = async () => {
     if (!newPackageForm.packageId || !newPackageForm.startDate || !newPackageForm.endDate) {
-      Swal.fire('Error', 'Please choose a package and date range.', 'error')
+      appAlert.fire('Error', 'Please choose a package and date range.', 'error')
       return
     }
 
@@ -142,55 +161,53 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
       await dispatch(fetchCorporateContractById(activeContract.id)).unwrap()
       await dispatch(fetchCorporateContractsByAccount(activeContract.corporateAccountId)).unwrap()
 
-      Swal.fire('Success', 'Package added to contract.', 'success')
+      appAlert.fire('Success', 'Package added to contract.', 'success')
       setIsAddingPackage(false)
       setNewPackageForm({ packageId: '', startDate: '', endDate: '', notes: '' })
       setActiveTab('Packages')
     } catch (err: any) {
-      Swal.fire('Error', err?.message || 'Could not add package.', 'error')
+      appAlert.fire('Error', err?.message || 'Could not add package.', 'error')
     } finally {
       setIsSubmittingPackage(false)
     }
   }
 
-  const handleDeletePackage = async (contractPackageId: string, packageName: string) => {
-    const result = await Swal.fire({
-      title: 'Remove Package?',
-      html: `Are you sure you want to remove <strong>${packageName}</strong> from this contract?<br/><span style="color:#64748b;font-size:0.875rem">This action cannot be undone.</span>`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#64748b',
-      confirmButtonText: 'Yes, Remove',
-      cancelButtonText: 'Cancel',
-    })
+  const requestDeletePackage = (contractPackageId: string, packageName: string) => {
+    setPackageRemovalTarget({ id: contractPackageId, name: packageName })
+    setPackageRemovalError(null)
+  }
 
-    if (!result.isConfirmed) return
-
+  const handleDeletePackage = async () => {
+    if (!packageRemovalTarget) return
+    setIsRemovingPackage(true)
+    setPackageRemovalError(null)
     try {
       await dispatch(removePackageFromContract({
         contractId: activeContract.id,
-        contractPackageId,
+        contractPackageId: packageRemovalTarget.id,
       })).unwrap()
 
       await dispatch(fetchCorporateContractById(activeContract.id)).unwrap()
       await dispatch(fetchCorporateContractsByAccount(activeContract.corporateAccountId)).unwrap()
 
-      Swal.fire('Removed', 'Package has been removed from the contract.', 'success')
+      setPackageRemovalTarget(null)
     } catch (err: any) {
-      Swal.fire('Error', err?.message || 'Could not remove package.', 'error')
+      setPackageRemovalError(err?.message || 'Could not remove package.')
+    } finally {
+      setIsRemovingPackage(false)
     }
   }
 
   const tabs: TabKey[] = ['Overview', 'Packages', 'Rates', 'Discounts']
 
   return (
+    <>
     <Modal open onClose={onClose} lockScroll>
       <div className="flex max-h-[96vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between bg-[#004bb4] px-6 py-5 text-white">
           <div>
             <h2 className="text-xl font-bold">{activeContract.contractNumber}</h2>
-            <p className="mt-1 text-sm text-blue-100">{activeContract.contractType} • {activeContract.currency} • {activeContract.contractStatus}</p>
+            <p className="mt-1 text-sm text-blue-100">{activeContract.contractType} • {activeContract.currency} • {contractStatus}</p>
           </div>
           <button onClick={onClose} className="rounded-lg p-2 transition-colors hover:bg-white/20">
             <X className="h-6 w-6" />
@@ -200,7 +217,7 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <Coins className="h-4 w-4 text-[#004bb4]" />
-            <span>Deposit: {activeContract.depositAmount} {activeContract.currency}</span>
+            <span>Credit limit: {activeCreditLimit.toLocaleString()} {activeContract.currency}</span>
             <span className="text-slate-300">•</span>
             <span>Period: {new Date(activeContract.startDate).toLocaleDateString()} - {new Date(activeContract.endDate).toLocaleDateString()}</span>
           </div>
@@ -248,14 +265,10 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
                     </div>
                     <div className="rounded-xl bg-white p-4 shadow-sm">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
-                      <p className="mt-1 font-semibold text-slate-800">{activeContract.contractStatus}</p>
-                    </div>
-                    <div className="rounded-xl bg-white p-4 shadow-sm">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Billing Cycle</p>
-                      <p className="mt-1 font-semibold text-slate-800">{activeContract.billingCycle}</p>
+                      <p className="mt-1 font-semibold text-slate-800">{contractStatus}</p>
                     </div>
                     {activeContract.contractType === ContractType.Allotment && (
-                      <div className="rounded-xl bg-white p-4 shadow-sm md:col-span-2">
+                      <div className="rounded-xl bg-white p-4 shadow-sm">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Release Days Before</p>
                         <p className="mt-1 font-semibold text-slate-800">{activeContract.releaseDaysBefore ?? 0}</p>
                       </div>
@@ -270,16 +283,16 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
                   </div>
                   <div className="space-y-4">
                     <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Deposit</p>
-                      <p className="mt-1 text-base font-semibold text-slate-800">{activeContract.depositAmount} {activeContract.currency}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Credit Limit</p>
+                      <p className="mt-1 text-base font-semibold text-slate-800">{activeCreditLimit.toLocaleString()} {activeContract.currency}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Penalty</p>
-                      <p className="mt-1 text-base font-semibold text-slate-800">{activeContract.penaltyPercentage}%</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Remaining Credit</p>
+                      <p className="mt-1 text-base font-semibold text-slate-800">{(activeContract.credit?.remainingCredit ?? activeCreditLimit).toLocaleString()} {activeContract.currency}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Rate Calculation</p>
-                      <p className="mt-1 text-base font-semibold text-slate-800">{activeContract.rateCalculationMethod}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cancellation Penalty</p>
+                      <p className="mt-1 text-base font-semibold text-slate-800">{activeContract.corporateCancellationPolicy?.liquidatedDamagesPenaltyPercentage ?? '---'}%</p>
                     </div>
                   </div>
                 </div>
@@ -311,7 +324,7 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
                   <div className="space-y-3 text-sm text-slate-700">
                     <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cancellation Policy</p>
-                      <p className="mt-1 leading-6">{activeContract.cancellationPolicy || 'No cancellation policy provided.'}</p>
+                      <p className="mt-1 leading-6">{activeContract.corporateCancellationPolicy?.name ?? activeContract.cancellationPolicy ?? 'No cancellation policy provided.'}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Internal Notes</p>
@@ -459,7 +472,7 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
                               {pkg.isActive ? 'Active' : 'Inactive'}
                             </span>
                             <button
-                              onClick={() => handleDeletePackage(pkg.id, details?.name || 'this package')}
+                              onClick={() => requestDeletePackage(pkg.id, details?.name || 'this package')}
                               title="Remove package from contract"
                               className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 hover:border-red-300"
                             >
@@ -682,67 +695,15 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
 
               <div className="space-y-6 p-6">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Contract Number</label>
-                    <input
-                      value={editForm.contractNumber}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, contractNumber: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                    />
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Contract Number</p>
+                    <p className="mt-1 font-semibold text-slate-800">{activeContract.contractNumber}</p>
                   </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Contract Type</label>
-                    <select
-                      value={editForm.contractType}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, contractType: e.target.value as ContractType }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                    >
-                      <option value={ContractType.Allotment}>Allotment</option>
-                      <option value={ContractType.Commitment}>Commitment</option>
-                    </select>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Contract Type</p>
+                    <p className="mt-1 font-semibold text-slate-800">{activeContract.contractType}</p>
                   </div>
                 </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Billing Cycle</label>
-                    <select
-                      value={editForm.billingCycle}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, billingCycle: e.target.value as BillingCycle }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                    >
-                      <option value={BillingCycle.MonthlyInvoice}>Monthly Invoice</option>
-                      <option value={BillingCycle.PerReservation}>Per Reservation</option>
-                      <option value={BillingCycle.Cash}>Cash</option>
-                      <option value={BillingCycle.CreditBilling}>Credit Billing</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Rate Calculation Method</label>
-                    <select
-                      value={editForm.rateCalculationMethod}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, rateCalculationMethod: e.target.value as RateCalculationMethod }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                    >
-                      <option value={RateCalculationMethod.Fixed}>Fixed</option>
-                      <option value={RateCalculationMethod.PercentageDiscount}>Percentage Discount</option>
-                      <option value={RateCalculationMethod.Dynamic}>Dynamic</option>
-                    </select>
-                  </div>
-                </div>
-
-                {editForm.contractType === ContractType.Allotment && (
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Release Days Before</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editForm.releaseDaysBefore}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, releaseDaysBefore: Number(e.target.value) }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                    />
-                  </div>
-                )}
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
@@ -765,43 +726,64 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
                   </div>
                 </div>
 
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-slate-700">Cancellation Policy</label>
+                  <select
+                    value={editForm.corporateCancellationPolicyId}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, corporateCancellationPolicyId: e.target.value }))}
+                    disabled={policiesStatus === 'loading' || filteredCancellationPolicies.length === 0}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                  >
+                    <option value="">
+                      {policiesStatus === 'loading'
+                        ? 'Loading policies...'
+                        : filteredCancellationPolicies.length === 0
+                          ? `No active ${activeContract.contractType} policies`
+                          : 'Select cancellation policy'}
+                    </option>
+                    {filteredCancellationPolicies.map((policy) => (
+                      <option key={policy.id} value={policy.id}>
+                        {policy.name} ({policy.code}) - {policy.liquidatedDamagesPenaltyPercentage}%
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-3">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Deposit Amount</label>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Credit Limit</label>
                     <input
                       type="number"
-                      value={editForm.depositAmount}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, depositAmount: Number(e.target.value) }))}
+                      min="0"
+                      value={editForm.creditLimit}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, creditLimit: e.target.value }))}
                       className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
                     />
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-slate-700">Currency</label>
-                    <input
+                    <select
                       value={editForm.currency}
                       onChange={(e) => setEditForm((prev) => ({ ...prev, currency: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                    />
+                      className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none"
+                    >
+                      <option value="EUR">EUR</option>
+                      <option value="USD">USD</option>
+                      <option value="EGP">EGP</option>
+                    </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Penalty %</label>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">Release Days Before</label>
                     <input
                       type="number"
-                      value={editForm.penaltyPercentage}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, penaltyPercentage: Number(e.target.value) }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
+                      min="0"
+                      value={editForm.releaseDaysBefore}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, releaseDaysBefore: e.target.value }))}
+                      disabled={activeContract.contractType === ContractType.Commitment}
+                      placeholder={activeContract.contractType === ContractType.Commitment ? 'Not used' : '0'}
+                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Cancellation Policy</label>
-                  <textarea
-                    rows={3}
-                    value={editForm.cancellationPolicy}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, cancellationPolicy: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                  />
                 </div>
 
                 <div>
@@ -832,5 +814,21 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
         </div>
       )}
     </Modal>
+    <ConfirmActionModal
+      open={Boolean(packageRemovalTarget)}
+      title="Remove Package"
+      description={`This will remove "${packageRemovalTarget?.name ?? 'this package'}" from the contract. This action cannot be undone.`}
+      confirmLabel="Remove Package"
+      variant="danger"
+      isLoading={isRemovingPackage}
+      error={packageRemovalError}
+      onCancel={() => {
+        if (isRemovingPackage) return
+        setPackageRemovalTarget(null)
+        setPackageRemovalError(null)
+      }}
+      onConfirm={handleDeletePackage}
+    />
+    </>
   )
 }

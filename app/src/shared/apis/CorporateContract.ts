@@ -1,6 +1,7 @@
 import { apiRequest, unwrapApiResponse } from './apiClient'
 import type {
   CorporateContract,
+  CorporateContractDetailsResponse,
   CreateCorporateContractRequest,
   UpdateCorporateContractRequest,
   CreateCorporateContractPackageRequest,
@@ -8,6 +9,39 @@ import type {
 } from '../../models/CorporateContract'
 
 const basePath = '/corporate-contracts'
+
+function normalizeContract(contract: CorporateContract): CorporateContract {
+  return {
+    ...contract,
+    contractStatus: contract.contractStatus ?? contract.status,
+    packages: contract.packages ?? [],
+    rates: contract.rates ?? [],
+    discounts: contract.discounts ?? [],
+    lockedRoomAllocations: contract.lockedRoomAllocations ?? [],
+  }
+}
+
+function normalizeContractResponse(value: unknown): CorporateContract {
+  const unwrapped = unwrapApiResponse<CorporateContract | CorporateContractDetailsResponse>(value)
+  if (unwrapped && typeof unwrapped === 'object' && 'contract' in unwrapped) {
+    const details = unwrapped as CorporateContractDetailsResponse
+    return normalizeContract({
+      ...details.contract,
+      corporateCancellationPolicy: details.contract.corporateCancellationPolicy ?? details.cancellationPolicy ?? null,
+      inventory: details.contract.inventory ?? details.inventory,
+      credit: details.contract.credit ?? details.credit,
+    })
+  }
+  return normalizeContract(unwrapped as CorporateContract)
+}
+
+function normalizeContractsResponse(value: unknown): CorporateContract[] {
+  const unwrapped = unwrapApiResponse<CorporateContract[] | { contracts?: CorporateContract[]; items?: CorporateContract[] }>(value)
+  const contracts = Array.isArray(unwrapped)
+    ? unwrapped
+    : unwrapped.contracts ?? unwrapped.items ?? []
+  return contracts.map(normalizeContract)
+}
 
 // ============ Corporate Contract Endpoints ============
 
@@ -17,7 +51,7 @@ export async function getCorporateContractById(id: string, signal?: AbortSignal)
     path: `${basePath}/${id}`,
     signal,
   })
-  return unwrapApiResponse<CorporateContract>(response)
+  return normalizeContractResponse(response)
 }
 
 export async function getCorporateContractsByAccountId(
@@ -29,24 +63,20 @@ export async function getCorporateContractsByAccountId(
     path: `${basePath}/by-account/${accountId}`,
     signal,
   })
-  return unwrapApiResponse<CorporateContract[]>(response)
+  return normalizeContractsResponse(response)
 }
 
 export async function createCorporateContract(
   payload: CreateCorporateContractRequest,
   signal?: AbortSignal
 ): Promise<CorporateContract> {
-  const apiPayload = {
-    ...payload,
-    contractStatus: 'Draft', // Always set to Draft on creation
-  }
   const response = await apiRequest<unknown>({
     method: 'POST',
     path: basePath,
-    body: apiPayload,
+    body: payload,
     signal,
   })
-  return unwrapApiResponse<CorporateContract>(response)
+  return normalizeContractResponse(response)
 }
 
 export async function updateCorporateContract(
@@ -60,7 +90,7 @@ export async function updateCorporateContract(
     body: payload,
     signal,
   })
-  return unwrapApiResponse<CorporateContract>(response)
+  return normalizeContractResponse(response)
 }
 
 // ============ Package Management Endpoints ============

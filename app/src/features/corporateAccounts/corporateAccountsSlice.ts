@@ -1,6 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import type { CorporateAccount, CreateCorporateAccountRequest, UpdateCorporateAccountRequest } from '../../models/CorporateAccount'
+import type {
+  CorporateAccount,
+  CreateCorporateAccountRequest,
+  UpdateCorporateAccountRequest,
+} from '../../models/CorporateAccount'
 import * as api from '../../shared/apis/CorporateAccount'
 
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
@@ -19,20 +23,31 @@ const initialState: CorporateAccountsState = {
   error: undefined,
 }
 
-export const fetchCorporateAccounts = createAsyncThunk('corporateAccounts/fetchAll', async (_, thunkApi) => {
-  try {
-    return await api.getCorporateAccounts(thunkApi.signal)
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'Failed to load corporate accounts'
-    return thunkApi.rejectWithValue(message)
+export const fetchCorporateAccounts = createAsyncThunk(
+  'corporateAccounts/fetchAll',
+  async (_, thunkApi) => {
+    try {
+      return await api.getCorporateAccounts(thunkApi.signal)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to load corporate accounts'
+      return thunkApi.rejectWithValue(message)
+    }
   }
-})
+)
 
+/**
+ * POST /api/local/corporate-accounts
+ * The endpoint now returns the new account id (UUID string) on 201, not the full object.
+ * After creation we re-fetch the full list so the UI sees the correct data.
+ */
 export const addCorporateAccount = createAsyncThunk(
   'corporateAccounts/add',
   async (payload: CreateCorporateAccountRequest, thunkApi) => {
     try {
-      return await api.createCorporateAccount(payload, thunkApi.signal)
+      const newId = await api.createCorporateAccount(payload, thunkApi.signal)
+      // Fetch the newly created account by id to get the full shape (with contracts:[])
+      const newAccount = await api.getCorporateAccountById(newId, thunkApi.signal)
+      return newAccount
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to create corporate account'
       return thunkApi.rejectWithValue(message)
@@ -78,9 +93,6 @@ export const removeCorporateAccount = createAsyncThunk(
   }
 )
 
-
-
-
 const corporateAccountsSlice = createSlice({
   name: 'corporateAccounts',
   initialState,
@@ -94,6 +106,7 @@ const corporateAccountsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // ── fetchAll ──────────────────────────────────────────────────────────
       .addCase(fetchCorporateAccounts.pending, (state) => {
         state.status = 'loading'
         state.error = undefined
@@ -106,18 +119,23 @@ const corporateAccountsSlice = createSlice({
         state.status = 'failed'
         state.error = (action.payload as string | undefined) ?? action.error.message
       })
+
+      // ── add ───────────────────────────────────────────────────────────────
       .addCase(addCorporateAccount.pending, (state) => {
         state.status = 'loading'
         state.error = undefined
       })
       .addCase(addCorporateAccount.fulfilled, (state, action) => {
         state.status = 'succeeded'
+        // Prepend the freshly-fetched account (includes contracts: [])
         state.items.unshift(action.payload)
       })
       .addCase(addCorporateAccount.rejected, (state, action) => {
         state.status = 'failed'
         state.error = (action.payload as string | undefined) ?? action.error.message
       })
+
+      // ── fetchById ─────────────────────────────────────────────────────────
       .addCase(fetchCorporateAccountById.pending, (state) => {
         state.status = 'loading'
         state.error = undefined
@@ -130,6 +148,8 @@ const corporateAccountsSlice = createSlice({
         state.status = 'failed'
         state.error = (action.payload as string | undefined) ?? action.error.message
       })
+
+      // ── edit ──────────────────────────────────────────────────────────────
       .addCase(editCorporateAccount.pending, (state) => {
         state.status = 'loading'
         state.error = undefined
@@ -153,6 +173,8 @@ const corporateAccountsSlice = createSlice({
         state.status = 'failed'
         state.error = (action.payload as string | undefined) ?? action.error.message
       })
+
+      // ── remove ────────────────────────────────────────────────────────────
       .addCase(removeCorporateAccount.pending, (state) => {
         state.status = 'loading'
         state.error = undefined
@@ -171,5 +193,6 @@ const corporateAccountsSlice = createSlice({
   },
 })
 
-export const { clearCorporateAccountsError, setSelectedCorporateAccount } = corporateAccountsSlice.actions
+export const { clearCorporateAccountsError, setSelectedCorporateAccount } =
+  corporateAccountsSlice.actions
 export const corporateAccountsReducer = corporateAccountsSlice.reducer

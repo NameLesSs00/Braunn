@@ -43,6 +43,11 @@ const titleByPath: Record<string, string> = {
   [routes.salesRevenue.groupContracts]: 'Sales & Revenue',
   [routes.salesRevenue.productionReport]: 'Sales & Revenue',
   [routes.salesRevenue.packages]: 'Sales & Revenue',
+  [routes.policies.corporateCancellation]: 'Policies',
+  [routes.policies.earlyCheckout]: 'Policies',
+  [routes.policies.roomChange]: 'Policies',
+  [routes.policies.lateCheckout]: 'Policies',
+  [routes.policies.extendStay]: 'Policies',
 }
 
 export function DashboardLayout() {

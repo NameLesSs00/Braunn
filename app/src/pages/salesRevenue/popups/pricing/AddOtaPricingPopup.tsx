@@ -5,7 +5,7 @@ import { RootState } from '../../../../store/store'
 import { fetchARIRatePlans, submitARIUpdateRates } from '../../../../features/localAri/localAriSlice'
 import { generateARIRequestId } from '../../../../shared/apis/LocalAri'
 import type { ARIRateAmountMessage, ARIBaseByGuestAmt, ARIAdditionalGuestAmt } from '../../../../models/LocalAri'
-import Swal from 'sweetalert2'
+import { appAlert } from '../../../../shared/ui/AppAlert'
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'SAR', 'AED', 'EGP']
 
@@ -194,17 +194,17 @@ export function AddOtaPricingPopup({ onClose }: Props) {
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i]
       if (!entry.roomTypeId || !entry.ratePlanCode || !entry.startDate || !entry.endDate) {
-        Swal.fire('Validation Error', `Entry #${i + 1} is missing required fields (Room Type, Rate Plan, Start Date, or End Date).`, 'error')
+        appAlert.fire('Validation Error', `Entry #${i + 1} is missing required fields (Room Type, Rate Plan, Start Date, or End Date).`, 'error')
         return
       }
 
       if (new Date(entry.startDate) > new Date(entry.endDate)) {
-        Swal.fire('Validation Error', `Entry #${i + 1} has a start date after the end date.`, 'error')
+        appAlert.fire('Validation Error', `Entry #${i + 1} has a start date after the end date.`, 'error')
         return
       }
 
       if (entry.rates.length === 0) {
-        Swal.fire('Validation Error', `Entry #${i + 1} must have at least one rate configuration.`, 'error')
+        appAlert.fire('Validation Error', `Entry #${i + 1} must have at least one rate configuration.`, 'error')
         return
       }
 
@@ -214,29 +214,29 @@ export function AddOtaPricingPopup({ onClose }: Props) {
           const rateItem = entry.rates[j]
           
           if (rateItem.baseAmts.length === 0) {
-            Swal.fire('Validation Error', `Entry #${i + 1}, Rate List #${j + 1}: Base Guest Amounts cannot be empty.`, 'error')
+            appAlert.fire('Validation Error', `Entry #${i + 1}, Rate List #${j + 1}: Base Guest Amounts cannot be empty.`, 'error')
             return
           }
 
           if (rateItem.additionalAmts.length === 0) {
-            Swal.fire('Validation Error', `Entry #${i + 1}, Rate List #${j + 1}: Additional Guest Amounts cannot be empty.`, 'error')
+            appAlert.fire('Validation Error', `Entry #${i + 1}, Rate List #${j + 1}: Additional Guest Amounts cannot be empty.`, 'error')
             return
           }
 
           for (const baseAmt of rateItem.baseAmts) {
             if (baseAmt.numberOfGuests > roomType.maxGuests || baseAmt.numberOfGuests < 1) {
-              Swal.fire('Validation Error', `Entry #${i + 1}: Invalid number of guests. Must be between 1 and ${roomType.maxGuests} for room type ${roomType.name}.`, 'error')
+              appAlert.fire('Validation Error', `Entry #${i + 1}: Invalid number of guests. Must be between 1 and ${roomType.maxGuests} for room type ${roomType.name}.`, 'error')
               return
             }
             if (baseAmt.amountAfterTax === undefined || baseAmt.amountAfterTax === null || baseAmt.amountAfterTax < 0 || baseAmt.amountAfterTax === '') {
-              Swal.fire('Validation Error', `Entry #${i + 1}: Base Guest Amount must have a valid price.`, 'error')
+              appAlert.fire('Validation Error', `Entry #${i + 1}: Base Guest Amount must have a valid price.`, 'error')
               return
             }
           }
 
           for (const addAmt of rateItem.additionalAmts) {
             if (addAmt.amount === undefined || addAmt.amount === null || addAmt.amount < 0 || addAmt.amount === '') {
-              Swal.fire('Validation Error', `Entry #${i + 1}: Additional Guest Amount must have a valid price.`, 'error')
+              appAlert.fire('Validation Error', `Entry #${i + 1}: Additional Guest Amount must have a valid price.`, 'error')
               return
             }
           }
@@ -246,7 +246,7 @@ export function AddOtaPricingPopup({ onClose }: Props) {
 
     try {
       if (!requestId) {
-        Swal.fire('Error', 'Request ID is missing. Please close and reopen the window to try again.', 'error')
+        appAlert.fire('Error', 'Request ID is missing. Please close and reopen the window to try again.', 'error')
         return
       }
       
@@ -288,11 +288,11 @@ export function AddOtaPricingPopup({ onClose }: Props) {
       // 3. Submit
       await dispatch(submitARIUpdateRates(payload)).unwrap()
       
-      Swal.fire('Success', 'Rates have been successfully sent to the OTA.', 'success')
+      appAlert.fire('Success', 'Rates have been successfully sent to the OTA.', 'success')
       onClose()
 
     } catch (err: any) {
-      Swal.fire('Error', err?.message || 'Failed to submit rates to OTA.', 'error')
+      appAlert.fire('Error', err?.message || 'Failed to submit rates to OTA.', 'error')
     }
   }
 

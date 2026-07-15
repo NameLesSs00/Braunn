@@ -24,6 +24,13 @@ export const routes = {
     discounts: '/sales-revenue/discounts',
     packages: '/sales-revenue/packages',
   },
+  policies: {
+    corporateCancellation: '/policies/corporate-cancellation',
+    earlyCheckout: '/policies/early-checkout',
+    roomChange: '/policies/room-change',
+    lateCheckout: '/policies/late-checkout',
+    extendStay: '/policies/extend-stay',
+  },
   laundry: {
     overview: '/laundry/overview',
     roomRequests: '/laundry/room-requests',

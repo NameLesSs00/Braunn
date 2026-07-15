@@ -14,10 +14,10 @@ import type { LaundryInventoryItemReadDto } from '../../../../models/Laundrymode
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { EditItemModal } from './EditItemModal';
 import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
-import Swal from 'sweetalert2';
+import { appAlert } from '../../../../shared/ui/AppAlert';
 
 const showSuccess = (title: string) =>
-  Swal.fire({
+  appAlert.fire({
     toast: true,
     position: 'top-end',
     showConfirmButton: false,
@@ -28,7 +28,7 @@ const showSuccess = (title: string) =>
   });
 
 const showError = (title: string) =>
-  Swal.fire({
+  appAlert.fire({
     toast: true,
     position: 'top-end',
     showConfirmButton: false,

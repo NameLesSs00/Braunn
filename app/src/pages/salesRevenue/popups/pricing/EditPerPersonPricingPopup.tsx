@@ -3,6 +3,7 @@ import { X, Users, Calendar, Trash2 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
 import { fetchRoomTypes } from '../../../../features/roomTypes/roomTypesSlice'
 import { editPerPersonPricing, removePerPersonPricing } from '../../../../features/perPersonPricing/perPersonPricingSlice'
+import { ConfirmActionModal } from '../../../../shared/ui/ConfirmActionModal'
 
 interface EditPerPersonPricingPopupProps {
   onClose: () => void
@@ -34,6 +35,8 @@ export function EditPerPersonPricingPopup({ onClose }: EditPerPersonPricingPopup
   const [validTo, setValidTo] = useState(formatDateForInput(selectedPricing?.validTo))
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     dispatch(fetchRoomTypes())
@@ -81,17 +84,16 @@ export function EditPerPersonPricingPopup({ onClose }: EditPerPersonPricingPopup
 
   const handleDelete = async () => {
     if (!selectedPricing) return
-    const confirmed = window.confirm('Are you sure you want to delete this pricing configuration?')
-    if (confirmed) {
-      setIsLoading(true)
-      try {
-        await dispatch(removePerPersonPricing(selectedPricing.id)).unwrap()
-        onClose()
-      } catch (error) {
-        console.error('Failed to delete per-person pricing:', error)
-      } finally {
-        setIsLoading(false)
-      }
+    setIsLoading(true)
+    setDeleteError(null)
+    try {
+      await dispatch(removePerPersonPricing(selectedPricing.id)).unwrap()
+      onClose()
+    } catch (error) {
+      console.error('Failed to delete per-person pricing:', error)
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete pricing configuration.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -100,6 +102,7 @@ export function EditPerPersonPricingPopup({ onClose }: EditPerPersonPricingPopup
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40">
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl overflow-hidden flex flex-col">
         {/* Header */}
@@ -238,7 +241,10 @@ export function EditPerPersonPricingPopup({ onClose }: EditPerPersonPricingPopup
         <div className="px-6 py-5 bg-white flex justify-between items-center mt-4">
           <button 
             type="button"
-            onClick={handleDelete}
+            onClick={() => {
+              setDeleteConfirmOpen(true)
+              setDeleteError(null)
+            }}
             disabled={isLoading}
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -276,5 +282,21 @@ export function EditPerPersonPricingPopup({ onClose }: EditPerPersonPricingPopup
         </div>
       </div>
     </div>
+    <ConfirmActionModal
+      open={deleteConfirmOpen}
+      title="Delete Pricing Configuration"
+      description="This will permanently delete this per-person pricing configuration. This action cannot be undone."
+      confirmLabel="Delete Pricing"
+      variant="danger"
+      isLoading={isLoading}
+      error={deleteError}
+      onCancel={() => {
+        if (isLoading) return
+        setDeleteConfirmOpen(false)
+        setDeleteError(null)
+      }}
+      onConfirm={handleDelete}
+    />
+    </>
   )
 }

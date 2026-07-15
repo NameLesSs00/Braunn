@@ -7,7 +7,7 @@ import { EditGroupContractPopup } from './popups/groupContracts/EditGroupContrac
 import { AnimatedCounter } from './components/AnimatedCounter'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { fetchGroupContracts, removeGroupContract, releaseGroupContractAction } from '../../features/GroupContract/GroupContractSlice'
-import Swal from 'sweetalert2'
+import { ConfirmActionModal } from '../../shared/ui/ConfirmActionModal'
 
 
 const containerVariants: Variants = {
@@ -29,6 +29,9 @@ const itemVariants: Variants = {
 export function GroupContractsPage() {
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ type: 'delete' | 'release'; id: string; name: string } | null>(null);
+  const [isConfirmingAction, setIsConfirmingAction] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const { items } = useAppSelector(state => state.groupContract);
 
@@ -91,48 +94,32 @@ export function GroupContractsPage() {
     return 'text-blue-500';
   };
 
-  const handleDeleteContract = (id: string) => {
-    Swal.fire({
-      title: 'Are you sure?',
-      text: "You won't be able to revert this!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        dispatch(removeGroupContract(id)).unwrap()
-          .then(() => {
-            Swal.fire('Deleted!', 'The group contract has been deleted.', 'success');
-          })
-          .catch((err) => {
-            Swal.fire('Error!', err || 'Failed to delete contract', 'error');
-          });
-      }
-    });
+  const requestDeleteContract = (id: string, name: string) => {
+    setPendingAction({ type: 'delete', id, name });
+    setConfirmError(null);
   };
 
-  const handleReleaseContract = (id: string) => {
-    Swal.fire({
-      title: 'Release Group Contract?',
-      text: 'This will release all remaining blocked rooms that have not been picked up.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#eab308',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, release it!'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        dispatch(releaseGroupContractAction(id)).unwrap()
-          .then(() => {
-            Swal.fire('Released!', 'The group contract has been released.', 'success');
-          })
-          .catch((err) => {
-            Swal.fire('Error!', err || 'Failed to release contract', 'error');
-          });
+  const requestReleaseContract = (id: string, name: string) => {
+    setPendingAction({ type: 'release', id, name });
+    setConfirmError(null);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+    setIsConfirmingAction(true);
+    setConfirmError(null);
+    try {
+      if (pendingAction.type === 'delete') {
+        await dispatch(removeGroupContract(pendingAction.id)).unwrap();
+      } else {
+        await dispatch(releaseGroupContractAction(pendingAction.id)).unwrap();
       }
-    });
+      setPendingAction(null);
+    } catch (err) {
+      setConfirmError(typeof err === 'string' ? err : `Failed to ${pendingAction.type} contract.`);
+    } finally {
+      setIsConfirmingAction(false);
+    }
   };
 
   return (
@@ -256,7 +243,7 @@ export function GroupContractsPage() {
                     </button>
                     {group.status !== 'released' && group.status !== 'cancelled' && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleReleaseContract(group.id); }}
+                        onClick={(e) => { e.stopPropagation(); requestReleaseContract(group.id, group.name); }}
                         className="text-amber-500 hover:text-amber-700 transition-colors p-1.5 focus:outline-none"
                         title="Release Contract"
                       >
@@ -264,7 +251,7 @@ export function GroupContractsPage() {
                       </button>
                     )}
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteContract(group.id); }}
+                      onClick={(e) => { e.stopPropagation(); requestDeleteContract(group.id, group.name); }}
                       className="text-red-400 hover:text-red-600 transition-colors p-1.5 focus:outline-none"
                       title="Delete Contract"
                     >
@@ -288,6 +275,25 @@ export function GroupContractsPage() {
           onClose={() => setSelectedContractId(null)} 
         />
       )}
+      <ConfirmActionModal
+        open={Boolean(pendingAction)}
+        title={pendingAction?.type === 'release' ? 'Release Group Contract' : 'Delete Group Contract'}
+        description={
+          pendingAction?.type === 'release'
+            ? `This will release remaining blocked rooms for "${pendingAction?.name ?? 'this contract'}" that have not been picked up.`
+            : `This will permanently delete "${pendingAction?.name ?? 'this contract'}". This action cannot be undone.`
+        }
+        confirmLabel={pendingAction?.type === 'release' ? 'Release Contract' : 'Delete Contract'}
+        variant={pendingAction?.type === 'release' ? 'warning' : 'danger'}
+        isLoading={isConfirmingAction}
+        error={confirmError}
+        onCancel={() => {
+          if (isConfirmingAction) return;
+          setPendingAction(null);
+          setConfirmError(null);
+        }}
+        onConfirm={handleConfirmAction}
+      />
     </motion.div>
   )
 }

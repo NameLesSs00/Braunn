@@ -55,6 +55,7 @@ import otaReservationDraftReducer from '../features/reservations/otaReservationD
 import { roomPlanReducer } from '../features/roomPlan/roomPlanSlice'
 import { dashboardReducer } from '../features/dashboard/dashboardSlice'
 import { frontOfficeComplaintsReducer } from '../features/frontOfficeComplaints/frontOfficeComplaintsSlice'
+import { corporateCancellationPoliciesReducer } from '../features/policies/corporateCancellationPoliciesSlice'
 
 export const store = configureStore({
   reducer: {
@@ -114,6 +115,7 @@ export const store = configureStore({
     roomPlan: roomPlanReducer,
     dashboard: dashboardReducer,
     frontOfficeComplaints: frontOfficeComplaintsReducer,
+    corporateCancellationPolicies: corporateCancellationPoliciesReducer,
   },
 })
 

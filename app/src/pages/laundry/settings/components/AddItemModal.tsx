@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { createLaundryInventoryItem } from '../../../../features/Laundryfeatures/laundryInventoryItems/laundryInventoryItemsSlice';
 import { FiPlus, FiX } from 'react-icons/fi';
-import Swal from 'sweetalert2';
+import { appAlert } from '../../../../shared/ui/AppAlert';
 
 const showSuccess = (title: string) =>
-  Swal.fire({
+  appAlert.fire({
     toast: true,
     position: 'top-end',
     showConfirmButton: false,
@@ -16,7 +16,7 @@ const showSuccess = (title: string) =>
   });
 
 const showError = (title: string) =>
-  Swal.fire({
+  appAlert.fire({
     toast: true,
     position: 'top-end',
     showConfirmButton: false,

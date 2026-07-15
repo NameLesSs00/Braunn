@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchDepartments } from '../../../../features/HRMfeatures/departments/departmentsSlice';
 import { fetchPositions } from '../../../../features/HRMfeatures/positions/positionsSlice';
 import { createHrEmployee, uploadHrEmployeeImage } from '../../../../features/HRMfeatures/employees/hrEmployeesSlice';
-import Swal from 'sweetalert2';
+import { appAlert } from '../../../../shared/ui/AppAlert';
 import type { EmployeeGender, EmployeeRole } from '../../../../models/HRMmodels/HREmployee';
 
 const NATIONALITIES = [
@@ -103,15 +103,15 @@ export function AddEmployeeForm({ onCancel }: Props) {
 
   const validateForm = (): boolean => {
     if (!form.photoFile) {
-      Swal.fire({ icon: 'error', title: 'Photo Required', text: 'Please select a profile photo.' });
+      appAlert.fire({ icon: 'error', title: 'Photo Required', text: 'Please select a profile photo.' });
       return false;
     }
     if (!form.employeeCode || !form.fullName || !form.email || !form.gender || !form.nationality || !form.role || !form.departmentId || !form.positionId || !form.joiningDate || !form.basicSalary || !form.bankAccountNumber) {
-      Swal.fire({ icon: 'error', title: 'Missing Fields', text: 'Please fill out all required fields.' });
+      appAlert.fire({ icon: 'error', title: 'Missing Fields', text: 'Please fill out all required fields.' });
       return false;
     }
     if (form.role === 'Manager' && !form.password) {
-      Swal.fire({ icon: 'error', title: 'Password Required', text: 'A password is required for Manager role.' });
+      appAlert.fire({ icon: 'error', title: 'Password Required', text: 'A password is required for Manager role.' });
       return false;
     }
     return true;
@@ -146,7 +146,7 @@ export function AddEmployeeForm({ onCancel }: Props) {
         await dispatch(uploadHrEmployeeImage({ employeeId: result.id, file: form.photoFile })).unwrap();
       }
 
-      Swal.fire({
+      appAlert.fire({
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
@@ -156,7 +156,7 @@ export function AddEmployeeForm({ onCancel }: Props) {
       });
       onCancel();
     } catch (error: any) {
-      Swal.fire({
+      appAlert.fire({
         toast: true,
         position: 'top-end',
         showConfirmButton: false,

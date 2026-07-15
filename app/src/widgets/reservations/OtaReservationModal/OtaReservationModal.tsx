@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import Swal from 'sweetalert2'
+import { appAlert } from '../../../shared/ui/AppAlert'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { updateOtaDraft, resetOtaDraft } from '../../../features/reservations/otaReservationDraftSlice'
 import { Modal } from '../../../shared/ui/Modal'
@@ -165,7 +165,7 @@ export function OtaReservationModal({ open, onClose }: Props) {
       // Simulate success
       await new Promise((res) => setTimeout(res, 800))
 
-      await Swal.fire({
+      await appAlert.fire({
         icon: 'success',
         title: 'OTA Reservation Submitted!',
         html: `<div style="color:#475569;font-size:14px">The reservation payload has been prepared successfully.<br/>Connect to the backend endpoint when ready.</div>`,
@@ -178,7 +178,7 @@ export function OtaReservationModal({ open, onClose }: Props) {
       onClose()
     } catch (err) {
       console.error('[OTA Reservation] Error:', err)
-      Swal.fire({
+      appAlert.fire({
         icon: 'error',
         title: 'Submission Failed',
         text: err instanceof Error ? err.message : 'An unexpected error occurred.',

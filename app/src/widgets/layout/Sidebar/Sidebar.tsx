@@ -6,12 +6,13 @@ import { IoHomeOutline } from "react-icons/io5";
 import type { IconType } from 'react-icons';
 import { FaRegCalendar ,FaPoll } from "react-icons/fa";
 import { PiSquaresFourLight } from "react-icons/pi";
-import { MdGroup } from "react-icons/md";
+import { MdGroup, MdOutlinePolicy } from "react-icons/md";
 import { LuUserX } from "react-icons/lu";
 import { GiMagicBroom } from "react-icons/gi";
 import { RiServiceBellLine } from "react-icons/ri";
 import { IoMdListBox } from "react-icons/io";
 import { FaBed , FaArrowTrendUp } from "react-icons/fa6";
+
 type NavItem = {
   to: string
   label: string
@@ -33,6 +34,7 @@ const secondaryNavItems: NavItem[] = [
   { to: routes.inHouseList, label: 'In House list', iconSrc: IoMdListBox },
   { to: routes.roomAllocation, label: 'Room Allocation', iconSrc: FaBed },
   { to: routes.salesRevenue.dashboard, label: 'Sales & Revenue', iconSrc: FaArrowTrendUp },
+  { to: routes.policies.corporateCancellation, label: 'Policies', iconSrc: MdOutlinePolicy },
 ]
 
 function SidebarLink({ item }: { item: NavItem }) {
@@ -84,7 +86,6 @@ function SidebarLink({ item }: { item: NavItem }) {
   )
 }
 
- 
 export function Sidebar() {
   return (
     <aside
@@ -116,4 +117,3 @@ export function Sidebar() {
     </aside>
   )
 }
-

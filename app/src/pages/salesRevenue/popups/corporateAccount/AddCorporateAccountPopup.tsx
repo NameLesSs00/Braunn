@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { X, Building2, User, Mail, Phone, Calendar as CalendarIcon, DollarSign, ChevronDown, Save } from 'lucide-react'
+import { X, Building2, User, Mail, Phone, MapPin, ToggleLeft, Save } from 'lucide-react'
 import { Modal } from '../../../../shared/ui/Modal'
 import { useAppDispatch } from '../../../../store/hooks'
 import { addCorporateAccount } from '../../../../features/corporateAccounts/corporateAccountsSlice'
 import type { CreateCorporateAccountRequest } from '../../../../models/CorporateAccount'
-import Swal from 'sweetalert2'
+import { appAlert } from '../../../../shared/ui/AppAlert'
 
 interface AddCorporateAccountPopupProps {
   onClose: () => void;
@@ -18,18 +18,13 @@ export function AddCorporateAccountPopup({ onClose }: AddCorporateAccountPopupPr
     email: '',
     phone: '',
     address: '',
-    creditLimit: 0,
-    isActive: true
+    isActive: true,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    let finalValue: any = value;
-    if (type === 'number') {
-        finalValue = value ? Number(value) : 0;
-    }
-    setFormData(prev => ({ ...prev, [name]: finalValue }));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleRadioChange = (val: boolean) => {
@@ -38,190 +33,182 @@ export function AddCorporateAccountPopup({ onClose }: AddCorporateAccountPopupPr
 
   const handleSubmit = async () => {
     if (!formData.companyName || !formData.contactPerson || !formData.email) {
-        Swal.fire('Error', 'Please fill in all required fields.', 'error');
-        return;
+      appAlert.fire('Validation Error', 'Company Name, Contact Person, and Email are required.', 'error');
+      return;
     }
 
     setIsSubmitting(true);
     try {
-        await dispatch(addCorporateAccount(formData)).unwrap();
-        Swal.fire('Success', 'Corporate account created successfully!', 'success');
-        onClose();
+      await dispatch(addCorporateAccount(formData)).unwrap();
+      appAlert.fire({ icon: 'success', title: 'Account Created', text: 'Corporate account created successfully!', timer: 2000, showConfirmButton: false });
+      onClose();
     } catch (err: any) {
-        Swal.fire('Error', err || 'Failed to create corporate account.', 'error');
+      appAlert.fire('Error', err || 'Failed to create corporate account.', 'error');
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
     <Modal open onClose={onClose} lockScroll>
-      <div className="bg-white rounded-xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden shadow-2xl">
-        
+      <div className="bg-white rounded-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden shadow-2xl">
+
         {/* Header */}
-        <div className="bg-[#004bb4] p-6 text-white flex items-start justify-between rounded-t-xl shrink-0">
+        <div className="bg-[#004bb4] px-7 py-6 text-white flex items-start justify-between rounded-t-2xl shrink-0">
           <div>
-            <h2 className="text-xl font-bold">Add Corporate Account</h2>
-            <p className="text-blue-100 mt-1 text-sm">Create a new corporate client account</p>
+            <h2 className="text-xl font-bold tracking-tight">Add Corporate Account</h2>
+            <p className="text-blue-200 mt-1 text-sm">Create a new corporate client account</p>
           </div>
-          <button 
+          <button
             onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors mt-0.5"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scrollable Body */}
-        <div className="p-6 overflow-y-auto space-y-8 flex-1">
-          
+        {/* Body */}
+        <div className="p-7 overflow-y-auto space-y-6 flex-1">
+
           {/* Company Information */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-slate-800 font-bold mb-2">
-              <Building2 className="w-5 h-5 text-[#004bb4]" />
-              <h3>Company Information</h3>
+            <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm uppercase tracking-wide mb-3">
+              <Building2 className="w-4 h-4 text-[#004bb4]" />
+              <span>Company Information</span>
             </div>
-            
+
+            {/* Company Name */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Company Name *</label>
-              <input 
-                type="text" 
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                Company Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
                 name="companyName"
                 value={formData.companyName}
                 onChange={handleInputChange}
-                placeholder="e.g., Tech Corp International" 
-                className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400"
+                placeholder="e.g., Tech Corp International"
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all placeholder:text-slate-400"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Contact Person */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Contact Person *</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Contact Person <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
-                  <input 
-                    type="text" 
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
                     name="contactPerson"
                     value={formData.contactPerson}
                     onChange={handleInputChange}
-                    placeholder="John Smith" 
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400"
+                    placeholder="John Smith"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all placeholder:text-slate-400"
                   />
-                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
+
+              {/* Email */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email *</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Email <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
-                  <input 
-                    type="email" 
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    placeholder="john@company.com" 
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400"
+                    placeholder="john@company.com"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all placeholder:text-slate-400"
                   />
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
+
+              {/* Phone */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone</label>
                 <div className="relative">
-                  <input 
-                    type="tel" 
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    placeholder="+1 555-0123" 
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400"
+                    placeholder="+1 555-0123"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all placeholder:text-slate-400"
                   />
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
+
+              {/* Address */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Address</label>
-                <input 
-                  type="text" 
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  placeholder="123 Business St, City, Country" 
-                  className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400"
-                />
+                <div className="relative">
+                  <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    placeholder="123 Business St, City, Country"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all placeholder:text-slate-400"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
           <div className="h-px bg-slate-100" />
 
-          {/* Financial & Account Status */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-slate-800 font-bold mb-2">
-              <DollarSign className="w-5 h-5 text-[#004bb4]" />
-              <h3>Financial & Account Status</h3>
+          {/* Account Status */}
+          <div>
+            <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm uppercase tracking-wide mb-4">
+              <ToggleLeft className="w-4 h-4 text-[#004bb4]" />
+              <span>Account Status</span>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Credit Limit</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">€</span>
-                  <input 
-                    type="number" 
-                    name="creditLimit"
-                    value={formData.creditLimit}
-                    onChange={handleInputChange}
-                    placeholder="50000" 
-                    className="w-full bg-white border border-slate-200 text-slate-700 rounded-lg pl-9 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-shadow placeholder:text-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col text-slate-400 cursor-pointer">
-                    <ChevronDown className="w-3 h-3 rotate-180 mb-[-2px]" />
-                    <ChevronDown className="w-3 h-3" />
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Account Status</label>
-                <div className="flex items-center gap-6 mt-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="isActive" 
-                      checked={formData.isActive === true}
-                      onChange={() => handleRadioChange(true)}
-                      className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500" 
-                    />
-                    <span className="text-sm font-medium text-slate-700">Active</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="isActive" 
-                      checked={formData.isActive === false}
-                      onChange={() => handleRadioChange(false)}
-                      className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500" 
-                    />
-                    <span className="text-sm font-medium text-slate-700">Inactive</span>
-                  </label>
-                </div>
-              </div>
+            <div className="flex items-center gap-4">
+              <label className={`flex items-center gap-3 px-5 py-3 rounded-xl border-2 cursor-pointer transition-all flex-1 ${formData.isActive ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                <input
+                  type="radio"
+                  name="isActive"
+                  checked={formData.isActive === true}
+                  onChange={() => handleRadioChange(true)}
+                  className="w-4 h-4 text-emerald-500 border-slate-300 focus:ring-emerald-400"
+                />
+                <span className={`text-sm font-semibold ${formData.isActive ? 'text-emerald-700' : 'text-slate-600'}`}>Active</span>
+              </label>
+              <label className={`flex items-center gap-3 px-5 py-3 rounded-xl border-2 cursor-pointer transition-all flex-1 ${!formData.isActive ? 'border-slate-400 bg-slate-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                <input
+                  type="radio"
+                  name="isActive"
+                  checked={formData.isActive === false}
+                  onChange={() => handleRadioChange(false)}
+                  className="w-4 h-4 text-slate-500 border-slate-300 focus:ring-slate-400"
+                />
+                <span className={`text-sm font-semibold ${!formData.isActive ? 'text-slate-700' : 'text-slate-500'}`}>Inactive</span>
+              </label>
             </div>
           </div>
 
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shrink-0">
-          <button 
+        <div className="px-7 py-5 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-3 shrink-0 rounded-b-2xl">
+          <button
             onClick={onClose}
-            className="px-5 py-2.5 border border-slate-200 text-slate-700 bg-white rounded-xl hover:bg-slate-50 transition-colors font-medium text-sm"
+            className="px-5 py-2.5 border border-slate-200 text-slate-700 bg-white rounded-xl hover:bg-slate-50 transition-colors font-semibold text-sm"
           >
             Cancel
           </button>
-          <button 
+          <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#004bb4] text-white rounded-xl hover:bg-blue-800 transition-colors font-medium text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-6 py-2.5 bg-[#004bb4] text-white rounded-xl hover:bg-blue-800 active:scale-[0.98] transition-all font-semibold text-sm shadow-sm shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" />
             {isSubmitting ? 'Creating...' : 'Create Account'}

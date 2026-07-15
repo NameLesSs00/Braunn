@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchDepartments } from '../../../../features/HRMfeatures/departments/departmentsSlice';
 import { fetchPositions } from '../../../../features/HRMfeatures/positions/positionsSlice';
 import { updateHrEmployee, uploadHrEmployeeImage } from '../../../../features/HRMfeatures/employees/hrEmployeesSlice';
-import Swal from 'sweetalert2';
+import { appAlert } from '../../../../shared/ui/AppAlert';
 import type { HREmployeeReadDto, HREmployeeUpdateDto } from '../../../../models/HRMmodels/HREmployee';
 import { resolveImageUrl } from '../../../../shared/HRMshared/utils/imageUrl';
 
@@ -75,7 +75,7 @@ export function EditEmployeeForm({ employee, onCancel }: Props) {
 
   const validateForm = (): boolean => {
     if (!form.fullName || !form.email || !form.departmentId || !form.positionId || !form.status) {
-      Swal.fire({ icon: 'error', title: 'Missing Fields', text: 'Please fill out all required fields.' });
+      appAlert.fire({ icon: 'error', title: 'Missing Fields', text: 'Please fill out all required fields.' });
       return false;
     }
     return true;
@@ -102,7 +102,7 @@ export function EditEmployeeForm({ employee, onCancel }: Props) {
         await dispatch(uploadHrEmployeeImage({ employeeId: employee.id, file: photoFile })).unwrap();
       }
 
-      Swal.fire({
+      appAlert.fire({
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
@@ -112,7 +112,7 @@ export function EditEmployeeForm({ employee, onCancel }: Props) {
       });
       onCancel();
     } catch (error: any) {
-      Swal.fire({
+      appAlert.fire({
         toast: true,
         position: 'top-end',
         showConfirmButton: false,

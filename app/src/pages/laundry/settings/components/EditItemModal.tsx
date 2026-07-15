@@ -4,10 +4,10 @@ import { updateLaundryInventoryItem } from '../../../../features/Laundryfeatures
 import { getLaundryInventoryItemById } from '../../../../shared/Laundryshared/api/laundryInventoryItemsApi';
 import type { LaundryInventoryItemReadDto } from '../../../../models/Laundrymodels/LaundryInventoryItem';
 import { FiEdit2, FiX } from 'react-icons/fi';
-import Swal from 'sweetalert2';
+import { appAlert } from '../../../../shared/ui/AppAlert';
 
 const showSuccess = (title: string) =>
-  Swal.fire({
+  appAlert.fire({
     toast: true,
     position: 'top-end',
     showConfirmButton: false,
@@ -18,7 +18,7 @@ const showSuccess = (title: string) =>
   });
 
 const showError = (title: string) =>
-  Swal.fire({
+  appAlert.fire({
     toast: true,
     position: 'top-end',
     showConfirmButton: false,

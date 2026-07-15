@@ -9,7 +9,7 @@ import { RenewContractPopup } from './popups/corporateAccount/RenewContractPopup
 import { AnimatedCounter } from './components/AnimatedCounter'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { fetchCorporateAccounts, removeCorporateAccount } from '../../features/corporateAccounts/corporateAccountsSlice'
-import Swal from 'sweetalert2'
+import { ConfirmActionModal } from '../../shared/ui/ConfirmActionModal'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -23,7 +23,7 @@ const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { 
     opacity: 1, y: 0, 
-    transition: { type: 'spring', stiffness: 300, damping: 24 } 
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 } 
   },
 }
 
@@ -36,6 +36,9 @@ export function CorporateAccountPage() {
   const [isAddPopupOpen, setIsAddPopupOpen] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [renewingAccountId, setRenewingAccountId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All status');
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -44,35 +47,23 @@ export function CorporateAccountPage() {
     dispatch(fetchCorporateAccounts());
   }, [dispatch]);
 
-  const handleDeleteAccount = (id: string, name: string) => {
-    Swal.fire({
-      title: 'Are you sure?',
-      text: `You are about to delete the corporate account "${name}". This action cannot be undone!`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        dispatch(removeCorporateAccount(id))
-          .unwrap()
-          .then(() => {
-            Swal.fire(
-              'Deleted!',
-              'The corporate account has been deleted.',
-              'success'
-            );
-          })
-          .catch((err) => {
-            Swal.fire(
-              'Failed!',
-              err || 'Could not delete corporate account.',
-              'error'
-            );
-          });
-      }
-    });
+  const requestDeleteAccount = (id: string, name: string) => {
+    setDeleteTarget({ id, name });
+    setDeleteError(null);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteTarget) return;
+    setIsDeletingAccount(true);
+    setDeleteError(null);
+    try {
+      await dispatch(removeCorporateAccount(deleteTarget.id)).unwrap();
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(typeof err === 'string' ? err : 'Could not delete corporate account.');
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   useEffect(() => {
@@ -219,23 +210,20 @@ export function CorporateAccountPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-[#f4f7fb]">
-                <th className="px-6 py-4 font-semibold text-slate-700 text-sm rounded-tl-xl w-[20%]">Company Name</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Contract Period</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Negotiated Rate</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Active Reservations</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Production</th>
+                <th className="px-6 py-4 font-semibold text-slate-700 text-sm rounded-tl-xl w-[22%]">Company Name</th>
+                <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Contact Person</th>
+                <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Phone</th>
+                <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Contracts</th>
+                <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Created</th>
                 <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Status</th>
                 <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-center rounded-tr-xl">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredAccounts.map((account) => {
-                const contractPeriod = account.contractStartDate && account.contractEndDate 
-                  ? `${account.contractStartDate.split(' ')[0]} - ${account.contractEndDate.split(' ')[0]}` 
-                  : '-------';
-                const rate = account.negotiatedRate !== null && account.negotiatedRate !== undefined
-                  ? `€${account.negotiatedRate}/night`
-                  : '-------';
+                const contractCount = account.contracts?.length ?? 0;
+                const activeContractCount = account.contracts?.filter(c => c.isActive).length ?? 0;
+                const createdDate = account.createdAt ? account.createdAt.split(' ')[0] : '---';
                 return (
                   <tr 
                     key={account.id} 
@@ -247,20 +235,25 @@ export function CorporateAccountPage() {
                         {account.companyName || '-------'}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-slate-500 text-sm font-medium w-32">
-                      <div className="break-words leading-snug">
-                        {contractPeriod === '-------' ? '-------' : contractPeriod.split(' - ').map((item, i) => (
-                          <div key={i}>{item}{i === 0 ? ' -' : ''}</div>
-                        ))}
-                      </div>
+                    <td className="px-6 py-5 text-slate-600 text-sm font-medium">
+                      {account.contactPerson || '---'}
                     </td>
-                    <td className="px-6 py-5 text-sm font-bold text-[#004bb4]">{rate}</td>
                     <td className="px-6 py-5 text-slate-500 text-sm">
-                      <AnimatedCounter valueStr="-------" />
+                      {account.phone || '---'}
                     </td>
-                    <td className="px-6 py-5 text-sm font-bold text-slate-800">
-                      <AnimatedCounter valueStr="-------" />
+                    <td className="px-6 py-5">
+                      {contractCount === 0 ? (
+                        <span className="text-slate-400 text-sm">No contracts</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
+                          <span className="text-slate-700">{contractCount}</span>
+                          {activeContractCount > 0 && (
+                            <span className="text-xs text-emerald-600 font-medium">({activeContractCount} active)</span>
+                          )}
+                        </span>
+                      )}
                     </td>
+                    <td className="px-6 py-5 text-slate-500 text-sm">{createdDate}</td>
                     <td className="px-6 py-5 text-xs">
                       {getStatusBadge(account.isActive)}
                     </td>
@@ -294,7 +287,7 @@ export function CorporateAccountPage() {
                             className="w-full flex items-center gap-3 px-4 py-2 hover:bg-slate-50 text-sm font-medium text-slate-600 transition-colors"
                           >
                             <Edit className="w-4 h-4" />
-                            Edit Contract
+                            Edit Account
                           </button>
                           <button 
                             onClick={(e) => {
@@ -318,7 +311,7 @@ export function CorporateAccountPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setOpenDropdownId(null);
-                              handleDeleteAccount(account.id, account.companyName || '-------');
+                              requestDeleteAccount(account.id, account.companyName || '-------');
                             }}
                             className="w-full flex items-center gap-3 px-4 py-2 hover:bg-red-50 text-sm font-medium text-red-600 transition-colors"
                           >
@@ -351,6 +344,21 @@ export function CorporateAccountPage() {
           onClose={() => setRenewingAccountId(null)} 
         />
       )}
+      <ConfirmActionModal
+        open={Boolean(deleteTarget)}
+        title="Delete Corporate Account"
+        description={`This will permanently delete "${deleteTarget?.name ?? 'this account'}". This action cannot be undone.`}
+        confirmLabel="Delete Account"
+        variant="danger"
+        isLoading={isDeletingAccount}
+        error={deleteError}
+        onCancel={() => {
+          if (isDeletingAccount) return;
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
+        onConfirm={handleDeleteAccount}
+      />
     </motion.div>
   )
 }

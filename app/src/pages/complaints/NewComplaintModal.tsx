@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { X, Search } from 'lucide-react'
-import Swal from 'sweetalert2'
+import { appAlert } from '../../shared/ui/AppAlert'
 
 import { Modal } from '../../shared/ui/Modal'
 import { useAppDispatch } from '../../store/hooks'
@@ -153,7 +153,7 @@ export function NewComplaintModal({ open, onClose }: Props) {
       })).unwrap()
       
       dispatch(fetchComplaints({}))
-      Swal.fire({
+      appAlert.fire({
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
@@ -164,7 +164,7 @@ export function NewComplaintModal({ open, onClose }: Props) {
       handleClose()
     } catch (e: any) {
       console.error('Failed to create complaint', e)
-      Swal.fire({
+      appAlert.fire({
         toast: true,
         position: 'top-end',
         showConfirmButton: false,

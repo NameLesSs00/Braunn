@@ -4,7 +4,7 @@ import { Modal } from '../../../../shared/ui/Modal'
 import { useAppDispatch } from '../../../../store/hooks'
 import { editCorporateAccount } from '../../../../features/corporateAccounts/corporateAccountsSlice'
 import type { CorporateAccount, UpdateCorporateAccountRequest } from '../../../../models/CorporateAccount'
-import Swal from 'sweetalert2'
+import { appAlert } from '../../../../shared/ui/AppAlert'
 
 interface RenewContractPopupProps {
   account: CorporateAccount;
@@ -33,17 +33,17 @@ export function RenewContractPopup({ account, onClose }: RenewContractPopupProps
 
   const handleSubmit = async () => {
     if (!formData.departureDate) {
-        Swal.fire('Error', 'Please fill in the departure date.', 'error');
+        appAlert.fire('Error', 'Please fill in the departure date.', 'error');
         return;
     }
 
     setIsSubmitting(true);
     try {
         await dispatch(editCorporateAccount({ id: account.id, payload: formData })).unwrap();
-        Swal.fire('Success', 'Contract renewed successfully!', 'success');
+        appAlert.fire('Success', 'Contract renewed successfully!', 'success');
         onClose();
     } catch (err: any) {
-        Swal.fire('Error', err || 'Failed to renew contract.', 'error');
+        appAlert.fire('Error', err || 'Failed to renew contract.', 'error');
     } finally {
         setIsSubmitting(false);
     }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Swal from 'sweetalert2'
+import { appAlert } from '../../../shared/ui/AppAlert'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { updateDraft, resetDraft } from '../../../features/reservations/draftSlice'
@@ -432,7 +432,7 @@ export function NewReservationModal({
                     } catch (err) {
                       const message = getErrorMessage(err)
                       console.error('Optional reservation failed:', err)
-                      Swal.fire({
+                      appAlert.fire({
                         icon: 'error',
                         title: 'Error',
                         text: 'Failed to save optional reservation: ' + message,
@@ -559,7 +559,7 @@ export function NewReservationModal({
                     if (isPossiblyStillProcessingError(message)) {
                       setCreatingReservationResultUnknown(true)
                       setCreatingReservation(false)
-                      Swal.fire({
+                      appAlert.fire({
                         icon: 'warning',
                         title: 'Reservation may still be processing',
                         text: 'The server did not confirm the result in time. Please check the Reservations list before trying again, so the same reservation is not created twice.',
@@ -569,7 +569,7 @@ export function NewReservationModal({
                       creatingReservationRef.current = false
                       setCreatingReservation(false)
                       setCreatingReservationResultUnknown(false)
-                    Swal.fire({
+                    appAlert.fire({
                       icon: 'error',
                       title: 'Error',
                         text: 'Failed to confirm reservation: ' + message,

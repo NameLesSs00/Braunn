@@ -195,9 +195,11 @@ const corporateContractSlice = createSlice({
         const { contractId, packageData } = action.payload
         const contract = state.items.find((item) => item.id === contractId)
         if (contract) {
+          contract.packages = contract.packages ?? []
           contract.packages.push(packageData)
         }
         if (state.selected?.id === contractId) {
+          state.selected.packages = state.selected.packages ?? []
           state.selected.packages.push(packageData)
         }
       })
@@ -216,10 +218,10 @@ const corporateContractSlice = createSlice({
         const { contractId, contractPackageId } = action.payload
         const contract = state.items.find((item) => item.id === contractId)
         if (contract) {
-          contract.packages = contract.packages.filter((p) => p.id !== contractPackageId)
+          contract.packages = (contract.packages ?? []).filter((p) => p.id !== contractPackageId)
         }
         if (state.selected?.id === contractId) {
-          state.selected.packages = state.selected.packages.filter((p) => p.id !== contractPackageId)
+          state.selected.packages = (state.selected.packages ?? []).filter((p) => p.id !== contractPackageId)
         }
       })
       .addCase(removePackageFromContract.rejected, (state, action) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import { appAlert } from '../../../shared/ui/AppAlert';
 import { routes } from '../../../shared/lib/routes';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import {
@@ -28,7 +28,7 @@ import { IoSettingsOutline } from 'react-icons/io5';
 import { FiPlus } from 'react-icons/fi';
 
 const showSuccess = (title: string) =>
-  Swal.fire({
+  appAlert.fire({
     toast: true,
     position: 'top-end',
     showConfirmButton: false,
@@ -39,7 +39,7 @@ const showSuccess = (title: string) =>
   });
 
 const showError = (title: string) =>
-  Swal.fire({
+  appAlert.fire({
     toast: true,
     position: 'top-end',
     showConfirmButton: false,

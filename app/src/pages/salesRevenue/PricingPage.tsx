@@ -1,24 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { motion } from 'motion/react'
 import { TabNav } from './components/TabNav'
-import { Calendar, ChevronDown, Plus, Edit2, Users, Building, BarChart2, Eye, Trash2, MapPin } from 'lucide-react'
-import { AddPerPersonPricingPopup } from './popups/pricing/AddPerPersonPricingPopup'
-import { AddPerRoomPricingPopup } from './popups/pricing/AddPerRoomPricingPopup'
-import { EditPerPersonPricingPopup } from './popups/pricing/EditPerPersonPricingPopup'
-import { EditPerRoomPricingPopup } from './popups/pricing/EditPerRoomPricingPopup'
+import { Calendar, ChevronDown, Plus, Edit2, BarChart2, Eye, MapPin, Tag } from 'lucide-react'
+
 import { AddInclusionPricingPopup } from './popups/pricing/AddInclusionPricingPopup'
 import { EditInclusionPricingPopup } from './popups/pricing/EditInclusionPricingPopup'
 import { InclusionDetailsPopup } from './popups/pricing/InclusionDetailsPopup'
 import { BulkEditPricingPopup } from './popups/pricing/BulkEditPricingPopup'
 import { AddLocalPricingPopup } from './popups/pricing/AddLocalPricingPopup'
 import { AddOtaPricingPopup } from './popups/pricing/AddOtaPricingPopup'
+import { RatesSection } from './PackagesPage'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { fetchPerPersonPricing, removePerPersonPricing, setSelectedPricing } from '../../features/perPersonPricing/perPersonPricingSlice'
 import { fetchLocalARIRates, fetchARIRates, fetchARIRatePlans } from '../../features/localAri/localAriSlice'
 import { fetchRoomTypes } from '../../features/roomTypes/roomTypesSlice'
 import { fetchRatePlans } from '../../features/ratePlans/ratePlansSlice'
 import { fetchMealPlans } from '../../features/admin/mealPlansSlice'
-import Swal from 'sweetalert2'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -36,23 +32,13 @@ const itemVariants = {
   },
 }
 
-function formatDateDisplay(dateString?: string) {
-  if (!dateString) return '-'
-  const d = new Date(dateString)
-  if (isNaN(d.getTime())) return '-'
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
-}
-
 export function PricingPage() {
   const dispatch = useAppDispatch()
   
   const today = new Date().toISOString().split('T')[0]
   const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-  const [activeTab, setActiveTab] = useState('per-person')
+  const [activeTab, setActiveTab] = useState('inclusions')
   const [roomFilter, setRoomFilter] = useState('All Room Type')
   const [isAddPopupOpen, setIsAddPopupOpen] = useState(false)
   const [isEditPopupOpen, setIsEditPopupOpen] = useState(false)
@@ -75,7 +61,6 @@ export function PricingPage() {
   const [otaEndDate, setOtaEndDate] = useState(nextWeek)
   const [otaHasSearched, setOtaHasSearched] = useState(false)
 
-  const perPersonItems = useAppSelector(state => state.perPersonPricing.items)
   const roomTypesItems = useAppSelector(state => state.roomTypes.items)
   const mealPlans = useAppSelector(state => state.mealPlans.items)
   const ratePlans = useAppSelector(state => state.ratePlans.items)
@@ -86,7 +71,6 @@ export function PricingPage() {
   const ariRatePlans = useAppSelector(state => state.localAri.ariRatePlans)
 
   useEffect(() => {
-    dispatch(fetchPerPersonPricing())
     dispatch(fetchRoomTypes())
     dispatch(fetchMealPlans())
     dispatch(fetchRatePlans())
@@ -100,7 +84,7 @@ export function PricingPage() {
         startDate: localStartDate,
         endDate: localEndDate,
         roomTypeId: localRoomTypeId,
-        ratePlanCode: localRatePlanCode || undefined,
+        ratePlanCode: localRatePlanCode || '',
         roomCount: 1,
         adults: localAdults,
         children: localChildren,
@@ -116,41 +100,6 @@ export function PricingPage() {
     }
   }, [dispatch, activeTab])
 
-  const dynamicPerPersonData = useMemo(() => {
-    return perPersonItems.map(item => {
-      const roomType = roomTypesItems.find(rt => rt.id === item.roomTypeId)
-      return {
-        id: item.id,
-        room: roomType ? roomType.name : 'Unknown Room',
-        adultPrice: item.adultPrice,
-        childPrice: item.childPrice,
-        guests: item.maxOccupancy,
-        extraBed: `$${item.extraBedPrice}`,
-        from: formatDateDisplay(item.validFrom),
-        to: formatDateDisplay(item.validTo),
-        originalItem: item
-      }
-    })
-  }, [perPersonItems, roomTypesItems])
-
-
-
-  const dynamicPerRoomData = useMemo(() => {
-    return roomTypesItems.map(item => {
-      const base = item.basePrice
-      const corp = Math.round(base * 1.2)
-      return {
-        id: item.id,
-        room: item.name,
-        base: String(base),
-        corp: String(corp),
-        adj: '+10',
-        extraBed: '$30',
-        final: String(base + 10),
-        originalItem: item
-      }
-    })
-  }, [roomTypesItems])
 
   const dynamicInclusionsData = useMemo(() => {
     return mealPlans.map((plan, idx) => {
@@ -168,25 +117,8 @@ export function PricingPage() {
     })
   }, [mealPlans, roomTypesItems])
 
-  const filteredPerPerson = dynamicPerPersonData.filter(item => roomFilter === 'All Room Type' || item.room === roomFilter)
-  const filteredPerRoom = dynamicPerRoomData.filter(item => roomFilter === 'All Room Type' || item.room === roomFilter)
   const filteredInclusions = dynamicInclusionsData.filter(item => roomFilter === 'All Room Type' || item.room === roomFilter)
 
-  function handleDeletePerPersonPricing(id: string) {
-    Swal.fire({
-      title: 'Are you sure?',
-      text: "You won't be able to revert this!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        dispatch(removePerPersonPricing(id))
-      }
-    })
-  }
 
   function handleOtaSearch() {
     if (!otaRoomTypeCode || !otaRatePlanCode || !otaStartDate || !otaEndDate) return
@@ -294,25 +226,6 @@ export function PricingPage() {
         <ul className="flex items-center gap-2 px-2">
           <li>
             <button 
-              onClick={() => setActiveTab('per-person')}
-              className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-[15px] transition-colors ${activeTab === 'per-person' ? 'border-[#004bb4] text-[#004bb4] bg-[#fbfcfd]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              <Users className="w-5 h-5 pointer-events-none" />
-              Per Person Pricing
-            </button>
-          </li>
-          <li>
-            <button 
-              onClick={() => setActiveTab('per-room')}
-              className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-[15px] transition-colors ${activeTab === 'per-room' ? 'border-[#004bb4] text-[#004bb4] bg-[#fbfcfd]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-            >
-              <Building className="w-5 h-5 pointer-events-none" />
-              Per Room Pricing
-            </button>
-          </li>
-
-          <li>
-            <button 
               onClick={() => setActiveTab('inclusions')}
               className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-[15px] transition-colors ${activeTab === 'inclusions' ? 'border-[#004bb4] text-[#004bb4] bg-[#fbfcfd]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
             >
@@ -327,6 +240,15 @@ export function PricingPage() {
             >
               <MapPin className="w-5 h-5 pointer-events-none" />
               Local Pricing
+            </button>
+          </li>
+          <li>
+            <button 
+              onClick={() => setActiveTab('rates')}
+              className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-[15px] transition-colors ${activeTab === 'rates' ? 'border-[#004bb4] text-[#004bb4] bg-[#fbfcfd]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            >
+              <Tag className="w-5 h-5 pointer-events-none" />
+              Rates
             </button>
           </li>
           <li>
@@ -347,131 +269,10 @@ export function PricingPage() {
       <motion.div variants={itemVariants} className="flex flex-col xl:flex-row gap-6 items-start pt-2">
         {/* Table Area */}
         <div className="flex-1 w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-[0_2px_12px_-4px_rgba(0,0,0,0.02)]">
-          {activeTab === 'per-person' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Room Type</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Adult Price</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Child Price</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap text-center">Max Occupancy</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Extra Bed</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Valid From / To</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredPerPerson.length > 0 ? filteredPerPerson.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors bg-white">
-                      <td className="px-5 py-5 font-bold text-slate-800 text-[15px] whitespace-nowrap">{item.room}</td>
-                      <td className="px-5 py-5 whitespace-nowrap">
-                        <span className="font-bold text-[#004bb4] text-[15px]">${item.adultPrice}</span>
-                        <span className="text-slate-400 font-medium text-sm">/adult</span>
-                      </td>
-                      <td className="px-5 py-5 whitespace-nowrap">
-                        <span className="font-bold text-[#10b981] text-[15px]">${item.childPrice}</span>
-                        <span className="text-slate-400 font-medium text-sm">/child</span>
-                      </td>
-                      <td className="px-5 py-5 text-center whitespace-nowrap">
-                        <span className="px-3.5 py-[5px] text-xs font-bold text-[#8b5cf6] bg-[#f3e8ff] rounded-full">
-                          {item.guests} guests
-                        </span>
-                      </td>
-                      <td className="px-5 py-5 font-semibold text-slate-700 whitespace-nowrap">{item.extraBed}</td>
-                      <td className="px-5 py-5 whitespace-nowrap">
-                        <div className="text-[13px] font-semibold text-slate-500">{item.from}</div>
-                        <div className="text-[12px] text-slate-400 my-0.5">to</div>
-                        <div className="text-[13px] font-semibold text-slate-500">{item.to}</div>
-                      </td>
-                      <td className="px-5 py-5 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => {
-                              dispatch(setSelectedPricing(item.originalItem))
-                              setIsEditPopupOpen(true)
-                            }}
-                            className="text-slate-400 hover:text-slate-800 transition-colors p-1.5 focus:outline-none"
-                            title="Edit Pricing"
-                          >
-                            <Edit2 className="w-[18px] h-[18px]" strokeWidth={2} />
-                          </button>
-                          <button 
-                            onClick={() => handleDeletePerPersonPricing(item.id)}
-                            className="text-red-400 hover:text-red-600 transition-colors p-1.5 focus:outline-none"
-                            title="Delete Pricing"
-                          >
-                            <Trash2 className="w-[18px] h-[18px]" strokeWidth={2} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={7} className="px-5 py-10 text-center text-slate-500 font-medium">No Pricing configurations match the selected filters.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+
+          {activeTab === 'rates' && (
+            <RatesSection />
           )}
-
-          {activeTab === 'per-room' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Room Type</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Base Room Price</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Corporate Price</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap text-center">Seasonal Adj.</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Extra Bed</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase whitespace-nowrap">Final Price</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase text-center">Edit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredPerRoom.length > 0 ? filteredPerRoom.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors bg-white">
-                      <td className="px-5 py-5 font-bold text-slate-800 text-[15px] whitespace-nowrap">{item.room}</td>
-                      <td className="px-5 py-5 whitespace-nowrap">
-                        <span className="font-bold text-slate-800 text-[15px]">${item.base}</span>
-                        <span className="text-slate-400 font-medium text-sm">/night</span>
-                      </td>
-                      <td className="px-5 py-5 whitespace-nowrap">
-                        <span className="font-bold text-[#ea580c] text-[15px]">${item.corp}</span>
-                        <span className="text-slate-400 font-medium text-sm">/night</span>
-                      </td>
-                      <td className="px-5 py-5 text-center whitespace-nowrap">
-                        <span className="px-3.5 py-[5px] text-xs font-bold text-[#10b981] bg-[#d1fae5] rounded-full">
-                          {item.adj}
-                        </span>
-                      </td>
-                      <td className="px-5 py-5 font-semibold text-slate-700 whitespace-nowrap">{item.extraBed}</td>
-                      <td className="px-5 py-5 whitespace-nowrap">
-                        <span className="font-bold text-[#004bb4] text-[15px]">${item.final}</span>
-                        <span className="text-slate-400 font-medium text-sm">/night</span>
-                      </td>
-                      <td className="px-5 py-5 text-center">
-                        <button 
-                          onClick={() => setIsEditPopupOpen(true)}
-                          className="text-slate-400 hover:text-slate-800 transition-colors p-1.5 focus:outline-none"
-                        >
-                          <Edit2 className="w-[18px] h-[18px] mx-auto" strokeWidth={2} />
-                        </button>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={7} className="px-5 py-10 text-center text-slate-500 font-medium">No Pricing configurations match the selected filters.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-
 
           {activeTab === 'inclusions' && (
             <div className="overflow-x-auto">
@@ -722,7 +523,7 @@ export function PricingPage() {
                   >
                     <option value="">Select Room Type</option>
                     {roomTypesItems.map(rt => (
-                      <option key={rt.id} value={rt.code}>{rt.name}</option>
+                      <option key={rt.id} value={rt.id}>{rt.name}</option>
                     ))}
                   </select>
                 </div>
@@ -919,29 +720,9 @@ export function PricingPage() {
         </div>
       </motion.div>
 
-      {isAddPopupOpen && activeTab === 'per-person' && (
-        <AddPerPersonPricingPopup onClose={() => setIsAddPopupOpen(false)} />
-      )}
-      
-      {isAddPopupOpen && activeTab === 'per-room' && (
-        <AddPerRoomPricingPopup onClose={() => setIsAddPopupOpen(false)} />
-      )}
-
-
-
       {isAddPopupOpen && activeTab === 'inclusions' && (
         <AddInclusionPricingPopup onClose={() => setIsAddPopupOpen(false)} />
       )}
-
-      {isEditPopupOpen && activeTab === 'per-person' && (
-        <EditPerPersonPricingPopup onClose={() => setIsEditPopupOpen(false)} />
-      )}
-
-      {isEditPopupOpen && activeTab === 'per-room' && (
-        <EditPerRoomPricingPopup onClose={() => setIsEditPopupOpen(false)} />
-      )}
-
-
 
       {isEditPopupOpen && activeTab === 'inclusions' && (
         <EditInclusionPricingPopup onClose={() => setIsEditPopupOpen(false)} />
