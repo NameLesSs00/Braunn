@@ -6,9 +6,16 @@ import type {
   UpdateCorporateContractRequest,
   CreateCorporateContractPackageRequest,
   CorporateContractPackage,
+  CorporateContractPackagesQuery,
+  CorporateInventoryQuery,
+  CorporateInventoryResponse,
+  CorporateContractSummary,
+  GenerateCorporateInventoryRequest,
+  GenerateCorporateInventoryResponse,
 } from '../../models/CorporateContract'
 
 const basePath = '/corporate-contracts'
+const corporatePackagesBasePath = '/corporate-packages'
 
 function normalizeContract(contract: CorporateContract): CorporateContract {
   return {
@@ -41,6 +48,31 @@ function normalizeContractsResponse(value: unknown): CorporateContract[] {
     ? unwrapped
     : unwrapped.contracts ?? unwrapped.items ?? []
   return contracts.map(normalizeContract)
+}
+
+function normalizePackage(pkg: CorporateContractPackage): CorporateContractPackage {
+  return {
+    ...pkg,
+    versions: pkg.versions ?? [],
+    currentVersion: pkg.currentVersion
+      ? {
+          ...pkg.currentVersion,
+          roomRates: pkg.currentVersion.roomRates ?? [],
+          mealRates: pkg.currentVersion.mealRates ?? [],
+          serviceRates: pkg.currentVersion.serviceRates ?? [],
+        }
+      : null,
+  }
+}
+
+function normalizePackagesResponse(value: unknown): CorporateContractPackage[] {
+  const unwrapped = unwrapApiResponse<
+    CorporateContractPackage[] | { packages?: CorporateContractPackage[]; items?: CorporateContractPackage[] }
+  >(value)
+  const packages = Array.isArray(unwrapped)
+    ? unwrapped
+    : unwrapped.packages ?? unwrapped.items ?? []
+  return packages.map(normalizePackage)
 }
 
 // ============ Corporate Contract Endpoints ============
@@ -95,7 +127,42 @@ export async function updateCorporateContract(
 
 // ============ Package Management Endpoints ============
 
-export async function addPackageToCorporateContract(
+function buildPackageQuery(params?: CorporateContractPackagesQuery): string {
+  if (!params) return ''
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    query.set(key, String(value))
+  })
+  const queryString = query.toString()
+  return queryString ? `?${queryString}` : ''
+}
+
+function buildInventoryQuery(params?: CorporateInventoryQuery): string {
+  if (!params) return ''
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    query.set(key, String(value))
+  })
+  const queryString = query.toString()
+  return queryString ? `?${queryString}` : ''
+}
+
+export async function getCorporateContractPackages(
+  contractId: string,
+  params?: CorporateContractPackagesQuery,
+  signal?: AbortSignal
+): Promise<CorporateContractPackage[]> {
+  const response = await apiRequest<unknown>({
+    method: 'GET',
+    path: `${basePath}/${contractId}/packages${buildPackageQuery(params)}`,
+    signal,
+  })
+  return normalizePackagesResponse(response)
+}
+
+export async function createCorporateContractPackage(
   contractId: string,
   payload: CreateCorporateContractPackageRequest,
   signal?: AbortSignal
@@ -106,8 +173,10 @@ export async function addPackageToCorporateContract(
     body: payload,
     signal,
   })
-  return unwrapApiResponse<CorporateContractPackage>(response)
+  return normalizePackage(unwrapApiResponse<CorporateContractPackage>(response))
 }
+
+export const addPackageToCorporateContract = createCorporateContractPackage
 
 export async function removePackageFromCorporateContract(
   contractId: string,
@@ -119,4 +188,69 @@ export async function removePackageFromCorporateContract(
     path: `${basePath}/${contractId}/packages/${contractPackageId}`,
     signal,
   })
+}
+
+// ============ Corporate Inventory Endpoints ============
+
+export async function generateCorporatePackageInventory(
+  packageId: string,
+  versionId: string,
+  payload: GenerateCorporateInventoryRequest,
+  signal?: AbortSignal
+): Promise<GenerateCorporateInventoryResponse> {
+  const response = await apiRequest<unknown>({
+    method: 'POST',
+    path: `${corporatePackagesBasePath}/${packageId}/versions/${versionId}/inventory/generate`,
+    body: payload,
+    signal,
+  })
+  const result = unwrapApiResponse<GenerateCorporateInventoryResponse>(response)
+  return {
+    ...result,
+    roomTypes: result.roomTypes ?? [],
+    warnings: result.warnings ?? [],
+  }
+}
+
+export async function getCorporateContractInventory(
+  contractId: string,
+  params?: CorporateInventoryQuery,
+  signal?: AbortSignal
+): Promise<CorporateInventoryResponse> {
+  const response = await apiRequest<unknown>({
+    method: 'GET',
+    path: `${basePath}/${contractId}/inventory${buildInventoryQuery(params)}`,
+    signal,
+  })
+  const result = unwrapApiResponse<CorporateInventoryResponse>(response)
+  return {
+    totalRows: result.totalRows ?? 0,
+    totalAllocatedRoomNights: result.totalAllocatedRoomNights ?? 0,
+    totalConsumedRoomNights: result.totalConsumedRoomNights ?? 0,
+    totalReleasedRoomNights: result.totalReleasedRoomNights ?? 0,
+    totalRemainingRoomNights: result.totalRemainingRoomNights ?? 0,
+    rows: result.rows ?? [],
+  }
+}
+
+export async function getCorporateContractSummary(
+  contractId: string,
+  signal?: AbortSignal
+): Promise<CorporateContractSummary> {
+  const response = await apiRequest<unknown>({
+    method: 'GET',
+    path: `${basePath}/${contractId}/summary`,
+    signal,
+  })
+  const result = unwrapApiResponse<CorporateContractSummary>(response)
+  return {
+    ...result,
+    inventory: {
+      ...result.inventory,
+      roomTypes: result.inventory?.roomTypes ?? [],
+      byRoomType: result.inventory?.byRoomType ?? [],
+    },
+    byPackageVersion: result.byPackageVersion ?? [],
+    warnings: result.warnings ?? [],
+  }
 }

@@ -19,6 +19,7 @@ export const routes = {
     roomTypes: '/sales-revenue/room-types',
     pricing: '/sales-revenue/pricing',
     corporateAccount: '/sales-revenue/corporate-account',
+    corporateContractDetails: '/sales-revenue/corporate-account/contract-details',
     groupContracts: '/sales-revenue/group-contracts',
     productionReport: '/sales-revenue/production-report',
     discounts: '/sales-revenue/discounts',

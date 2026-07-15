@@ -18,6 +18,7 @@ import { RateCalendarPage } from './pages/salesRevenue/RateCalendarPage'
 import { RoomTypesPage } from './pages/salesRevenue/RoomTypesPage'
 import { PricingPage } from './pages/salesRevenue/PricingPage'
 import { CorporateAccountPage } from './pages/salesRevenue/CorporateAccountPage'
+import { CorporateContractDetailsPage } from './pages/salesRevenue/CorporateContractDetailsPage'
 import { GroupContractsPage } from './pages/salesRevenue/GroupContractsPage'
 import { ProductionReportPage } from './pages/salesRevenue/ProductionReportPage'
 import { DiscountsPage } from './pages/salesRevenue/DiscountsPage'
@@ -87,6 +88,7 @@ export default function App() {
             <Route path={routes.salesRevenue.roomTypes} element={<RoomTypesPage />} />
             <Route path={routes.salesRevenue.pricing} element={<PricingPage />} />
             <Route path={routes.salesRevenue.corporateAccount} element={<CorporateAccountPage />} />
+            <Route path={routes.salesRevenue.corporateContractDetails} element={<CorporateContractDetailsPage />} />
             <Route path={routes.salesRevenue.groupContracts} element={<GroupContractsPage />} />
             <Route path={routes.salesRevenue.productionReport} element={<ProductionReportPage />} />
             <Route path={routes.salesRevenue.discounts} element={<DiscountsPage />} />

@@ -1,180 +1,455 @@
-import { useEffect, useMemo, useState } from 'react'
-import { X, Package2, Plus, BadgePercent, Coins, CalendarDays, StickyNote, AlertCircle, FileText, Wallet, PencilLine, Trash2, Tag, TrendingDown, Receipt, Star, UtensilsCrossed, Wrench } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  BadgePercent,
+  BedDouble,
+  CalendarDays,
+  CheckCircle2,
+  Coins,
+  FileText,
+  Package2,
+  Plus,
+  RefreshCw,
+  StickyNote,
+  Trash2,
+  UtensilsCrossed,
+  Wrench,
+  X,
+} from 'lucide-react'
 import { Modal } from '../../../../shared/ui/Modal'
-import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
-import { addPackageToContract, removePackageFromContract, fetchCorporateContractById, fetchCorporateContractsByAccount, updateCorporateContractAction } from '../../../../features/corporateContracts/corporateContractSlice'
-import { fetchPackages } from '../../../../features/packages/packagesSlice'
-import { fetchMealPlans } from '../../../../features/admin/mealPlansSlice'
-import { fetchAdditionalServices } from '../../../../features/admin/additionalServicesSlice'
-import { fetchCorporateCancellationPolicies } from '../../../../features/policies/corporateCancellationPoliciesSlice'
-import { ContractType, type CorporateContract } from '../../../../models/CorporateContract'
 import { ConfirmActionModal } from '../../../../shared/ui/ConfirmActionModal'
 import { appAlert } from '../../../../shared/ui/AppAlert'
+import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
+import {
+  addPackageToContract,
+  buildCorporateInventoryKey,
+  fetchCorporateContractById,
+  fetchCorporateContractsByAccount,
+  fetchCorporateInventory,
+  fetchCorporatePackagesByContract,
+  generateCorporateInventory,
+  removePackageFromContract,
+} from '../../../../features/corporateContracts/corporateContractSlice'
+import { fetchMealPlans } from '../../../../features/admin/mealPlansSlice'
+import { fetchAdditionalServices } from '../../../../features/admin/additionalServicesSlice'
+import { fetchRoomTypes } from '../../../../features/roomTypes/roomTypesSlice'
+import { fetchRatePlans } from '../../../../features/ratePlans/ratePlansSlice'
+import type {
+  CorporateContract,
+  CorporateContractPackage,
+  CorporateInventoryRow,
+  CorporatePackageMealRate,
+  CorporatePackageRoomRate,
+  CorporatePackageServiceRate,
+  GenerateCorporateInventoryResponse,
+} from '../../../../models/CorporateContract'
 
 interface CorporateContractDetailsPopupProps {
   contract: CorporateContract
   onClose: () => void
 }
 
-type TabKey = 'Overview' | 'Packages' | 'Rates' | 'Discounts'
+type TabKey = 'Overview' | 'Packages' | 'Inventory'
+
+type PackageForm = {
+  code: string
+  name: string
+  description: string
+  isActive: boolean
+  effectiveFrom: string
+  effectiveTo: string
+  taxPercentage: string
+  discountPercentage: string
+  currencyCode: string
+  adultExtraPrice: string
+  childExtraPrice: string
+  notes: string
+  roomRates: Array<{
+    roomTypeId: string
+    adults: string
+    children: string
+    childAges: string
+    ratePlanCode: string
+    pricePerNight: string
+  }>
+  mealRates: Array<{
+    mealPlanId: string
+    pricePerNight: string
+  }>
+  serviceRates: Array<{
+    additionalServiceId: string
+    pricePerNight: string
+  }>
+}
+
+const emptyRoomRate = () => ({
+  roomTypeId: '',
+  adults: '1',
+  children: '0',
+  childAges: '',
+  ratePlanCode: '',
+  pricePerNight: '',
+})
+
+const emptyMealRate = () => ({
+  mealPlanId: '',
+  pricePerNight: '',
+})
+
+const emptyServiceRate = () => ({
+  additionalServiceId: '',
+  pricePerNight: '',
+})
+
+const fieldClass = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition-colors focus:border-[#004bb4] focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400'
+
+const createInitialForm = (currency = 'EUR'): PackageForm => ({
+  code: '',
+  name: '',
+  description: '',
+  isActive: true,
+  effectiveFrom: '',
+  effectiveTo: '',
+  taxPercentage: '0',
+  discountPercentage: '0',
+  currencyCode: currency || 'EUR',
+  adultExtraPrice: '0',
+  childExtraPrice: '0',
+  notes: '',
+  roomRates: [emptyRoomRate()],
+  mealRates: [],
+  serviceRates: [],
+})
+
+function formatDate(value?: string | null) {
+  if (!value) return '---'
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString()
+}
+
+function formatMoney(value?: number | null, currency = 'EUR') {
+  if (value === null || value === undefined) return '---'
+  return `${value.toLocaleString()} ${currency}`
+}
+
+function parseChildAges(value: string) {
+  if (!value.trim()) return []
+  return value
+    .split(',')
+    .map((item) => Number(item.trim()))
+    .filter((value) => Number.isFinite(value) && value >= 0)
+}
+
+function getVersion(pkg: CorporateContractPackage) {
+  return pkg.currentVersion ?? pkg.versions?.[0] ?? null
+}
 
 export function CorporateContractDetailsPopup({ contract, onClose }: CorporateContractDetailsPopupProps) {
   const dispatch = useAppDispatch()
-  const { packages, status: packagesStatus } = useAppSelector((state) => state.packages)
-  const { items: mealPlans } = useAppSelector((state) => state.mealPlans)
-  const { items: additionalServices } = useAppSelector((state) => state.additionalServices)
-  const { items: cancellationPolicies, status: policiesStatus } = useAppSelector((state) => state.corporateCancellationPolicies)
   const selectedContractFromStore = useAppSelector((state) => state.corporateContract.selected?.id === contract.id ? state.corporateContract.selected : undefined)
+  const packagesByContractId = useAppSelector((state) => state.corporateContract.packagesByContractId)
+  const packagesStatus = useAppSelector((state) => state.corporateContract.packagesStatus)
+  const packagesError = useAppSelector((state) => state.corporateContract.packagesError)
+  const inventoryByKey = useAppSelector((state) => state.corporateContract.inventoryByKey)
+  const inventoryStatus = useAppSelector((state) => state.corporateContract.inventoryStatus)
+  const inventoryError = useAppSelector((state) => state.corporateContract.inventoryError)
+  const generateInventoryStatus = useAppSelector((state) => state.corporateContract.generateInventoryStatus)
+  const generateInventoryError = useAppSelector((state) => state.corporateContract.generateInventoryError)
+  const lastGeneratedInventory = useAppSelector((state) => state.corporateContract.lastGeneratedInventory)
+  const roomTypes = useAppSelector((state) => state.roomTypes.items)
+  const ratePlans = useAppSelector((state) => state.ratePlans.items)
+  const mealPlans = useAppSelector((state) => state.mealPlans.items)
+  const additionalServices = useAppSelector((state) => state.additionalServices.items)
+
   const activeContract = selectedContractFromStore ?? contract
+  const contractPackages = packagesByContractId[activeContract.id] ?? activeContract.packages ?? []
+  const isPackagesLoading = packagesStatus === 'loading'
+  const hasContractPackages = contractPackages.length > 0
   const contractStatus = activeContract.status ?? activeContract.contractStatus ?? '---'
-  const activeCreditLimit = activeContract.creditLimit ?? activeContract.credit?.creditLimit ?? 0
+  const creditLimit = activeContract.creditLimit ?? activeContract.credit?.creditLimit ?? 0
   const [activeTab, setActiveTab] = useState<TabKey>('Overview')
   const [isAddingPackage, setIsAddingPackage] = useState(false)
   const [isSubmittingPackage, setIsSubmittingPackage] = useState(false)
-  const [isSavingContract, setIsSavingContract] = useState(false)
-  const [isEditContractOpen, setIsEditContractOpen] = useState(false)
+  const [packageForm, setPackageForm] = useState<PackageForm>(() => createInitialForm(activeContract.currency))
   const [packageRemovalTarget, setPackageRemovalTarget] = useState<{ id: string; name: string } | null>(null)
   const [isRemovingPackage, setIsRemovingPackage] = useState(false)
   const [packageRemovalError, setPackageRemovalError] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState({
-    corporateCancellationPolicyId: String(activeContract.corporateCancellationPolicy?.id ?? activeContract.corporateCancellationPolicyId ?? ''),
-    creditLimit: String(activeCreditLimit),
-    releaseDaysBefore: String(activeContract.releaseDaysBefore ?? ''),
-    startDate: activeContract.startDate ? new Date(activeContract.startDate).toISOString().slice(0, 16) : '',
-    endDate: activeContract.endDate ? new Date(activeContract.endDate).toISOString().slice(0, 16) : '',
-    currency: activeContract.currency,
-    notes: activeContract.notes,
-  })
-  const [newPackageForm, setNewPackageForm] = useState({
-    packageId: '',
-    startDate: '',
-    endDate: '',
-    notes: '',
+  const [selectedInventoryPackageId, setSelectedInventoryPackageId] = useState('')
+  const [inventoryRoomAllocations, setInventoryRoomAllocations] = useState<Record<string, string>>({})
+  const [inventoryReason, setInventoryReason] = useState('')
+  const [inventoryFilters, setInventoryFilters] = useState({
+    fromDate: '',
+    toDate: '',
+    roomTypeId: '',
+    onlyAvailable: false,
+    onlyAdjusted: false,
   })
 
+  const roomTypeLookup = useMemo(() => new Map(roomTypes.map((item) => [item.id, item])), [roomTypes])
+  const mealPlanLookup = useMemo(() => new Map(mealPlans.map((item) => [item.id, item])), [mealPlans])
+  const serviceLookup = useMemo(() => new Map(additionalServices.map((item) => [item.id, item])), [additionalServices])
+  const selectedInventoryPackage = useMemo(
+    () => contractPackages.find((pkg) => pkg.id === selectedInventoryPackageId) ?? contractPackages[0] ?? null,
+    [contractPackages, selectedInventoryPackageId]
+  )
+  const selectedInventoryVersion = selectedInventoryPackage ? getVersion(selectedInventoryPackage) : null
+  const selectedInventoryKey = selectedInventoryPackage && selectedInventoryVersion
+    ? buildCorporateInventoryKey(activeContract.id, selectedInventoryPackage.id, selectedInventoryVersion.id)
+    : ''
+  const selectedInventory = selectedInventoryKey ? inventoryByKey[selectedInventoryKey] : undefined
+  const inventoryRoomRates = useMemo(() => {
+    const rates = selectedInventoryVersion?.roomRates ?? []
+    const seen = new Set<string>()
+    return rates.filter((rate) => {
+      if (seen.has(rate.roomTypeId)) return false
+      seen.add(rate.roomTypeId)
+      return true
+    })
+  }, [selectedInventoryVersion])
+
   useEffect(() => {
-    dispatch(fetchPackages())
+    dispatch(fetchCorporateContractById(activeContract.id))
+    dispatch(fetchCorporatePackagesByContract({ contractId: activeContract.id }))
+    dispatch(fetchRoomTypes())
+    dispatch(fetchRatePlans({ isActive: true }))
     dispatch(fetchMealPlans())
     dispatch(fetchAdditionalServices())
-  }, [dispatch])
+  }, [dispatch, activeContract.id])
 
   useEffect(() => {
-    dispatch(fetchCorporateCancellationPolicies({
-      ContractType: activeContract.contractType,
-      IsActive: true,
+    setPackageForm(createInitialForm(activeContract.currency))
+  }, [activeContract.id, activeContract.currency])
+
+  useEffect(() => {
+    if (selectedInventoryPackageId && contractPackages.some((pkg) => pkg.id === selectedInventoryPackageId)) return
+    setSelectedInventoryPackageId(contractPackages[0]?.id ?? '')
+  }, [contractPackages, selectedInventoryPackageId])
+
+  useEffect(() => {
+    if (!selectedInventoryVersion) {
+      setInventoryFilters((prev) => ({ ...prev, fromDate: '', toDate: '' }))
+      setInventoryRoomAllocations({})
+      return
+    }
+
+    setInventoryFilters((prev) => ({
+      ...prev,
+      fromDate: selectedInventoryVersion.effectiveFrom?.slice(0, 10) || '',
+      toDate: selectedInventoryVersion.effectiveTo?.slice(0, 10) || '',
+      roomTypeId: '',
     }))
-  }, [dispatch, activeContract.contractType])
+
+    setInventoryRoomAllocations((prev) => {
+      const next: Record<string, string> = {}
+      inventoryRoomRates.forEach((rate) => {
+        next[rate.roomTypeId] = prev[rate.roomTypeId] ?? '0'
+      })
+      return next
+    })
+  }, [inventoryRoomRates, selectedInventoryVersion])
 
   useEffect(() => {
-    setEditForm({
-      corporateCancellationPolicyId: String(activeContract.corporateCancellationPolicy?.id ?? activeContract.corporateCancellationPolicyId ?? ''),
-      creditLimit: String(activeCreditLimit),
-      releaseDaysBefore: String(activeContract.releaseDaysBefore ?? ''),
-      startDate: activeContract.startDate ? new Date(activeContract.startDate).toISOString().slice(0, 16) : '',
-      endDate: activeContract.endDate ? new Date(activeContract.endDate).toISOString().slice(0, 16) : '',
-      currency: activeContract.currency,
-      notes: activeContract.notes,
-    })
-  }, [activeContract.id, activeCreditLimit])
+    if (activeTab !== 'Inventory' || !selectedInventoryPackage || !selectedInventoryVersion) return
 
-  const packageLookup = useMemo(() => new Map(packages.map((item) => [item.id, item])), [packages])
-  const mealPlanLookup = useMemo(() => new Map(mealPlans.map((m) => [m.id, m])), [mealPlans])
-  const serviceLookup = useMemo(() => new Map(additionalServices.map((s) => [s.id, s])), [additionalServices])
-  const selectedPackageDetails = useMemo(() => {
-    if (!newPackageForm.packageId) return null
-    return packages.find((item) => item.id === newPackageForm.packageId) ?? null
-  }, [newPackageForm.packageId, packages])
-  const filteredCancellationPolicies = useMemo(
-    () => cancellationPolicies.filter((policy) => policy.appliesToContractType === activeContract.contractType && policy.isActive),
-    [cancellationPolicies, activeContract.contractType]
-  )
+    const request = dispatch(fetchCorporateInventory({
+      contractId: activeContract.id,
+      params: {
+        fromDate: inventoryFilters.fromDate || selectedInventoryVersion.effectiveFrom?.slice(0, 10),
+        toDate: inventoryFilters.toDate || selectedInventoryVersion.effectiveTo?.slice(0, 10) || undefined,
+        roomTypeId: inventoryFilters.roomTypeId || undefined,
+        packageId: selectedInventoryPackage.id,
+        versionId: selectedInventoryVersion.id,
+        onlyAvailable: inventoryFilters.onlyAvailable,
+        onlyAdjusted: inventoryFilters.onlyAdjusted,
+      },
+    }))
 
-  const handleSaveContract = async () => {
-    if (!editForm.startDate || !editForm.endDate) {
-      appAlert.fire('Error', 'Start date and end date are required.', 'error')
-      return
-    }
-    if (new Date(editForm.endDate).getTime() <= new Date(editForm.startDate).getTime()) {
-      appAlert.fire('Error', 'End date must be after start date.', 'error')
-      return
-    }
-    if (!editForm.corporateCancellationPolicyId) {
-      appAlert.fire('Error', 'Please select a cancellation policy.', 'error')
-      return
-    }
-    if (!editForm.creditLimit || Number(editForm.creditLimit) < 0) {
-      appAlert.fire('Error', 'Credit limit must be zero or more.', 'error')
-      return
-    }
-    if (activeContract.contractType === ContractType.Allotment && (editForm.releaseDaysBefore === '' || Number(editForm.releaseDaysBefore) < 0)) {
-      appAlert.fire('Error', 'Release days before is required for Allotment contracts.', 'error')
-      return
-    }
+    return () => request.abort()
+  }, [
+    activeTab,
+    activeContract.id,
+    dispatch,
+    inventoryFilters.fromDate,
+    inventoryFilters.onlyAdjusted,
+    inventoryFilters.onlyAvailable,
+    inventoryFilters.roomTypeId,
+    inventoryFilters.toDate,
+    selectedInventoryPackage,
+    selectedInventoryVersion,
+  ])
 
-    setIsSavingContract(true)
-
-    try {
-      await dispatch(updateCorporateContractAction({
-        id: activeContract.id,
-        payload: {
-          startDate: new Date(editForm.startDate).toISOString(),
-          endDate: new Date(editForm.endDate).toISOString(),
-          corporateCancellationPolicyId: Number(editForm.corporateCancellationPolicyId),
-          creditLimit: Number(editForm.creditLimit),
-          currency: editForm.currency.trim().toUpperCase(),
-          releaseDaysBefore: activeContract.contractType === ContractType.Commitment ? null : Number(editForm.releaseDaysBefore),
-          notes: editForm.notes,
-        },
-      })).unwrap()
-
-      await dispatch(fetchCorporateContractById(activeContract.id)).unwrap()
-      await dispatch(fetchCorporateContractsByAccount(activeContract.corporateAccountId)).unwrap()
-
-      appAlert.fire('Success', 'Contract updated successfully.', 'success')
-      setIsEditContractOpen(false)
-    } catch (err: any) {
-      appAlert.fire('Error', err?.message || 'Could not update contract.', 'error')
-    } finally {
-      setIsSavingContract(false)
-    }
+  const updateRoomRate = (index: number, patch: Partial<PackageForm['roomRates'][number]>) => {
+    setPackageForm((prev) => ({
+      ...prev,
+      roomRates: prev.roomRates.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row),
+    }))
   }
 
-  const handleAddPackage = async () => {
-    if (!newPackageForm.packageId || !newPackageForm.startDate || !newPackageForm.endDate) {
-      appAlert.fire('Error', 'Please choose a package and date range.', 'error')
+  const updateMealRate = (index: number, patch: Partial<PackageForm['mealRates'][number]>) => {
+    setPackageForm((prev) => ({
+      ...prev,
+      mealRates: prev.mealRates.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row),
+    }))
+  }
+
+  const updateServiceRate = (index: number, patch: Partial<PackageForm['serviceRates'][number]>) => {
+    setPackageForm((prev) => ({
+      ...prev,
+      serviceRates: prev.serviceRates.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row),
+    }))
+  }
+
+  const validatePackageForm = () => {
+    if (!packageForm.code.trim()) return 'Package code is required.'
+    if (!packageForm.name.trim()) return 'Package name is required.'
+    if (!packageForm.effectiveFrom) return 'Effective from date is required.'
+    if (packageForm.effectiveTo && new Date(packageForm.effectiveTo).getTime() < new Date(packageForm.effectiveFrom).getTime()) {
+      return 'Effective to date must be after effective from date.'
+    }
+    if (packageForm.roomRates.length === 0) return 'At least one room rate is required.'
+    const numericFields = [
+      ['Tax percentage', packageForm.taxPercentage],
+      ['Discount percentage', packageForm.discountPercentage],
+      ['Adult extra price', packageForm.adultExtraPrice],
+      ['Child extra price', packageForm.childExtraPrice],
+    ]
+    const invalidNumber = numericFields.find(([, value]) => Number(value) < 0 || Number.isNaN(Number(value)))
+    if (invalidNumber) return `${invalidNumber[0]} must be zero or more.`
+
+    for (const [index, row] of packageForm.roomRates.entries()) {
+      if (!row.roomTypeId) return `Room rate ${index + 1} needs a room type.`
+      if (!row.ratePlanCode.trim()) return `Room rate ${index + 1} needs a rate plan.`
+      if (Number(row.adults) < 0 || Number(row.children) < 0 || Number(row.pricePerNight) < 0) {
+        return `Room rate ${index + 1} has an invalid number.`
+      }
+      const ages = parseChildAges(row.childAges)
+      if (ages.length > 0 && ages.length !== Number(row.children)) {
+        return `Room rate ${index + 1} child ages must match the children count.`
+      }
+    }
+
+    for (const [index, row] of packageForm.mealRates.entries()) {
+      if (!row.mealPlanId) return `Meal rate ${index + 1} needs a meal plan.`
+      if (Number(row.pricePerNight) < 0 || Number.isNaN(Number(row.pricePerNight))) return `Meal rate ${index + 1} has an invalid price.`
+    }
+
+    for (const [index, row] of packageForm.serviceRates.entries()) {
+      if (!row.additionalServiceId) return `Service rate ${index + 1} needs a service.`
+      if (Number(row.pricePerNight) < 0 || Number.isNaN(Number(row.pricePerNight))) return `Service rate ${index + 1} has an invalid price.`
+    }
+
+    return null
+  }
+
+  const handleCreatePackage = async () => {
+    const validationError = validatePackageForm()
+    if (validationError) {
+      appAlert.fire('Error', validationError, 'error')
       return
     }
 
-    setIsSubmittingPackage(true)
+    const roomRates: CorporatePackageRoomRate[] = packageForm.roomRates.map((row) => ({
+      roomTypeId: row.roomTypeId,
+      adults: Number(row.adults),
+      children: Number(row.children),
+      childAges: parseChildAges(row.childAges),
+      ratePlanCode: row.ratePlanCode.trim(),
+      pricePerNight: Number(row.pricePerNight),
+    }))
+    const mealRates: CorporatePackageMealRate[] = packageForm.mealRates.map((row) => ({
+      mealPlanId: row.mealPlanId,
+      pricePerNight: Number(row.pricePerNight),
+    }))
+    const serviceRates: CorporatePackageServiceRate[] = packageForm.serviceRates.map((row) => ({
+      additionalServiceId: row.additionalServiceId,
+      pricePerNight: Number(row.pricePerNight),
+    }))
 
+    setIsSubmittingPackage(true)
     try {
       await dispatch(addPackageToContract({
         contractId: activeContract.id,
         payload: {
-          packageId: newPackageForm.packageId,
-          startDate: new Date(newPackageForm.startDate).toISOString(),
-          endDate: new Date(newPackageForm.endDate).toISOString(),
-          notes: newPackageForm.notes,
+          code: packageForm.code.trim().toUpperCase(),
+          name: packageForm.name.trim(),
+          description: packageForm.description.trim(),
+          isActive: packageForm.isActive,
+          initialVersion: {
+            effectiveFrom: packageForm.effectiveFrom,
+            effectiveTo: packageForm.effectiveTo || null,
+            taxPercentage: Number(packageForm.taxPercentage),
+            discountPercentage: Number(packageForm.discountPercentage),
+            currencyCode: packageForm.currencyCode.trim().toUpperCase(),
+            adultExtraPrice: Number(packageForm.adultExtraPrice),
+            childExtraPrice: Number(packageForm.childExtraPrice),
+            notes: packageForm.notes.trim(),
+            roomRates,
+            mealRates,
+            serviceRates,
+          },
         },
       })).unwrap()
 
+      await dispatch(fetchCorporatePackagesByContract({ contractId: activeContract.id })).unwrap()
       await dispatch(fetchCorporateContractById(activeContract.id)).unwrap()
       await dispatch(fetchCorporateContractsByAccount(activeContract.corporateAccountId)).unwrap()
 
-      appAlert.fire('Success', 'Package added to contract.', 'success')
+      appAlert.fire('Success', 'Package created successfully.', 'success')
+      setPackageForm(createInitialForm(activeContract.currency))
       setIsAddingPackage(false)
-      setNewPackageForm({ packageId: '', startDate: '', endDate: '', notes: '' })
       setActiveTab('Packages')
     } catch (err: any) {
-      appAlert.fire('Error', err?.message || 'Could not add package.', 'error')
+      appAlert.fire('Error', err?.message || 'Could not create package.', 'error')
     } finally {
       setIsSubmittingPackage(false)
     }
   }
 
-  const requestDeletePackage = (contractPackageId: string, packageName: string) => {
-    setPackageRemovalTarget({ id: contractPackageId, name: packageName })
-    setPackageRemovalError(null)
+  const handleGenerateInventory = async () => {
+    if (!selectedInventoryPackage || !selectedInventoryVersion) {
+      appAlert.fire('Error', 'Select a package with an active current version first.', 'error')
+      return
+    }
+
+    const roomAllocations = inventoryRoomRates
+      .map((rate) => ({
+        roomTypeId: rate.roomTypeId,
+        allocatedRooms: Number(inventoryRoomAllocations[rate.roomTypeId] ?? 0),
+      }))
+      .filter((row) => row.allocatedRooms > 0)
+
+    if (roomAllocations.length === 0) {
+      appAlert.fire('Error', 'Enter at least one room allocation greater than zero.', 'error')
+      return
+    }
+
+    try {
+      await dispatch(generateCorporateInventory({
+        packageId: selectedInventoryPackage.id,
+        versionId: selectedInventoryVersion.id,
+        payload: {
+          roomAllocations,
+          regenerateFutureUnusedRows: true,
+          reason: inventoryReason.trim(),
+        },
+      })).unwrap()
+
+      await dispatch(fetchCorporateInventory({
+        contractId: activeContract.id,
+        params: {
+          fromDate: inventoryFilters.fromDate || selectedInventoryVersion.effectiveFrom?.slice(0, 10),
+          toDate: inventoryFilters.toDate || selectedInventoryVersion.effectiveTo?.slice(0, 10) || undefined,
+          roomTypeId: inventoryFilters.roomTypeId || undefined,
+          packageId: selectedInventoryPackage.id,
+          versionId: selectedInventoryVersion.id,
+          onlyAvailable: inventoryFilters.onlyAvailable,
+          onlyAdjusted: inventoryFilters.onlyAdjusted,
+        },
+      })).unwrap()
+
+      appAlert.fire('Success', 'Inventory generated successfully.', 'success')
+    } catch (err: any) {
+      appAlert.fire('Error', err?.message || 'Could not generate inventory.', 'error')
+    }
   }
 
   const handleDeletePackage = async () => {
@@ -186,10 +461,7 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
         contractId: activeContract.id,
         contractPackageId: packageRemovalTarget.id,
       })).unwrap()
-
-      await dispatch(fetchCorporateContractById(activeContract.id)).unwrap()
-      await dispatch(fetchCorporateContractsByAccount(activeContract.corporateAccountId)).unwrap()
-
+      await dispatch(fetchCorporatePackagesByContract({ contractId: activeContract.id })).unwrap()
       setPackageRemovalTarget(null)
     } catch (err: any) {
       setPackageRemovalError(err?.message || 'Could not remove package.')
@@ -198,637 +470,766 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
     }
   }
 
-  const tabs: TabKey[] = ['Overview', 'Packages', 'Rates', 'Discounts']
+  const tabs: TabKey[] = ['Overview', 'Packages', 'Inventory']
 
   return (
     <>
-    <Modal open onClose={onClose} lockScroll>
-      <div className="flex max-h-[96vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between bg-[#004bb4] px-6 py-5 text-white">
-          <div>
-            <h2 className="text-xl font-bold">{activeContract.contractNumber}</h2>
-            <p className="mt-1 text-sm text-blue-100">{activeContract.contractType} • {activeContract.currency} • {contractStatus}</p>
-          </div>
-          <button onClick={onClose} className="rounded-lg p-2 transition-colors hover:bg-white/20">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <div className="border-b border-slate-200 px-6 py-4">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Coins className="h-4 w-4 text-[#004bb4]" />
-            <span>Credit limit: {activeCreditLimit.toLocaleString()} {activeContract.currency}</span>
-            <span className="text-slate-300">•</span>
-            <span>Period: {new Date(activeContract.startDate).toLocaleDateString()} - {new Date(activeContract.endDate).toLocaleDateString()}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-6 border-b border-slate-200 px-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`border-b-2 px-1 py-3 text-sm font-semibold transition-colors ${activeTab === tab ? 'border-[#004bb4] text-[#004bb4]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'Overview' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-end">
-                <button
-                  onClick={() => setIsEditContractOpen(true)}
-                  className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  <PencilLine className="h-4 w-4" />
-                  Edit Contract
-                </button>
-              </div>
-
-              <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
-                  <div className="mb-5 flex items-center gap-2 text-slate-800">
-                    <FileText className="h-5 w-5 text-[#004bb4]" />
-                    <h3 className="text-lg font-semibold">Contract Summary</h3>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-xl bg-white p-4 shadow-sm">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Contract Number</p>
-                      <p className="mt-1 font-semibold text-slate-800">{activeContract.contractNumber}</p>
-                    </div>
-                    <div className="rounded-xl bg-white p-4 shadow-sm">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Contract Type</p>
-                      <p className="mt-1 font-semibold text-slate-800">{activeContract.contractType}</p>
-                    </div>
-                    <div className="rounded-xl bg-white p-4 shadow-sm">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
-                      <p className="mt-1 font-semibold text-slate-800">{contractStatus}</p>
-                    </div>
-                    {activeContract.contractType === ContractType.Allotment && (
-                      <div className="rounded-xl bg-white p-4 shadow-sm">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Release Days Before</p>
-                        <p className="mt-1 font-semibold text-slate-800">{activeContract.releaseDaysBefore ?? 0}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="mb-5 flex items-center gap-2 text-slate-800">
-                    <Wallet className="h-5 w-5 text-[#004bb4]" />
-                    <h3 className="text-lg font-semibold">Financial Terms</h3>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Credit Limit</p>
-                      <p className="mt-1 text-base font-semibold text-slate-800">{activeCreditLimit.toLocaleString()} {activeContract.currency}</p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Remaining Credit</p>
-                      <p className="mt-1 text-base font-semibold text-slate-800">{(activeContract.credit?.remainingCredit ?? activeCreditLimit).toLocaleString()} {activeContract.currency}</p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cancellation Penalty</p>
-                      <p className="mt-1 text-base font-semibold text-slate-800">{activeContract.corporateCancellationPolicy?.liquidatedDamagesPenaltyPercentage ?? '---'}%</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="mb-5 flex items-center gap-2 text-slate-800">
-                    <CalendarDays className="h-5 w-5 text-[#004bb4]" />
-                    <h3 className="text-lg font-semibold">Contract Dates</h3>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Start Date</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-800">{new Date(activeContract.startDate).toLocaleString()}</p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">End Date</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-800">{new Date(activeContract.endDate).toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="mb-5 flex items-center gap-2 text-slate-800">
-                    <StickyNote className="h-5 w-5 text-[#004bb4]" />
-                    <h3 className="text-lg font-semibold">Notes & Policy</h3>
-                  </div>
-                  <div className="space-y-3 text-sm text-slate-700">
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cancellation Policy</p>
-                      <p className="mt-1 leading-6">{activeContract.corporateCancellationPolicy?.name ?? activeContract.cancellationPolicy ?? 'No cancellation policy provided.'}</p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Internal Notes</p>
-                      <p className="mt-1 leading-6">{activeContract.notes || 'No notes provided.'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+      <Modal open onClose={onClose} lockScroll>
+        <div className="flex h-[88vh] min-h-[720px] w-[min(1320px,94vw)] flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+          <div className="flex items-start justify-between bg-[#004bb4] px-6 py-5 text-white">
+            <div>
+              <h2 className="text-xl font-bold">{activeContract.contractNumber}</h2>
+              <p className="mt-1 text-sm text-blue-100">{activeContract.contractType} - {activeContract.currency} - {contractStatus}</p>
             </div>
-          )}
+            <button onClick={onClose} className="rounded-md p-2 transition-colors hover:bg-white/20" aria-label="Close contract details">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
 
-          {activeTab === 'Packages' && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800">Assigned Packages</h3>
-                  <p className="text-sm text-slate-500">Manage package inclusions for this contract.</p>
-                </div>
-                <button
-                  onClick={() => setIsAddingPackage((prev) => !prev)}
-                  className="flex items-center gap-2 rounded-xl bg-[#004bb4] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Package
-                </button>
-              </div>
+          <div className="border-b border-slate-200 px-6 py-4">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+              <span className="inline-flex items-center gap-2">
+                <Coins className="h-4 w-4 text-[#004bb4]" />
+                Credit limit: {formatMoney(creditLimit, activeContract.currency)}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-[#004bb4]" />
+                {formatDate(activeContract.startDate)} - {formatDate(activeContract.endDate)}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Package2 className="h-4 w-4 text-[#004bb4]" />
+                {contractPackages.length} package{contractPackages.length === 1 ? '' : 's'}
+              </span>
+            </div>
+          </div>
 
-              {isAddingPackage && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-sm font-semibold text-slate-700">Package</label>
-                      <select
-                        value={newPackageForm.packageId}
-                        onChange={(e) => setNewPackageForm((prev) => ({ ...prev, packageId: e.target.value }))}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none"
-                      >
-                        <option value="">Select package</option>
-                        {packages.map((pkg) => (
-                          <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-                        ))}
-                      </select>
-                      {packagesStatus === 'loading' && <p className="mt-2 text-sm text-slate-500">Loading available packages…</p>}
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-semibold text-slate-700">Package Preview</label>
-                      <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">
-                        {selectedPackageDetails ? (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-slate-800">{selectedPackageDetails.name}</p>
-                            <p>{selectedPackageDetails.code}</p>
-                            <p>{selectedPackageDetails.currencyCode} • {selectedPackageDetails.baseNightPrice} / night</p>
-                          </div>
-                        ) : (
-                          <p className="text-slate-500">Select a package to preview its details.</p>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-semibold text-slate-700">Start Date</label>
-                      <input
-                        type="datetime-local"
-                        value={newPackageForm.startDate}
-                        onChange={(e) => setNewPackageForm((prev) => ({ ...prev, startDate: e.target.value }))}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-semibold text-slate-700">End Date</label>
-                      <input
-                        type="datetime-local"
-                        value={newPackageForm.endDate}
-                        onChange={(e) => setNewPackageForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none"
-                      />
-                    </div>
+          <div className="flex items-center gap-8 border-b border-slate-200 px-8">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`border-b-2 px-1 py-4 text-base font-semibold transition-colors ${activeTab === tab ? 'border-[#004bb4] text-[#004bb4]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-8">
+            {activeTab === 'Overview' && (
+              <div className="grid min-h-[520px] content-start gap-8 xl:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-8">
+                  <div className="mb-5 flex items-center gap-2 text-slate-800">
+                    <FileText className="h-6 w-6 text-[#004bb4]" />
+                    <h3 className="text-xl font-semibold">Contract Summary</h3>
                   </div>
-                  <div className="mt-4">
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Notes</label>
-                    <textarea
-                      value={newPackageForm.notes}
-                      onChange={(e) => setNewPackageForm((prev) => ({ ...prev, notes: e.target.value }))}
-                      rows={3}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none"
-                      placeholder="Optional package notes"
-                    />
-                  </div>
-                  <div className="mt-4 flex items-center justify-end gap-3">
-                    <button
-                      onClick={() => setIsAddingPackage(false)}
-                      disabled={isSubmittingPackage}
-                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleAddPackage}
-                      disabled={isSubmittingPackage}
-                      className="rounded-xl bg-[#004bb4] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      {isSubmittingPackage ? 'Saving...' : 'Save Package'}
-                    </button>
+                    <div className="grid gap-5">
+                    <SummaryItem label="Contract Number" value={activeContract.contractNumber} />
+                    <SummaryItem label="Contract Type" value={activeContract.contractType} />
+                    <SummaryItem label="Status" value={String(contractStatus)} />
+                    <SummaryItem label="Release Days" value={activeContract.contractType === 'Commitment' ? 'N/A' : String(activeContract.releaseDaysBefore ?? '---')} />
+                    <SummaryItem label="Credit Limit" value={formatMoney(creditLimit, activeContract.currency)} />
+                    <SummaryItem label="Remaining Credit" value={formatMoney(activeContract.credit?.remainingCredit ?? creditLimit, activeContract.currency)} />
                   </div>
                 </div>
-              )}
 
-              {(() => {
-                const activePackages = activeContract.packages.filter((pkg) => pkg.isActive);
-
-                if (activePackages.length === 0) {
-                  return (
-                    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-                      <Package2 className="mx-auto mb-3 h-8 w-8 text-slate-300" />
-                      <p className="font-medium">No active packages assigned yet.</p>
-                      <p className="mt-1 text-sm">Click "Add Package" to assign one to this contract.</p>
-                    </div>
-                  );
-                }
-
-                return (
+                <div className="rounded-lg border border-slate-200 bg-white p-8">
+                  <div className="mb-5 flex items-center gap-2 text-slate-800">
+                    <StickyNote className="h-6 w-6 text-[#004bb4]" />
+                    <h3 className="text-xl font-semibold">Policy & Notes</h3>
+                  </div>
                   <div className="space-y-4">
-                    {activePackages.map((pkg) => {
-                      const details = packageLookup.get(pkg.packageId)
-                    const currency = details?.currencyCode || activeContract.currency
-                    return (
-                      <div key={pkg.id} className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                        {/* Card Header */}
-                        <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-[#004bb4]/5 to-blue-50 px-6 py-4 border-b border-slate-100">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#004bb4] text-white shadow-sm">
-                              <Package2 className="h-5 w-5" />
-                            </div>
+                    <SummaryItem label="Cancellation Policy" value={activeContract.corporateCancellationPolicy?.name ?? activeContract.cancellationPolicy ?? '---'} />
+                    <SummaryItem label="Penalty" value={`${activeContract.corporateCancellationPolicy?.liquidatedDamagesPenaltyPercentage ?? activeContract.penaltyPercentage ?? 0}%`} />
+                    <SummaryItem label="Notes" value={activeContract.notes || 'No notes provided.'} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Packages' && (
+              <div className="flex min-h-[560px] flex-col space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl font-semibold text-slate-800">Contract Packages</h3>
+                    <p className="text-base text-slate-500">Create packages directly on this corporate contract.</p>
+                  </div>
+                  <button
+                    onClick={() => setIsAddingPackage((prev) => !prev)}
+                    className="flex items-center gap-2 rounded-lg bg-[#004bb4] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {isAddingPackage ? 'Close Form' : 'Add Package'}
+                  </button>
+                </div>
+
+                {isAddingPackage && (
+                  <div className="space-y-7 rounded-lg border border-slate-200 bg-slate-50 p-7">
+                    <div className="grid gap-5 lg:grid-cols-4">
+                      <Field label="Code">
+                        <input value={packageForm.code} onChange={(e) => setPackageForm((prev) => ({ ...prev, code: e.target.value }))} className={fieldClass} placeholder="TTT" />
+                      </Field>
+                      <Field label="Name">
+                        <input value={packageForm.name} onChange={(e) => setPackageForm((prev) => ({ ...prev, name: e.target.value }))} className={fieldClass} placeholder="Corporate Package" />
+                      </Field>
+                      <Field label="Currency">
+                        <select value={packageForm.currencyCode} onChange={(e) => setPackageForm((prev) => ({ ...prev, currencyCode: e.target.value }))} className={`${fieldClass} bg-white`}>
+                          <option value="EUR">EUR</option>
+                          <option value="USD">USD</option>
+                          <option value="EGP">EGP</option>
+                        </select>
+                      </Field>
+                      <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-slate-700">
+                        <input type="checkbox" checked={packageForm.isActive} onChange={(e) => setPackageForm((prev) => ({ ...prev, isActive: e.target.checked }))} />
+                        Active package
+                      </label>
+                    </div>
+
+                    <Field label="Description">
+                      <textarea rows={2} value={packageForm.description} onChange={(e) => setPackageForm((prev) => ({ ...prev, description: e.target.value }))} className={fieldClass} />
+                    </Field>
+
+                    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                      <Field label="Effective From">
+                        <input type="date" value={packageForm.effectiveFrom} onChange={(e) => setPackageForm((prev) => ({ ...prev, effectiveFrom: e.target.value }))} className={fieldClass} />
+                      </Field>
+                      <Field label="Effective To">
+                        <input type="date" value={packageForm.effectiveTo} onChange={(e) => setPackageForm((prev) => ({ ...prev, effectiveTo: e.target.value }))} className={fieldClass} />
+                      </Field>
+                      <Field label="Tax %">
+                        <input type="number" min="0" value={packageForm.taxPercentage} onChange={(e) => setPackageForm((prev) => ({ ...prev, taxPercentage: e.target.value }))} className={fieldClass} />
+                      </Field>
+                      <Field label="Discount %">
+                        <input type="number" min="0" value={packageForm.discountPercentage} onChange={(e) => setPackageForm((prev) => ({ ...prev, discountPercentage: e.target.value }))} className={fieldClass} />
+                      </Field>
+                      <Field label="Adult Extra">
+                        <input type="number" min="0" value={packageForm.adultExtraPrice} onChange={(e) => setPackageForm((prev) => ({ ...prev, adultExtraPrice: e.target.value }))} className={fieldClass} />
+                      </Field>
+                      <Field label="Child Extra">
+                        <input type="number" min="0" value={packageForm.childExtraPrice} onChange={(e) => setPackageForm((prev) => ({ ...prev, childExtraPrice: e.target.value }))} className={fieldClass} />
+                      </Field>
+                    </div>
+
+                    <RateBuilderHeader title="Room Rates" addLabel="Add Room Rate" onAdd={() => setPackageForm((prev) => ({ ...prev, roomRates: [...prev.roomRates, emptyRoomRate()] }))} />
+                    <div className="space-y-4">
+                      {packageForm.roomRates.map((row, index) => (
+                        <div key={index} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                          <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4">
                             <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="text-base font-bold text-slate-800">{details?.name || 'Package'}</h4>
-                                {details?.code && (
-                                  <span className="rounded-md bg-[#004bb4]/10 px-2 py-0.5 text-xs font-semibold text-[#004bb4]">{details.code}</span>
-                                )}
-                              </div>
-                              <p className="mt-0.5 text-sm text-slate-500">{details?.description || 'No description available.'}</p>
+                              <p className="text-sm font-bold text-slate-800">Room Rate {index + 1}</p>
+                              <p className="mt-0.5 text-xs text-slate-500">Room type, occupancy, rate plan, and nightly price.</p>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${pkg.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                              {pkg.isActive ? 'Active' : 'Inactive'}
-                            </span>
                             <button
-                              onClick={() => requestDeletePackage(pkg.id, details?.name || 'this package')}
-                              title="Remove package from contract"
-                              className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 hover:border-red-300"
+                              type="button"
+                              onClick={() => setPackageForm((prev) => ({ ...prev, roomRates: prev.roomRates.filter((_, rowIndex) => rowIndex !== index) }))}
+                              disabled={packageForm.roomRates.length === 1}
+                              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                              aria-label={`Remove room rate ${index + 1}`}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-4 w-4" />
                               Remove
                             </button>
                           </div>
-                        </div>
 
-                        <div className="p-6 space-y-5">
-                          {/* Assignment Period */}
-                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Rate Plan</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-800">{details?.ratePlanCode || '—'}</p>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Package Valid</p>
-                              <p className="mt-1 text-xs font-semibold text-slate-800">
-                                {details?.startDate ? new Date(details.startDate).toLocaleDateString() : '—'} → {details?.endDate ? new Date(details.endDate).toLocaleDateString() : '—'}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Assigned Period</p>
-                              <p className="mt-1 text-xs font-semibold text-slate-800">
-                                {pkg.startDate ? new Date(pkg.startDate).toLocaleDateString() : '—'} → {pkg.endDate ? new Date(pkg.endDate).toLocaleDateString() : '—'}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Assigned At</p>
-                              <p className="mt-1 text-xs font-semibold text-slate-800">{pkg.assignedAt ? new Date(pkg.assignedAt).toLocaleDateString() : '—'}</p>
-                            </div>
+                          <div className="grid gap-4 p-5 lg:grid-cols-[1.4fr_0.7fr_0.7fr]">
+                            <Field label="Room Type">
+                              <select value={row.roomTypeId} onChange={(e) => updateRoomRate(index, { roomTypeId: e.target.value })} className={`${fieldClass} bg-white`}>
+                                <option value="">Select room type</option>
+                                {roomTypes.map((roomType) => <option key={roomType.id} value={roomType.id}>{roomType.name}</option>)}
+                              </select>
+                            </Field>
+                            <Field label="Adults">
+                              <input type="number" min="0" value={row.adults} onChange={(e) => updateRoomRate(index, { adults: e.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Children">
+                              <input type="number" min="0" value={row.children} onChange={(e) => updateRoomRate(index, { children: e.target.value })} className={fieldClass} />
+                            </Field>
                           </div>
 
-                          {/* Pricing Breakdown */}
-                          {details && (
-                            <div className="space-y-3">
-                              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Pricing Breakdown</p>
+                          <div className="grid gap-4 border-t border-slate-100 bg-slate-50/60 p-5 lg:grid-cols-[1fr_1fr_0.8fr]">
+                            <Field label="Child Ages comma separated">
+                              <input value={row.childAges} onChange={(e) => updateRoomRate(index, { childAges: e.target.value })} className={fieldClass} placeholder="Example: 4, 8" />
+                            </Field>
+                            <Field label="Rate Plan">
+                              <select value={row.ratePlanCode} onChange={(e) => updateRoomRate(index, { ratePlanCode: e.target.value })} className={`${fieldClass} bg-white`}>
+                                <option value="">Select rate plan</option>
+                                {ratePlans.map((ratePlan) => <option key={ratePlan.id} value={ratePlan.code}>{ratePlan.code} - {ratePlan.name}</option>)}
+                              </select>
+                            </Field>
+                            <Field label="Price / Night">
+                              <input type="number" min="0" value={row.pricePerNight} onChange={(e) => updateRoomRate(index, { pricePerNight: e.target.value })} className={fieldClass} />
+                            </Field>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
 
-                              {/* Summary row */}
-                              <div className="rounded-xl border border-slate-200 overflow-hidden">
-                                <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-3 lg:grid-cols-6 divide-y sm:divide-y-0">
-                                  <div className="p-3 text-center">
-                                    <div className="flex items-center justify-center gap-1 text-slate-400 mb-1">
-                                      <Tag className="h-3.5 w-3.5" />
-                                      <p className="text-xs font-semibold uppercase tracking-wide">Base/Night</p>
-                                    </div>
-                                    <p className="text-sm font-bold text-slate-800">{details.baseNightPrice} {currency}</p>
-                                  </div>
-                                  <div className="p-3 text-center">
-                                    <div className="flex items-center justify-center gap-1 text-slate-400 mb-1">
-                                      <UtensilsCrossed className="h-3.5 w-3.5" />
-                                      <p className="text-xs font-semibold uppercase tracking-wide">Meals/Night</p>
-                                    </div>
-                                    <p className="text-sm font-bold text-slate-800">{details.mealTotalPerNight} {currency}</p>
-                                  </div>
-                                  <div className="p-3 text-center">
-                                    <div className="flex items-center justify-center gap-1 text-slate-400 mb-1">
-                                      <Wrench className="h-3.5 w-3.5" />
-                                      <p className="text-xs font-semibold uppercase tracking-wide">Services/Night</p>
-                                    </div>
-                                    <p className="text-sm font-bold text-slate-800">{details.serviceTotalPerNight} {currency}</p>
-                                  </div>
-                                  <div className="p-3 text-center">
-                                    <div className="flex items-center justify-center gap-1 text-slate-400 mb-1">
-                                      <Receipt className="h-3.5 w-3.5" />
-                                      <p className="text-xs font-semibold uppercase tracking-wide">Tax {details.taxPercentage}%</p>
-                                    </div>
-                                    <p className="text-sm font-bold text-slate-800">+{details.taxAmount?.toFixed(2)} {currency}</p>
-                                  </div>
-                                  <div className="p-3 text-center">
-                                    <div className="flex items-center justify-center gap-1 text-slate-400 mb-1">
-                                      <TrendingDown className="h-3.5 w-3.5" />
-                                      <p className="text-xs font-semibold uppercase tracking-wide">Discount {details.discountPercentage}%</p>
-                                    </div>
-                                    <p className="text-sm font-bold text-emerald-600">-{details.discountAmount?.toFixed(2)} {currency}</p>
-                                  </div>
-                                  <div className="p-3 text-center bg-[#004bb4]/5">
-                                    <div className="flex items-center justify-center gap-1 text-[#004bb4] mb-1">
-                                      <Star className="h-3.5 w-3.5" />
-                                      <p className="text-xs font-bold uppercase tracking-wide">Final/Night</p>
-                                    </div>
-                                    <p className="text-sm font-bold text-[#004bb4]">{details.finalNightPrice?.toFixed(2)} {currency}</p>
-                                  </div>
-                                </div>
+                    <RateBuilderHeader title="Meal Rates" addLabel="Add Meal Rate" onAdd={() => setPackageForm((prev) => ({ ...prev, mealRates: [...prev.mealRates, emptyMealRate()] }))} />
+                    <div className="space-y-3">
+                      {packageForm.mealRates.length === 0 && <p className="text-sm text-slate-500">No meal rates added.</p>}
+                      {packageForm.mealRates.map((row, index) => (
+                        <div key={index} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-[1fr_220px_auto]">
+                          <select value={row.mealPlanId} onChange={(e) => updateMealRate(index, { mealPlanId: e.target.value })} className={`${fieldClass} bg-white`}>
+                            <option value="">Meal plan</option>
+                            {mealPlans.map((mealPlan) => <option key={mealPlan.id} value={mealPlan.id}>{mealPlan.name}</option>)}
+                          </select>
+                          <input type="number" min="0" value={row.pricePerNight} onChange={(e) => updateMealRate(index, { pricePerNight: e.target.value })} className={fieldClass} placeholder="Price/night" />
+                          <button type="button" onClick={() => setPackageForm((prev) => ({ ...prev, mealRates: prev.mealRates.filter((_, rowIndex) => rowIndex !== index) }))} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600" aria-label="Remove meal rate">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <RateBuilderHeader title="Service Rates" addLabel="Add Service Rate" onAdd={() => setPackageForm((prev) => ({ ...prev, serviceRates: [...prev.serviceRates, emptyServiceRate()] }))} />
+                    <div className="space-y-3">
+                      {packageForm.serviceRates.length === 0 && <p className="text-sm text-slate-500">No service rates added.</p>}
+                      {packageForm.serviceRates.map((row, index) => (
+                        <div key={index} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-[1fr_220px_auto]">
+                          <select value={row.additionalServiceId} onChange={(e) => updateServiceRate(index, { additionalServiceId: e.target.value })} className={`${fieldClass} bg-white`}>
+                            <option value="">Service</option>
+                            {additionalServices.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
+                          </select>
+                          <input type="number" min="0" value={row.pricePerNight} onChange={(e) => updateServiceRate(index, { pricePerNight: e.target.value })} className={fieldClass} placeholder="Price/night" />
+                          <button type="button" onClick={() => setPackageForm((prev) => ({ ...prev, serviceRates: prev.serviceRates.filter((_, rowIndex) => rowIndex !== index) }))} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600" aria-label="Remove service rate">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Field label="Version Notes">
+                      <textarea rows={2} value={packageForm.notes} onChange={(e) => setPackageForm((prev) => ({ ...prev, notes: e.target.value }))} className={fieldClass} />
+                    </Field>
+
+                    <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
+                      <button type="button" onClick={() => setIsAddingPackage(false)} className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
+                        Cancel
+                      </button>
+                      <button type="button" onClick={handleCreatePackage} disabled={isSubmittingPackage} className="rounded-lg bg-[#004bb4] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-70">
+                        {isSubmittingPackage ? 'Creating...' : 'Create Package'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isPackagesLoading && !hasContractPackages && (
+                  <div className="flex min-h-[260px] flex-1 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-10 text-center">
+                    <Package2 className="mb-4 h-10 w-10 animate-pulse text-slate-300" />
+                    <h3 className="text-lg font-semibold text-slate-800">Loading packages</h3>
+                    <p className="mt-2 text-sm text-slate-500">Checking packages for this contract...</p>
+                  </div>
+                )}
+
+                {isPackagesLoading && hasContractPackages && (
+                  <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-[#004bb4]">
+                    Refreshing package list...
+                  </div>
+                )}
+
+                {packagesError && (
+                  <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{packagesError}</div>
+                )}
+
+                {!hasContractPackages && !isPackagesLoading ? (
+                  <div className="flex min-h-[340px] flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center">
+                    <Package2 className="mb-4 h-11 w-11 text-slate-400" />
+                    <h3 className="text-lg font-semibold text-slate-800">No packages yet</h3>
+                    <p className="mt-2 text-sm text-slate-500">Create the first package for this contract.</p>
+                  </div>
+                ) : hasContractPackages ? (
+                  <div className="space-y-4">
+                    {contractPackages.map((pkg) => {
+                      const version = getVersion(pkg)
+                      const currency = version?.currencyCode ?? activeContract.currency
+                      return (
+                        <div key={pkg.id} className="rounded-lg border border-slate-200 bg-white shadow-sm">
+                          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 p-6">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="text-lg font-bold text-slate-900">{pkg.name}</h4>
+                                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-[#004bb4]">{pkg.code}</span>
+                                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${pkg.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                  {pkg.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                                {version && (
+                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{version.status}</span>
+                                )}
+                              </div>
+                              <p className="mt-2 text-sm leading-6 text-slate-500">{pkg.description || 'No description provided.'}</p>
+                            </div>
+                            <button
+                              onClick={() => setPackageRemovalTarget({ id: pkg.id, name: pkg.name })}
+                              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                              aria-label="Remove package"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {version ? (
+                            <div className="space-y-5 p-6">
+                              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                <PackageMetric icon={<CalendarDays className="h-4 w-4" />} label="Effective" value={`${formatDate(version.effectiveFrom)} - ${formatDate(version.effectiveTo)}`} />
+                                <PackageMetric icon={<BadgePercent className="h-4 w-4" />} label="Tax" value={`${version.taxPercentage}%`} />
+                                <PackageMetric icon={<BadgePercent className="h-4 w-4" />} label="Discount" value={`${version.discountPercentage}%`} />
+                                <PackageMetric icon={<Coins className="h-4 w-4" />} label="Adult Extra" value={formatMoney(version.adultExtraPrice, currency)} />
+                                <PackageMetric icon={<Coins className="h-4 w-4" />} label="Child Extra" value={formatMoney(version.childExtraPrice, currency)} />
+                                <PackageMetric icon={<FileText className="h-4 w-4" />} label="Versions" value={String(pkg.versionCount ?? pkg.versions?.length ?? 1)} />
                               </div>
 
-                              {/* Meal plans breakdown */}
-                              {details.mealRates && details.mealRates.length > 0 && (
-                                <div className="rounded-xl border border-slate-200 overflow-hidden">
-                                  <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-                                    <UtensilsCrossed className="h-4 w-4 text-[#004bb4]" />
-                                    <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Included Meal Plans</p>
-                                  </div>
-                                  <div className="divide-y divide-slate-100">
-                                    {details.mealRates.map((mr, i) => {
-                                      const meal = mealPlanLookup.get(mr.mealPlanId)
-                                      return (
-                                        <div key={i} className="flex items-center justify-between px-4 py-3">
-                                          <div className="flex items-center gap-2">
-                                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-50 text-[10px] font-bold text-[#004bb4]">{i + 1}</span>
-                                            <span className="text-sm font-medium text-slate-800">
-                                              {meal ? `${meal.name}${meal.code ? ` (${meal.code})` : ''}` : `Meal Plan ${mr.mealPlanId.slice(0, 8)}…`}
-                                            </span>
-                                          </div>
-                                          <span className="text-sm font-semibold text-slate-700">{mr.pricePerNight} {currency}<span className="ml-1 text-xs text-slate-400">/night</span></span>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Services breakdown */}
-                              {details.serviceRates && details.serviceRates.length > 0 && (
-                                <div className="rounded-xl border border-slate-200 overflow-hidden">
-                                  <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-                                    <Wrench className="h-4 w-4 text-[#004bb4]" />
-                                    <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Included Services</p>
-                                  </div>
-                                  <div className="divide-y divide-slate-100">
-                                    {details.serviceRates.map((sr, i) => {
-                                      const svc = serviceLookup.get(sr.additionalServiceId)
-                                      return (
-                                        <div key={i} className="flex items-center justify-between px-4 py-3">
-                                          <div className="flex items-center gap-2">
-                                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-50 text-[10px] font-bold text-[#004bb4]">{i + 1}</span>
-                                            <span className="text-sm font-medium text-slate-800">
-                                              {svc ? svc.name : `Service ${sr.additionalServiceId.slice(0, 8)}…`}
-                                            </span>
-                                          </div>
-                                          <span className="text-sm font-semibold text-slate-700">{sr.pricePerNight} {currency}<span className="ml-1 text-xs text-slate-400">/night</span></span>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                </div>
+                              <RateSummary
+                                title="Room Rates"
+                                icon={<BedDouble className="h-4 w-4" />}
+                                rows={version.roomRates.map((rate) => ({
+                                  title: roomTypeLookup.get(rate.roomTypeId)?.name ?? 'Unknown room type',
+                                  meta: `${rate.adults} adult(s), ${rate.children} child(ren) - ${rate.ratePlanCode}`,
+                                  value: formatMoney(rate.pricePerNight, currency),
+                                }))}
+                              />
+                              <RateSummary
+                                title="Meal Rates"
+                                icon={<UtensilsCrossed className="h-4 w-4" />}
+                                rows={version.mealRates.map((rate) => ({
+                                  title: mealPlanLookup.get(rate.mealPlanId)?.name ?? 'Unknown meal plan',
+                                  meta: 'Per night',
+                                  value: formatMoney(rate.pricePerNight, currency),
+                                }))}
+                              />
+                              <RateSummary
+                                title="Service Rates"
+                                icon={<Wrench className="h-4 w-4" />}
+                                rows={version.serviceRates.map((rate) => ({
+                                  title: serviceLookup.get(rate.additionalServiceId)?.name ?? 'Unknown service',
+                                  meta: 'Per night',
+                                  value: formatMoney(rate.pricePerNight, currency),
+                                }))}
+                              />
+                              {version.notes && (
+                                <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-slate-700">{version.notes}</div>
                               )}
                             </div>
+                          ) : (
+                            <div className="p-5 text-sm text-slate-500">No package version returned for this package.</div>
                           )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            )}
 
+            {activeTab === 'Inventory' && (
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-slate-800">Corporate Inventory</h3>
+                    <p className="text-base text-slate-500">Generate and review room inventory for package versions.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selectedInventoryPackage || !selectedInventoryVersion) return
+                      void dispatch(fetchCorporateInventory({
+                        contractId: activeContract.id,
+                        params: {
+                          fromDate: inventoryFilters.fromDate || selectedInventoryVersion.effectiveFrom?.slice(0, 10),
+                          toDate: inventoryFilters.toDate || selectedInventoryVersion.effectiveTo?.slice(0, 10) || undefined,
+                          roomTypeId: inventoryFilters.roomTypeId || undefined,
+                          packageId: selectedInventoryPackage.id,
+                          versionId: selectedInventoryVersion.id,
+                          onlyAvailable: inventoryFilters.onlyAvailable,
+                          onlyAdjusted: inventoryFilters.onlyAdjusted,
+                        },
+                      }))
+                    }}
+                    disabled={!selectedInventoryPackage || !selectedInventoryVersion || inventoryStatus === 'loading'}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${inventoryStatus === 'loading' ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
 
-                          {/* Extras + Rates counts */}
-                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                            {details && (
-                              <>
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Adult Extra</p>
-                                  <p className="mt-1 text-sm font-semibold text-slate-800">{details.adultExtraPrice} {currency}</p>
-                                </div>
-                                <div className="rounded-xl bg-slate-50 p-3">
-                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Child Extra</p>
-                                  <p className="mt-1 text-sm font-semibold text-slate-800">{details.childExtraPrice} {currency}</p>
-                                </div>
-                              </>
-                            )}
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Room Rates</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-800">{details?.roomRates?.length ?? 0} type(s)</p>
+                {!hasContractPackages ? (
+                  <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center">
+                    <Package2 className="mb-4 h-11 w-11 text-slate-400" />
+                    <h3 className="text-lg font-semibold text-slate-800">No packages available</h3>
+                    <p className="mt-2 max-w-md text-sm text-slate-500">Create a contract package first, then generate inventory from its current version.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid gap-5 rounded-lg border border-slate-200 bg-slate-50 p-5 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
+                      <Field label="Package">
+                        <select
+                          value={selectedInventoryPackage?.id ?? ''}
+                          onChange={(event) => setSelectedInventoryPackageId(event.target.value)}
+                          className={`${fieldClass} bg-white`}
+                        >
+                          {contractPackages.map((pkg) => (
+                            <option key={pkg.id} value={pkg.id}>
+                              {pkg.name} ({pkg.code})
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <SummaryItem label="Current Version" value={selectedInventoryVersion ? `Version ${selectedInventoryVersion.versionNumber}` : 'No current version'} />
+                      <SummaryItem label="Effective Period" value={selectedInventoryVersion ? `${formatDate(selectedInventoryVersion.effectiveFrom)} - ${formatDate(selectedInventoryVersion.effectiveTo)}` : '---'} />
+                    </div>
+
+                    {!selectedInventoryVersion ? (
+                      <div className="rounded-lg border border-amber-100 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-700">
+                        This package does not have a current version, so inventory cannot be generated.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+                          <div className="rounded-lg border border-slate-200 bg-white p-5">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                              <div>
+                                <h4 className="text-base font-bold text-slate-800">Generate Inventory</h4>
+                                <p className="text-sm text-slate-500">Use the selected package current version.</p>
+                              </div>
+                              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-[#004bb4]">
+                                Version {selectedInventoryVersion.versionNumber}
+                              </span>
                             </div>
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Meal Rates</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-800">{details?.mealRates?.length ?? 0} plan(s)</p>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Service Rates</p>
-                              <p className="mt-1 text-sm font-semibold text-slate-800">{details?.serviceRates?.length ?? 0} service(s)</p>
+
+                            <div className="space-y-4">
+                              {inventoryRoomRates.length === 0 ? (
+                                <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                                  This version has no room rates to allocate.
+                                </div>
+                              ) : (
+                                inventoryRoomRates.map((rate) => (
+                                  <div key={rate.roomTypeId} className="grid items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1fr_160px]">
+                                    <div>
+                                      <p className="text-sm font-semibold text-slate-800">{roomTypeLookup.get(rate.roomTypeId)?.name ?? 'Unknown room type'}</p>
+                                      <p className="text-xs text-slate-500">{rate.adults} adult(s), {rate.children} child(ren) - {rate.ratePlanCode}</p>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={inventoryRoomAllocations[rate.roomTypeId] ?? '0'}
+                                      onChange={(event) => setInventoryRoomAllocations((prev) => ({ ...prev, [rate.roomTypeId]: event.target.value }))}
+                                      className={fieldClass}
+                                      placeholder="Rooms/day"
+                                    />
+                                  </div>
+                                ))
+                              )}
+
+                              <Field label="Reason">
+                                <textarea
+                                  rows={3}
+                                  value={inventoryReason}
+                                  onChange={(event) => setInventoryReason(event.target.value)}
+                                  className={fieldClass}
+                                  placeholder="Why are you generating this inventory?"
+                                />
+                              </Field>
+
+                              {generateInventoryError && (
+                                <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                                  {generateInventoryError}
+                                </div>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={handleGenerateInventory}
+                                disabled={generateInventoryStatus === 'loading' || inventoryRoomRates.length === 0}
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#004bb4] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-70"
+                              >
+                                {generateInventoryStatus === 'loading' && <RefreshCw className="h-4 w-4 animate-spin" />}
+                                {generateInventoryStatus === 'loading' ? 'Generating...' : 'Generate Inventory'}
+                              </button>
                             </div>
                           </div>
 
-                          {/* Assignment Notes */}
-                          {pkg.notes && (
-                            <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Assignment Notes</p>
-                              <p className="mt-1.5 text-sm leading-6 text-slate-700">{pkg.notes}</p>
+                          <GenerationResultPanel result={lastGeneratedInventory} />
+                        </div>
+
+                        <div className="rounded-lg border border-slate-200 bg-white">
+                          <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-5">
+                            <Field label="From Date">
+                              <input
+                                type="date"
+                                value={inventoryFilters.fromDate}
+                                onChange={(event) => setInventoryFilters((prev) => ({ ...prev, fromDate: event.target.value }))}
+                                className={fieldClass}
+                              />
+                            </Field>
+                            <Field label="To Date">
+                              <input
+                                type="date"
+                                value={inventoryFilters.toDate}
+                                onChange={(event) => setInventoryFilters((prev) => ({ ...prev, toDate: event.target.value }))}
+                                className={fieldClass}
+                              />
+                            </Field>
+                            <Field label="Room Type">
+                              <select
+                                value={inventoryFilters.roomTypeId}
+                                onChange={(event) => setInventoryFilters((prev) => ({ ...prev, roomTypeId: event.target.value }))}
+                                className={`${fieldClass} bg-white`}
+                              >
+                                <option value="">All room types</option>
+                                {inventoryRoomRates.map((rate) => (
+                                  <option key={rate.roomTypeId} value={rate.roomTypeId}>
+                                    {roomTypeLookup.get(rate.roomTypeId)?.name ?? 'Unknown room type'}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+                            <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={inventoryFilters.onlyAvailable}
+                                onChange={(event) => setInventoryFilters((prev) => ({ ...prev, onlyAvailable: event.target.checked }))}
+                              />
+                              Only available
+                            </label>
+                            <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={inventoryFilters.onlyAdjusted}
+                                onChange={(event) => setInventoryFilters((prev) => ({ ...prev, onlyAdjusted: event.target.checked }))}
+                              />
+                              Only adjusted
+                            </label>
+                          </div>
+
+                          {inventoryError && (
+                            <div className="m-5 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                              {inventoryError}
                             </div>
                           )}
+
+                          <InventorySummary inventory={selectedInventory} isLoading={inventoryStatus === 'loading'} />
+                          <InventoryTable rows={selectedInventory?.rows ?? []} isLoading={inventoryStatus === 'loading'} />
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {activeTab === 'Rates' && (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-              <BadgePercent className="mx-auto mb-3 h-8 w-8 text-slate-400" />
-              <h3 className="text-lg font-semibold text-slate-800">Rates are coming soon</h3>
-              <p className="mt-2 text-sm text-slate-500">The rates section will be wired once the backend endpoints are ready.</p>
-            </div>
-          )}
-
-          {activeTab === 'Discounts' && (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-slate-400" />
-              <h3 className="text-lg font-semibold text-slate-800">Discounts are coming soon</h3>
-              <p className="mt-2 text-sm text-slate-500">The discounts section will be completed when the API is available.</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {isEditContractOpen && (
-        <div className="fixed inset-0 z-[60]">
-          <div className="absolute inset-0 bg-black/30" />
-          <div className="relative z-10 flex h-full w-full items-center justify-center p-4">
-            <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl">
-              <div className="flex items-start justify-between rounded-t-2xl bg-[#004bb4] px-6 py-5 text-white">
-                <div>
-                  <h2 className="text-xl font-bold">Edit Contract</h2>
-                  <p className="mt-1 text-sm text-blue-100">Update the contract details for {activeContract.contractNumber}</p>
-                </div>
-                <button onClick={() => setIsEditContractOpen(false)} className="rounded-lg p-2 transition-colors hover:bg-white/20">
-                  <X className="h-6 w-6" />
-                </button>
+                      </>
+                    )}
+                  </>
+                )}
               </div>
-
-              <div className="space-y-6 p-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Contract Number</p>
-                    <p className="mt-1 font-semibold text-slate-800">{activeContract.contractNumber}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Contract Type</p>
-                    <p className="mt-1 font-semibold text-slate-800">{activeContract.contractType}</p>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Start Date</label>
-                    <input
-                      type="datetime-local"
-                      value={editForm.startDate}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, startDate: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">End Date</label>
-                    <input
-                      type="datetime-local"
-                      value={editForm.endDate}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Cancellation Policy</label>
-                  <select
-                    value={editForm.corporateCancellationPolicyId}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, corporateCancellationPolicyId: e.target.value }))}
-                    disabled={policiesStatus === 'loading' || filteredCancellationPolicies.length === 0}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                  >
-                    <option value="">
-                      {policiesStatus === 'loading'
-                        ? 'Loading policies...'
-                        : filteredCancellationPolicies.length === 0
-                          ? `No active ${activeContract.contractType} policies`
-                          : 'Select cancellation policy'}
-                    </option>
-                    {filteredCancellationPolicies.map((policy) => (
-                      <option key={policy.id} value={policy.id}>
-                        {policy.name} ({policy.code}) - {policy.liquidatedDamagesPenaltyPercentage}%
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Credit Limit</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editForm.creditLimit}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, creditLimit: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Currency</label>
-                    <select
-                      value={editForm.currency}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, currency: e.target.value }))}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none"
-                    >
-                      <option value="EUR">EUR</option>
-                      <option value="USD">USD</option>
-                      <option value="EGP">EGP</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">Release Days Before</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editForm.releaseDaysBefore}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, releaseDaysBefore: e.target.value }))}
-                      disabled={activeContract.contractType === ContractType.Commitment}
-                      placeholder={activeContract.contractType === ContractType.Commitment ? 'Not used' : '0'}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Notes</label>
-                  <textarea
-                    rows={3}
-                    value={editForm.notes}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-700 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
-                <button onClick={() => setIsEditContractOpen(false)} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveContract}
-                  disabled={isSavingContract}
-                  className="rounded-xl bg-[#004bb4] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {isSavingContract ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
-      )}
-    </Modal>
-    <ConfirmActionModal
-      open={Boolean(packageRemovalTarget)}
-      title="Remove Package"
-      description={`This will remove "${packageRemovalTarget?.name ?? 'this package'}" from the contract. This action cannot be undone.`}
-      confirmLabel="Remove Package"
-      variant="danger"
-      isLoading={isRemovingPackage}
-      error={packageRemovalError}
-      onCancel={() => {
-        if (isRemovingPackage) return
-        setPackageRemovalTarget(null)
-        setPackageRemovalError(null)
-      }}
-      onConfirm={handleDeletePackage}
-    />
+      </Modal>
+
+      <ConfirmActionModal
+        open={Boolean(packageRemovalTarget)}
+        title="Remove Package"
+        description={`This will remove "${packageRemovalTarget?.name ?? 'this package'}" from the contract.`}
+        confirmLabel="Remove Package"
+        variant="danger"
+        isLoading={isRemovingPackage}
+        error={packageRemovalError}
+        onCancel={() => {
+          if (isRemovingPackage) return
+          setPackageRemovalTarget(null)
+          setPackageRemovalError(null)
+        }}
+        onConfirm={handleDeletePackage}
+      />
     </>
   )
 }
+
+function GenerationResultPanel({ result }: { result?: GenerateCorporateInventoryResponse }) {
+  if (!result) {
+    return (
+      <div className="flex min-h-[360px] flex-col justify-center rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center">
+        <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-slate-300" />
+        <h4 className="text-base font-bold text-slate-800">Generation result</h4>
+        <p className="mt-2 text-sm text-slate-500">Generate inventory to see the generated days, existing days, and warnings.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-5">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h4 className="text-base font-bold text-slate-800">Generation Result</h4>
+          <p className="text-sm text-slate-500">{formatDate(result.fromDate)} - {formatDate(result.toDate)}</p>
+        </div>
+        <span className={`rounded-full px-3 py-1 text-xs font-bold ${result.hotelAvailabilityImpact ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+          {result.hotelAvailabilityImpact ? 'Availability impacted' : 'No availability impact'}
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {result.roomTypes.map((roomType) => (
+          <div key={roomType.roomTypeId} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold text-slate-800">{roomType.roomTypeName}</p>
+              <p className="text-sm font-semibold text-[#004bb4]">{roomType.roomsPerDay} rooms/day</p>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <InventoryTinyMetric label="Generated Days" value={String(roomType.generatedDays)} />
+              <InventoryTinyMetric label="Existing Days" value={String(roomType.existingDays)} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {result.warnings.length > 0 && (
+        <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4">
+          <p className="text-sm font-bold text-amber-700">Warnings</p>
+          <ul className="mt-2 space-y-1 text-sm text-amber-700">
+            {result.warnings.map((warning, index) => (
+              <li key={`${warning}-${index}`}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InventorySummary({ inventory, isLoading }: { inventory?: { totalRows: number; totalAllocatedRoomNights: number; totalConsumedRoomNights: number; totalReleasedRoomNights: number; totalRemainingRoomNights: number }; isLoading: boolean }) {
+  const items = [
+    ['Rows', inventory?.totalRows ?? 0],
+    ['Allocated', inventory?.totalAllocatedRoomNights ?? 0],
+    ['Consumed', inventory?.totalConsumedRoomNights ?? 0],
+    ['Released', inventory?.totalReleasedRoomNights ?? 0],
+    ['Remaining', inventory?.totalRemainingRoomNights ?? 0],
+  ] as const
+
+  return (
+    <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-5">
+      {items.map(([label, value]) => (
+        <div key={label} className="rounded-lg bg-slate-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+          <p className="mt-1 text-xl font-bold text-slate-800">{isLoading ? '...' : value}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function InventoryTable({ rows, isLoading }: { rows: CorporateInventoryRow[]; isLoading: boolean }) {
+  return (
+    <div className="overflow-hidden border-t border-slate-200">
+      <div className="grid grid-cols-[1fr_1.2fr_0.8fr_0.8fr_0.8fr_1fr_1fr] bg-slate-50 px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+        <div>Stay Date</div>
+        <div>Room Type</div>
+        <div>Allocated</div>
+        <div>Consumed</div>
+        <div>Released</div>
+        <div>Adjustment</div>
+        <div>Remaining</div>
+      </div>
+      <div className="min-h-[220px] divide-y divide-slate-100">
+        {isLoading ? (
+          <div className="flex min-h-[220px] items-center justify-center text-sm font-semibold text-slate-500">
+            Loading inventory...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="flex min-h-[220px] items-center justify-center text-sm font-semibold text-slate-500">
+            No inventory rows found.
+          </div>
+        ) : (
+          rows.map((row) => (
+            <div key={row.id} className="grid grid-cols-[1fr_1.2fr_0.8fr_0.8fr_0.8fr_1fr_1fr] px-5 py-3 text-sm text-slate-700">
+              <div className="font-semibold text-slate-800">{formatDate(row.stayDate)}</div>
+              <div>{row.roomTypeName}</div>
+              <div>{row.allocatedRooms}</div>
+              <div>{row.consumedRooms}</div>
+              <div>{row.releasedRooms}</div>
+              <div>{row.manualAdjustmentRooms}</div>
+              <div className="font-bold text-[#004bb4]">{row.remainingCorporateRooms}</div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function InventoryTinyMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1 text-sm font-bold text-slate-800">{value}</p>
+    </div>
+  )
+}
+
+function SummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-white p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-2 text-base font-semibold text-slate-800">{value}</p>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-semibold text-slate-700">{label}</span>
+      {children}
+    </label>
+  )
+}
+
+function RateBuilderHeader({ title, addLabel = 'Add Row', onAdd }: { title: string; addLabel?: string; onAdd: () => void }) {
+  return (
+    <div className="flex items-center justify-between border-t border-slate-200 pt-5">
+      <h4 className="text-base font-bold text-slate-800">{title}</h4>
+      <button type="button" onClick={onAdd} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
+        <Plus className="h-4 w-4" />
+        {addLabel}
+      </button>
+    </div>
+  )
+}
+
+function PackageMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-4">
+      <div className="mb-1 flex items-center gap-1.5 text-slate-400">
+        {icon}
+        <p className="text-xs font-semibold uppercase tracking-wide">{label}</p>
+      </div>
+      <p className="text-base font-bold text-slate-800">{value}</p>
+    </div>
+  )
+}
+
+function RateSummary({
+  title,
+  icon,
+  rows,
+}: {
+  title: string
+  icon: ReactNode
+  rows: Array<{ title: string; meta: string; value: string }>
+}) {
+  if (rows.length === 0) return null
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3 text-[#004bb4]">
+        {icon}
+        <p className="text-sm font-bold uppercase tracking-wide text-slate-600">{title}</p>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {rows.map((row, index) => (
+          <div key={`${row.title}-${index}`} className="flex items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <p className="text-base font-semibold text-slate-800">{row.title}</p>
+              <p className="text-xs text-slate-500">{row.meta}</p>
+            </div>
+            <p className="text-base font-bold text-slate-800">{row.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
