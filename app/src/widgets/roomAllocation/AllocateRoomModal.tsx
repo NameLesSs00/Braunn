@@ -1,92 +1,224 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { X, Search, Loader2, ChevronDown } from 'lucide-react'
+
 import { Modal } from '../../shared/ui/Modal'
-import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
-import { fetchRooms, fetchRoomsAvailability } from '../../features/rooms/roomsSlice'
-import { assignRoom } from '../../features/ops/opsSlice'
-import type { PmsReservationDetails } from '../../models/PmsReservation'
+import { useAppDispatch } from '../../shared/apis/hooks'
+import { assignReservationRoom } from '../../features/ops/opsSlice'
+import { getPmsReservationFolio } from '../../shared/apis/PmsReservation'
+import { getRoomsAvailability } from '../../shared/apis/roomsApi'
+import type { PmsReservationDetails, PmsReservationRoom } from '../../models/PmsReservation'
+import type { RoomAvailability } from '../../models/Room'
 
 type Props = {
   open: boolean
   onClose: () => void
+  onAssigned?: () => void
   reservation: PmsReservationDetails
 }
 
-export function AllocateRoomModal({ open, onClose, reservation }: Props) {
-  const dispatch = useAppDispatch()
-  const rooms = useAppSelector((s) => s.rooms.items)
-  const roomsAvailability = useAppSelector((s) => s.rooms.availability)
-  const roomsAvailabilityStatus = useAppSelector((s) => s.rooms.availabilityStatus)
+type AllocationRoomRow = {
+  reservationRoomId: string
+  roomTypeId: string
+  roomTypeName: string
+  roomId: string | null
+  roomNumber: string | null
+  checkInDate: string
+  checkOutDate: string
+  adults?: number
+  children?: number
+  status?: string | null
+}
 
+function dateOnly(value?: string | null) {
+  return value ? value.replace('T', ' ').split(' ')[0] : ''
+}
+
+function hasAssignedRoom(row: AllocationRoomRow) {
+  return Boolean(row.roomId || (row.roomNumber && row.roomNumber !== 'N/A'))
+}
+
+function rowFromReservationRoom(room: PmsReservationRoom, reservation: PmsReservationDetails): AllocationRoomRow {
+  return {
+    reservationRoomId: room.reservationRoomId,
+    roomTypeId: room.roomTypeId || reservation.roomTypeId || '',
+    roomTypeName: room.roomTypeName || reservation.roomTypeName || 'Room',
+    roomId: room.roomId ?? null,
+    roomNumber: room.roomNumber ?? null,
+    checkInDate: room.checkInDate || reservation.checkInDate,
+    checkOutDate: room.checkOutDate || reservation.checkOutDate,
+    adults: room.adults,
+    children: room.children,
+    status: room.status,
+  }
+}
+
+export function AllocateRoomModal({ open, onClose, onAssigned, reservation }: Props) {
+  const dispatch = useAppDispatch()
+
+  const [rows, setRows] = useState<AllocationRoomRow[]>([])
+  const [availabilityByRow, setAvailabilityByRow] = useState<Record<string, RoomAvailability[]>>({})
+  const [loadingAvailability, setLoadingAvailability] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [activeRowId, setActiveRowId] = useState('')
+  const [selectedRoomIds, setSelectedRoomIds] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRoomType, setSelectedRoomType] = useState('select')
   const [selectedFloor, setSelectedFloor] = useState('select')
   const [selectedStatus, setSelectedStatus] = useState('select')
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
   const [isAssigning, setIsAssigning] = useState(false)
 
   useEffect(() => {
-    if (open) {
-      void dispatch(fetchRooms())
-      void dispatch(fetchRoomsAvailability({
-        StartDate: reservation.checkInDate.split('T')[0],
-        EndDate: reservation.checkOutDate.split('T')[0],
-        RoomTypeId: ''
-      }))
-      setSelectedRoomId(null)
-      setSearchQuery('')
-      setSelectedRoomType('select')
-      setSelectedFloor('select')
-      setSelectedStatus('select')
+    if (!open) return
+
+    const fallbackRows = (reservation.reservationRooms?.length
+      ? reservation.reservationRooms.map((room) => rowFromReservationRoom(room, reservation))
+      : [{
+          reservationRoomId: reservation.reservationRoomIds?.[0] || reservation.id,
+          roomTypeId: reservation.roomTypeId || '',
+          roomTypeName: reservation.roomTypeName || 'Room',
+          roomId: reservation.roomId ?? null,
+          roomNumber: reservation.roomNumber ?? null,
+          checkInDate: reservation.checkInDate,
+          checkOutDate: reservation.checkOutDate,
+          status: reservation.status,
+        }])
+
+    let cancelled = false
+    setRows(fallbackRows)
+    setActiveRowId(fallbackRows[0]?.reservationRoomId ?? '')
+    setSelectedRoomIds({})
+    setSearchQuery('')
+    setSelectedRoomType('select')
+    setSelectedFloor('select')
+    setSelectedStatus('select')
+    setAvailabilityByRow({})
+    setLoadError(null)
+    setLoadingAvailability(true)
+
+    async function load() {
+      try {
+        const folio = await getPmsReservationFolio(reservation.id)
+        if (cancelled) return
+
+        const folioRows = (folio.reservationRooms ?? []).map((room) => ({
+          reservationRoomId: room.reservationRoomId,
+          roomTypeId: room.roomTypeId || reservation.roomTypeId || '',
+          roomTypeName: room.roomTypeName || reservation.roomTypeName || 'Room',
+          roomId: room.roomId ?? null,
+          roomNumber: room.roomNumber ?? null,
+          checkInDate: room.checkInDate || reservation.checkInDate,
+          checkOutDate: room.checkOutDate || reservation.checkOutDate,
+          adults: room.adults,
+          children: room.children,
+          status: room.status,
+        }))
+        const nextRows = folioRows.length ? folioRows : fallbackRows
+        setRows(nextRows)
+        setActiveRowId(nextRows[0]?.reservationRoomId ?? '')
+
+        const availabilityEntries = await Promise.all(nextRows.map(async (row) => {
+          const rooms = await getRoomsAvailability({
+            StartDate: dateOnly(row.checkInDate),
+            EndDate: dateOnly(row.checkOutDate),
+            RoomTypeId: row.roomTypeId,
+          })
+          return [row.reservationRoomId, rooms] as const
+        }))
+        if (!cancelled) {
+          setAvailabilityByRow(Object.fromEntries(availabilityEntries))
+        }
+      } catch (err) {
+        if (cancelled) return
+        setLoadError(err instanceof Error ? err.message : 'Could not load reservation room availability.')
+      } finally {
+        if (!cancelled) setLoadingAvailability(false)
+      }
     }
-  }, [open, dispatch, reservation.checkInDate, reservation.checkOutDate])
+
+    void load()
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, reservation])
+
+  const activeRow = useMemo(
+    () => rows.find((row) => row.reservationRoomId === activeRowId) ?? rows[0] ?? null,
+    [activeRowId, rows],
+  )
+
+  const requiredCount = rows.length
+  const assignedCount = rows.filter((row) => hasAssignedRoom(row) || selectedRoomIds[row.reservationRoomId]).length
+  const hasPendingChanges = rows.some((row) => {
+    const selectedRoomId = selectedRoomIds[row.reservationRoomId]
+    return selectedRoomId && selectedRoomId !== row.roomId
+  })
+  const allRowsAssigned = requiredCount > 0 && assignedCount === requiredCount
+
+  const roomTypeOptions = useMemo(
+    () => Array.from(new Set(rows.map((row) => row.roomTypeName).filter(Boolean))),
+    [rows],
+  )
 
   const filteredRooms = useMemo(() => {
-    if (roomsAvailabilityStatus !== 'succeeded') return []
-    const availableRoomIds = new Set(roomsAvailability.map(r => r.roomId))
-    let result = rooms.filter(r => availableRoomIds.has(r.id))
+    if (!activeRow) return []
+
+    const currentRooms = availabilityByRow[activeRow.reservationRoomId] ?? []
+    const usedRoomIds = new Set(rows.flatMap((row) => {
+      if (row.reservationRoomId === activeRow.reservationRoomId) return []
+      return selectedRoomIds[row.reservationRoomId] || row.roomId || []
+    }))
+
+    let result = currentRooms.filter((room) => !usedRoomIds.has(room.roomId))
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      result = result.filter(r => r.roomNumber.toLowerCase().includes(q))
+      result = result.filter((room) => room.roomNumber.toLowerCase().includes(q))
     }
     if (selectedRoomType !== 'select') {
-      result = result.filter(r => r.roomTypeName?.toLowerCase().includes(selectedRoomType.toLowerCase()))
+      result = result.filter((room) => room.roomTypeName?.toLowerCase().includes(selectedRoomType.toLowerCase()))
     }
     if (selectedFloor !== 'select') {
-      result = result.filter(r => r.roomNumber.startsWith(selectedFloor))
+      result = result.filter((room) => room.roomNumber.startsWith(selectedFloor))
+    }
+    if (selectedStatus !== 'select' && selectedStatus !== 'Vacant Clean') {
+      result = []
     }
     return result
-  }, [rooms, roomsAvailability, roomsAvailabilityStatus, searchQuery, selectedRoomType, selectedFloor])
+  }, [activeRow, availabilityByRow, rows, searchQuery, selectedFloor, selectedRoomIds, selectedRoomType, selectedStatus])
 
   const handleAssign = async () => {
-    if (!selectedRoomId) return
+    if (!allRowsAssigned || !hasPendingChanges) return
     setIsAssigning(true)
-    const room = rooms.find(r => r.id === selectedRoomId)
     try {
-      await dispatch(assignRoom({
-        reservationId: reservation.id,
-        roomNumber: room?.roomNumber || ''
-      })).unwrap()
+      for (const row of rows) {
+        const selectedRoomId = selectedRoomIds[row.reservationRoomId]
+        if (!selectedRoomId || selectedRoomId === row.roomId) continue
+        await dispatch(assignReservationRoom({
+          reservationRoomId: row.reservationRoomId,
+          roomId: selectedRoomId,
+        })).unwrap()
+      }
+      onAssigned?.()
       onClose()
     } catch (e) {
-      alert('Failed to assign room: ' + e)
+      alert('Failed to assign room: ' + (typeof e === 'string' ? e : e instanceof Error ? e.message : 'Unknown error'))
     } finally {
       setIsAssigning(false)
     }
   }
 
-  const formatDate = (dateStr: string) => dateStr ? dateStr.replace('T', ' ').split(' ')[0] : '—'
-
   return (
     <Modal open={open} onClose={onClose}>
       <div
-        className="flex flex-col bg-white overflow-hidden rounded-2xl pointer-events-auto"
-        style={{ width: 'min(1100px, calc(100vw - 32px))', height: 'min(88vh, 900px)' }}
+        className="flex flex-col overflow-hidden rounded-2xl bg-white pointer-events-auto"
+        style={{ width: 'min(1180px, calc(100vw - 32px))', height: 'min(88vh, 900px)' }}
       >
-        {/* ── Header ── */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-8 py-5">
-          <h2 style={{ fontSize: 22, fontWeight: 600, color: '#111827' }}>Allocate Room</h2>
+          <div>
+            <h2 style={{ fontSize: 22, fontWeight: 600, color: '#111827' }}>Allocate Rooms</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{assignedCount}/{requiredCount} required rooms assigned</p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -96,213 +228,226 @@ export function AllocateRoomModal({ open, onClose, reservation }: Props) {
           </button>
         </div>
 
-        {/* ── Scrollable body ── */}
         <div className="flex-1 overflow-y-auto">
-
-          {/* Reservation summary */}
-          <div className="mx-6 mt-6 mb-6 rounded-xl bg-slate-50 px-6 py-5 border border-slate-100">
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: '#9CA3AF', marginBottom: 16 }}>
-              RESERVATION DETAILS
-            </p>
-            <div className="grid grid-cols-2 gap-x-12 gap-y-4">
+          <div className="mx-6 mt-6 mb-6 rounded-xl border border-slate-100 bg-slate-50 px-6 py-5">
+            <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">Reservation Details</p>
+            <div className="grid grid-cols-2 gap-x-12 gap-y-4 md:grid-cols-4">
               <div>
-                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 3 }}>Guest Name</p>
-                <p style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{reservation.guestName}</p>
+                <p className="mb-1 text-[13px] text-slate-500">Guest Name</p>
+                <p className="text-[15px] font-semibold text-slate-900">{reservation.guestName}</p>
               </div>
               <div>
-                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 3 }}>Room Type</p>
-                <p style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{reservation.roomTypeName || '—'}</p>
+                <p className="mb-1 text-[13px] text-slate-500">Check-In</p>
+                <p className="text-[15px] font-semibold text-slate-900">{dateOnly(reservation.checkInDate)}</p>
               </div>
               <div>
-                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 3 }}>Check-In</p>
-                <p style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{formatDate(reservation.checkInDate)}</p>
+                <p className="mb-1 text-[13px] text-slate-500">Check-Out</p>
+                <p className="text-[15px] font-semibold text-slate-900">{dateOnly(reservation.checkOutDate)}</p>
               </div>
               <div>
-                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 3 }}>Check-Out</p>
-                <p style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{formatDate(reservation.checkOutDate)}</p>
+                <p className="mb-1 text-[13px] text-slate-500">Rooms Needed</p>
+                <p className="text-[15px] font-semibold text-slate-900">{requiredCount}</p>
               </div>
             </div>
           </div>
 
-          {/* Filters row */}
-          <div className="mx-6 mb-6 grid gap-3 items-end" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
-            {/* Search - no label so we push it down to align with dropdowns */}
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: 'transparent', marginBottom: 4, userSelect: 'none' }}>_</p>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search room number..."
-                  style={{ height: 40, fontSize: 13, color: '#374151', borderRadius: 8, border: '1px solid #E5E7EB', paddingLeft: 36, paddingRight: 12, width: '100%', outline: 'none', backgroundColor: 'white' }}
-                />
-              </div>
-            </div>
+          {loadError ? (
+            <div className="mx-6 mb-5 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{loadError}</div>
+          ) : null}
 
-            {/* Room Type */}
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 4 }}>Room Type</p>
-              <div className="relative">
-                <select
-                  value={selectedRoomType}
-                  onChange={(e) => setSelectedRoomType(e.target.value)}
-                  style={{ height: 40, width: '100%', fontSize: 13, color: '#374151', border: '1px solid #E5E7EB', borderRadius: 8, paddingLeft: 12, paddingRight: 32, outline: 'none', appearance: 'none', backgroundColor: 'white' }}
-                >
-                  <option value="select">select</option>
-                  <option value="Single">Single</option>
-                  <option value="Double">Double</option>
-                  <option value="Suite">Suite</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              </div>
-            </div>
-
-            {/* Floor */}
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 4 }}>Floor</p>
-              <div className="relative">
-                <select
-                  value={selectedFloor}
-                  onChange={(e) => setSelectedFloor(e.target.value)}
-                  style={{ height: 40, width: '100%', fontSize: 13, color: '#374151', border: '1px solid #E5E7EB', borderRadius: 8, paddingLeft: 12, paddingRight: 32, outline: 'none', appearance: 'none', backgroundColor: 'white' }}
-                >
-                  <option value="select">select</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              </div>
-            </div>
-
-            {/* Room Status */}
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 4 }}>Room Status</p>
-              <div className="relative">
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  style={{ height: 40, width: '100%', fontSize: 13, color: '#374151', border: '1px solid #E5E7EB', borderRadius: 8, paddingLeft: 12, paddingRight: 32, outline: 'none', appearance: 'none', backgroundColor: 'white' }}
-                >
-                  <option value="select">select</option>
-                  <option value="Vacant Clean">Vacant Clean</option>
-                  <option value="Vacant Dirty">Vacant Dirty</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              </div>
-            </div>
-          </div>
-
-          {/* Available Rooms label */}
-          <div className="mx-6 mb-4 flex items-center justify-between">
-            <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', color: '#6B7280' }}>
-              AVAILABLE ROOMS ({filteredRooms.length})
-            </p>
-            {roomsAvailabilityStatus === 'loading' && (
-              <span className="flex items-center gap-1.5 text-slate-400" style={{ fontSize: 13 }}>
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading...
-              </span>
-            )}
-          </div>
-
-          {/* Room cards grid */}
-          <div className="mx-6 mb-6 grid grid-cols-2 gap-3">
-            {filteredRooms.map((room) => {
-              const isSelected = selectedRoomId === room.id
-              return (
-                <button
-                  key={room.id}
-                  type="button"
-                  onClick={() => setSelectedRoomId(room.id)}
-                  className="relative text-left transition-all"
-                  style={{
-                    borderRadius: 12,
-                    border: isSelected ? '2px solid #1E3A8A' : '2px solid #A7F3D0',
-                    backgroundColor: isSelected ? '#EFF6FF' : '#ECFDF5',
-                    padding: '16px 16px 16px 16px',
-                    height: 130,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div className="flex items-start justify-between">
-                    <span style={{ fontSize: 26, fontWeight: 700, color: '#111827', lineHeight: 1 }}>{room.roomNumber}</span>
-                    <div className="flex items-center gap-1.5">
-                      <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block', flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#059669' }}>Vacant Clean</span>
+          <div className="mx-6 mb-6 grid gap-5 lg:grid-cols-[360px_1fr]">
+            <div className="space-y-3">
+              <p className="text-[12px] font-bold uppercase tracking-[0.07em] text-slate-500">Required Room Rows</p>
+              {rows.map((row, index) => {
+                const selectedRoom = selectedRoomIds[row.reservationRoomId]
+                const selectedRoomNumber = selectedRoom
+                  ? Object.values(availabilityByRow).flat().find((room) => room.roomId === selectedRoom)?.roomNumber
+                  : null
+                const assignedLabel = selectedRoomNumber || row.roomNumber || 'Not assigned'
+                const complete = hasAssignedRoom(row) || Boolean(selectedRoom)
+                return (
+                  <button
+                    key={row.reservationRoomId}
+                    type="button"
+                    onClick={() => setActiveRowId(row.reservationRoomId)}
+                    className={[
+                      'w-full rounded-xl border p-4 text-left transition-colors',
+                      activeRow?.reservationRoomId === row.reservationRoomId ? 'border-[#0B4EA2] bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-200',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">Room {index + 1}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">{row.roomTypeName || 'Room Type'}</p>
+                      </div>
+                      <span className={[
+                        'rounded-full border px-2.5 py-1 text-[11px] font-bold',
+                        complete ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700',
+                      ].join(' ')}>
+                        {complete ? 'Ready' : 'Missing'}
+                      </span>
                     </div>
-                  </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
+                      <span>Adults: {row.adults ?? '-'}</span>
+                      <span>Children: {row.children ?? '-'}</span>
+                      <span className="col-span-2">Room: {assignedLabel}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
 
-                  <div>
-                    <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 2 }}>Floor {room.roomNumber.charAt(0)}</p>
-                    <p style={{ fontSize: 14, color: '#374151' }}>{room.roomTypeName || 'Standard'}</p>
+            <div className="min-w-0">
+              <div className="mb-5 grid gap-3 md:grid-cols-[2fr_1fr_1fr_1fr]">
+                <div>
+                  <p className="mb-1 text-[12px] font-semibold text-transparent select-none">_</p>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search room number..."
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-[13px] text-slate-700 outline-none focus:border-[#0B4EA2]"
+                    />
                   </div>
+                </div>
 
-                  {isSelected && (
-                    <div
-                      className="absolute bottom-3 right-3 flex items-center justify-center"
-                      style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: '#1E3A8A' }}
+                <div>
+                  <p className="mb-1 text-[12px] font-semibold text-slate-600">Room Type</p>
+                  <div className="relative">
+                    <select
+                      value={selectedRoomType}
+                      onChange={(e) => setSelectedRoomType(e.target.value)}
+                      className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 pr-8 text-[13px] text-slate-700 outline-none focus:border-[#0B4EA2]"
                     >
-                      <svg className="h-3 w-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </div>
-                  )}
-                </button>
-              )
-            })}
+                      <option value="select">select</option>
+                      {roomTypeOptions.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </div>
 
-            {filteredRooms.length === 0 && roomsAvailabilityStatus === 'succeeded' && (
-              <div className="col-span-2 py-12 text-center" style={{ color: '#9CA3AF', fontSize: 14 }}>
-                No available rooms match your criteria.
-              </div>
-            )}
+                <div>
+                  <p className="mb-1 text-[12px] font-semibold text-slate-600">Floor</p>
+                  <div className="relative">
+                    <select
+                      value={selectedFloor}
+                      onChange={(e) => setSelectedFloor(e.target.value)}
+                      className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 pr-8 text-[13px] text-slate-700 outline-none focus:border-[#0B4EA2]"
+                    >
+                      <option value="select">select</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </div>
 
-            {roomsAvailabilityStatus === 'idle' || roomsAvailabilityStatus === 'loading' ? (
-              <div className="col-span-2 py-12 text-center" style={{ color: '#9CA3AF', fontSize: 14 }}>
-                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-slate-300" />
-                Fetching available rooms...
+                <div>
+                  <p className="mb-1 text-[12px] font-semibold text-slate-600">Room Status</p>
+                  <div className="relative">
+                    <select
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 pr-8 text-[13px] text-slate-700 outline-none focus:border-[#0B4EA2]"
+                    >
+                      <option value="select">select</option>
+                      <option value="Vacant Clean">Vacant Clean</option>
+                      <option value="Vacant Dirty">Vacant Dirty</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </div>
               </div>
-            ) : null}
+
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-[12px] font-bold uppercase tracking-[0.07em] text-slate-500">
+                  Available Rooms For Selected Row ({filteredRooms.length})
+                </p>
+                {loadingAvailability ? (
+                  <span className="flex items-center gap-1.5 text-[13px] text-slate-400">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {filteredRooms.map((room) => {
+                  const isSelected = activeRow ? selectedRoomIds[activeRow.reservationRoomId] === room.roomId : false
+                  return (
+                    <button
+                      key={room.roomId}
+                      type="button"
+                      onClick={() => {
+                        if (!activeRow) return
+                        setSelectedRoomIds((prev) => ({ ...prev, [activeRow.reservationRoomId]: room.roomId }))
+                      }}
+                      className="relative flex h-[130px] flex-col justify-between rounded-xl border-2 p-4 text-left transition-all"
+                      style={{
+                        borderColor: isSelected ? '#1E3A8A' : '#A7F3D0',
+                        backgroundColor: isSelected ? '#EFF6FF' : '#ECFDF5',
+                      }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <span className="text-[26px] font-bold leading-none text-slate-900">{room.roomNumber}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          <span className="text-[12px] font-semibold text-emerald-600">Vacant Clean</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-0.5 text-[13px] text-slate-500">Floor {room.roomNumber.charAt(0)}</p>
+                        <p className="text-[14px] text-slate-700">{room.roomTypeName || activeRow?.roomTypeName || 'Room'}</p>
+                      </div>
+                      {isSelected ? (
+                        <div className="absolute bottom-3 right-3 grid h-6 w-6 place-items-center rounded-full bg-[#1E3A8A]">
+                          <svg className="h-3 w-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </div>
+                      ) : null}
+                    </button>
+                  )
+                })}
+
+                {!loadingAvailability && filteredRooms.length === 0 ? (
+                  <div className="col-span-full py-12 text-center text-sm text-slate-400">
+                    No available rooms match this required room row.
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* ── Footer ── */}
-        <div
-          className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 px-8 py-4"
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isAssigning}
-            style={{ padding: '9px 20px', fontSize: 14, fontWeight: 500, color: '#6B7280', borderRadius: 8, border: '1px solid #E5E7EB', backgroundColor: 'white', cursor: 'pointer' }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleAssign}
-            disabled={!selectedRoomId || isAssigning}
-            style={{
-              padding: '9px 24px',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'white',
-              borderRadius: 8,
-              border: 'none',
-              backgroundColor: selectedRoomId && !isAssigning ? '#1E3A8A' : '#CBD5E1',
-              cursor: selectedRoomId && !isAssigning ? 'pointer' : 'not-allowed',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            {isAssigning ? <><Loader2 className="h-4 w-4 animate-spin" /> Confirming...</> : 'Confirm Selection'}
-          </button>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 px-8 py-4">
+          <div className="text-sm font-semibold text-slate-500">
+            {allRowsAssigned ? 'All required rooms are ready.' : `Assign ${requiredCount - assignedCount} more room${requiredCount - assignedCount === 1 ? '' : 's'} to continue.`}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isAssigning}
+              className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAssign}
+              disabled={!allRowsAssigned || !hasPendingChanges || isAssigning}
+              className="inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+              style={{ backgroundColor: allRowsAssigned && hasPendingChanges && !isAssigning ? '#1E3A8A' : undefined }}
+            >
+              {isAssigning ? <><Loader2 className="h-4 w-4 animate-spin" /> Confirming...</> : 'Confirm Selection'}
+            </button>
+          </div>
         </div>
       </div>
     </Modal>

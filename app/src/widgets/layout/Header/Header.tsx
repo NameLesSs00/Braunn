@@ -96,6 +96,8 @@ export function Header({ title, onAddReservationClick, onOpenGroupReservationDra
     } else if (notification.type === 'shift_start') {
       setShiftStartOpen(true)
       dispatch(removeNotification(notification.id))
+    } else if (notification.type === 'corporate_reservation_created') {
+      dispatch(removeNotification(notification.id))
     }
     setNotificationsOpen(false)
   }
@@ -177,6 +179,25 @@ export function Header({ title, onAddReservationClick, onOpenGroupReservationDra
                                 {' '}
                                 {item.groupName || item.contactName || 'Group'}
                               </span>
+                            </div>
+                          ) : item.type === 'corporate_reservation_created' ? (
+                            <div className="text-[13px] font-medium text-slate-800">
+                              Corporate reservation sent for{' '}
+                              <span className="font-bold text-[#0B4EA2]">{item.guestName || 'Corporate guest'}</span>
+                              {item.bookingReference ? (
+                                <>
+                                  {' '}with booking reference{' '}
+                                  <span className="font-bold text-[#0B4EA2]">{item.bookingReference}</span>
+                                </>
+                              ) : null}
+                              {typeof item.grandTotal === 'number' ? (
+                                <>
+                                  {' '}for{' '}
+                                  <span className="font-bold text-[#0B4EA2]">
+                                    {item.currency || ''} {item.grandTotal.toFixed(2)}
+                                  </span>
+                                </>
+                              ) : null}
                             </div>
                           ) : (
                             <div className="text-[13px] font-medium text-slate-800">

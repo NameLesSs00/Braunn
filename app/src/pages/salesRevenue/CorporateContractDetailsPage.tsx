@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
+  addPackageToContract,
   buildCorporateInventoryKey,
   fetchCorporateContractById,
   fetchCorporateContractSummary,
@@ -29,6 +30,7 @@ import {
 import { fetchRoomTypes } from '../../features/roomTypes/roomTypesSlice'
 import { fetchMealPlans } from '../../features/admin/mealPlansSlice'
 import { fetchAdditionalServices } from '../../features/admin/additionalServicesSlice'
+import { fetchRatePlans } from '../../features/ratePlans/ratePlansSlice'
 import { routes } from '../../shared/lib/routes'
 import { appAlert } from '../../shared/ui/AppAlert'
 import { Modal } from '../../shared/ui/Modal'
@@ -36,6 +38,7 @@ import type {
   CorporateContractPackage,
   CorporateContractSummary,
   CorporateInventoryRow,
+  CorporatePackageRoomRate,
   CorporatePackageVersion,
   GenerateCorporateInventoryResponse,
 } from '../../models/CorporateContract'
@@ -48,17 +51,64 @@ type InventoryGenerationRow = {
   children: string
   allocatedRooms: string
 }
+type PackageRoomRateFormRow = {
+  id: string
+  roomTypeId: string
+  adults: string
+  children: string
+  childAges: string
+  ratePlanCode: string
+  pricePerNight: string
+}
+type PackageFormState = {
+  code: string
+  name: string
+  description: string
+  effectiveFrom: string
+  effectiveTo: string
+  taxPercentage: string
+  discountPercentage: string
+  currencyCode: string
+  adultExtraPrice: string
+  childExtraPrice: string
+  notes: string
+  roomRates: PackageRoomRateFormRow[]
+}
 type ContractDetailsLocationState = {
   contractId?: string
 }
 
 const sections: SectionKey[] = ['Overview', 'Packages', 'Inventory', 'Summary']
 const fieldClass = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition-colors focus:border-[#004bb4] focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400'
+const maxInventoryRangeDays = 21
 
 function formatDate(value?: string | null) {
   if (!value) return '---'
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString()
+}
+
+function addDays(date: string, days: number) {
+  const parsed = new Date(`${date}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) return ''
+  parsed.setDate(parsed.getDate() + days)
+  const year = parsed.getFullYear()
+  const month = String(parsed.getMonth() + 1).padStart(2, '0')
+  const day = String(parsed.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function minDate(...dates: Array<string | undefined | null>) {
+  return dates.filter(Boolean).sort()[0] ?? ''
+}
+
+function clampInventoryRange(fromDate: string, toDate: string, effectiveTo?: string | null) {
+  if (!fromDate) return { fromDate, toDate }
+  const maxToDate = minDate(addDays(fromDate, maxInventoryRangeDays - 1), effectiveTo?.slice(0, 10))
+  let nextToDate = toDate || maxToDate
+  if (nextToDate < fromDate) nextToDate = fromDate
+  if (maxToDate && nextToDate > maxToDate) nextToDate = maxToDate
+  return { fromDate, toDate: nextToDate }
 }
 
 function formatMoney(value?: number | null, currency = 'EUR') {
@@ -83,6 +133,42 @@ function createGenerationRow(index = 0): InventoryGenerationRow {
     children: '0',
     allocatedRooms: '0',
   }
+}
+
+function createPackageRoomRate(index = 0): PackageRoomRateFormRow {
+  return {
+    id: `${Date.now()}-${index}`,
+    roomTypeId: '',
+    adults: '1',
+    children: '0',
+    childAges: '',
+    ratePlanCode: '',
+    pricePerNight: '',
+  }
+}
+
+function createPackageForm(currency = 'EUR'): PackageFormState {
+  return {
+    code: '',
+    name: '',
+    description: '',
+    effectiveFrom: '',
+    effectiveTo: '',
+    taxPercentage: '0',
+    discountPercentage: '0',
+    currencyCode: currency || 'EUR',
+    adultExtraPrice: '0',
+    childExtraPrice: '0',
+    notes: '',
+    roomRates: [createPackageRoomRate()],
+  }
+}
+
+function parseChildAges(value: string): number[] {
+  return value
+    .split(',')
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isFinite(item) && item >= 0)
 }
 
 export function CorporateContractDetailsPage() {
@@ -110,11 +196,15 @@ export function CorporateContractDetailsPage() {
   const roomTypes = useAppSelector((state) => state.roomTypes.items)
   const mealPlans = useAppSelector((state) => state.mealPlans.items)
   const additionalServices = useAppSelector((state) => state.additionalServices.items)
+  const ratePlans = useAppSelector((state) => state.ratePlans.items)
 
   const [activeSection, setActiveSection] = useState<SectionKey>('Overview')
   const [selectedPackageId, setSelectedPackageId] = useState('')
   const [generationRows, setGenerationRows] = useState<InventoryGenerationRow[]>([])
   const [isGenerateInventoryOpen, setIsGenerateInventoryOpen] = useState(false)
+  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false)
+  const [isSubmittingPackage, setIsSubmittingPackage] = useState(false)
+  const [packageForm, setPackageForm] = useState<PackageFormState>(() => createPackageForm())
   const [reason, setReason] = useState('')
   const [filters, setFilters] = useState({
     fromDate: '',
@@ -131,6 +221,7 @@ export function CorporateContractDetailsPage() {
     dispatch(fetchRoomTypes())
     dispatch(fetchMealPlans())
     dispatch(fetchAdditionalServices())
+    dispatch(fetchRatePlans({ isActive: true }))
   }, [contractId, dispatch])
 
   const activeContract = selectedContract?.id === contractId ? selectedContract : undefined
@@ -171,8 +262,11 @@ export function CorporateContractDetailsPage() {
     }
     setFilters((prev) => ({
       ...prev,
-      fromDate: selectedVersion.effectiveFrom?.slice(0, 10) || '',
-      toDate: selectedVersion.effectiveTo?.slice(0, 10) || '',
+      ...clampInventoryRange(
+        selectedVersion.effectiveFrom?.slice(0, 10) || '',
+        selectedVersion.effectiveTo?.slice(0, 10) || '',
+        selectedVersion.effectiveTo,
+      ),
       roomTypeId: '',
     }))
     setGenerationRows([createGenerationRow()])
@@ -183,9 +277,9 @@ export function CorporateContractDetailsPage() {
     const request = dispatch(fetchCorporateInventory({
       contractId: activeContract.id,
       params: {
+        roomTypeId: filters.roomTypeId || undefined,
         fromDate: filters.fromDate || selectedVersion.effectiveFrom?.slice(0, 10),
         toDate: filters.toDate || selectedVersion.effectiveTo?.slice(0, 10) || undefined,
-        roomTypeId: filters.roomTypeId || undefined,
         packageId: selectedPackage.id,
         versionId: selectedVersion.id,
         onlyAvailable: filters.onlyAvailable,
@@ -238,9 +332,9 @@ export function CorporateContractDetailsPage() {
       await dispatch(fetchCorporateInventory({
         contractId: activeContract.id,
         params: {
+          roomTypeId: filters.roomTypeId || undefined,
           fromDate: filters.fromDate || selectedVersion.effectiveFrom?.slice(0, 10),
           toDate: filters.toDate || selectedVersion.effectiveTo?.slice(0, 10) || undefined,
-          roomTypeId: filters.roomTypeId || undefined,
           packageId: selectedPackage.id,
           versionId: selectedVersion.id,
           onlyAvailable: filters.onlyAvailable,
@@ -254,6 +348,97 @@ export function CorporateContractDetailsPage() {
       setIsGenerateInventoryOpen(false)
     } catch (err: any) {
       appAlert.fire('Error', err?.message || 'Could not generate inventory.', 'error')
+    }
+  }
+
+  const openPackageModal = () => {
+    setPackageForm(createPackageForm(activeContract?.currency ?? 'EUR'))
+    setIsPackageModalOpen(true)
+  }
+
+  const validatePackageForm = () => {
+    if (!packageForm.code.trim()) return 'Package code is required.'
+    if (!packageForm.name.trim()) return 'Package name is required.'
+    if (!packageForm.effectiveFrom) return 'Effective from date is required.'
+    if (packageForm.effectiveTo && new Date(packageForm.effectiveTo).getTime() < new Date(packageForm.effectiveFrom).getTime()) {
+      return 'Effective to date must be after effective from date.'
+    }
+    const numericFields = [
+      ['Tax percentage', packageForm.taxPercentage],
+      ['Discount percentage', packageForm.discountPercentage],
+      ['Adult extra price', packageForm.adultExtraPrice],
+      ['Child extra price', packageForm.childExtraPrice],
+    ]
+    const invalidNumber = numericFields.find(([, value]) => Number(value) < 0 || Number.isNaN(Number(value)))
+    if (invalidNumber) return `${invalidNumber[0]} must be zero or more.`
+
+    if (packageForm.roomRates.length === 0) return 'At least one room rate is required.'
+    for (const [index, row] of packageForm.roomRates.entries()) {
+      if (!row.roomTypeId) return `Room rate ${index + 1} needs a room type.`
+      if (!row.ratePlanCode.trim()) return `Room rate ${index + 1} needs a rate plan.`
+      const childrenCount = Number(row.children || 0)
+      if (Number(row.adults) < 0 || childrenCount < 0 || Number(row.pricePerNight) < 0) {
+        return `Room rate ${index + 1} has an invalid number.`
+      }
+      const ages = parseChildAges(row.childAges)
+      if (childrenCount > 0 && ages.length !== childrenCount) {
+        return `Room rate ${index + 1} child ages must match the children count.`
+      }
+    }
+    return null
+  }
+
+  const handleCreatePackage = async () => {
+    if (!activeContract) return
+    const validationError = validatePackageForm()
+    if (validationError) {
+      appAlert.fire('Error', validationError, 'error')
+      return
+    }
+
+    const roomRates: CorporatePackageRoomRate[] = packageForm.roomRates.map((row) => ({
+      roomTypeId: row.roomTypeId,
+      adults: Number(row.adults),
+      children: Number(row.children || 0),
+      childAges: Number(row.children || 0) > 0 ? parseChildAges(row.childAges) : [],
+      ratePlanCode: row.ratePlanCode.trim(),
+      pricePerNight: Number(row.pricePerNight),
+    }))
+
+    setIsSubmittingPackage(true)
+    try {
+      await dispatch(addPackageToContract({
+        contractId: activeContract.id,
+        payload: {
+          code: packageForm.code.trim().toUpperCase(),
+          name: packageForm.name.trim(),
+          description: packageForm.description.trim(),
+          isActive: true,
+          initialVersion: {
+            effectiveFrom: packageForm.effectiveFrom,
+            effectiveTo: packageForm.effectiveTo || null,
+            taxPercentage: Number(packageForm.taxPercentage),
+            discountPercentage: Number(packageForm.discountPercentage),
+            currencyCode: packageForm.currencyCode.trim().toUpperCase(),
+            adultExtraPrice: Number(packageForm.adultExtraPrice),
+            childExtraPrice: Number(packageForm.childExtraPrice),
+            notes: packageForm.notes.trim(),
+            roomRates,
+            mealRates: [],
+            serviceRates: [],
+          },
+        },
+      })).unwrap()
+
+      await dispatch(fetchCorporatePackagesByContract({ contractId: activeContract.id })).unwrap()
+      await dispatch(fetchCorporateContractById(activeContract.id)).unwrap()
+      void dispatch(fetchCorporateContractSummary(activeContract.id))
+      setIsPackageModalOpen(false)
+      appAlert.fire('Success', 'Package created successfully.', 'success')
+    } catch (err: any) {
+      appAlert.fire('Error', err?.message || 'Could not create package.', 'error')
+    } finally {
+      setIsSubmittingPackage(false)
     }
   }
 
@@ -360,6 +545,7 @@ export function CorporateContractDetailsPage() {
           roomTypeLookup={roomTypeLookup}
           mealPlanLookup={mealPlanLookup}
           serviceLookup={serviceLookup}
+          onAddPackage={openPackageModal}
         />
       )}
 
@@ -397,6 +583,19 @@ export function CorporateContractDetailsPage() {
           error={summaryError}
         />
       )}
+
+      {isPackageModalOpen && (
+        <PackageCreateModal
+          open={isPackageModalOpen}
+          form={packageForm}
+          setForm={setPackageForm}
+          roomTypes={roomTypes}
+          ratePlans={ratePlans}
+          isSubmitting={isSubmittingPackage}
+          onClose={() => setIsPackageModalOpen(false)}
+          onSubmit={handleCreatePackage}
+        />
+      )}
     </div>
   )
 }
@@ -409,6 +608,7 @@ function PackagesSection({
   roomTypeLookup,
   mealPlanLookup,
   serviceLookup,
+  onAddPackage,
 }: {
   packages: CorporateContractPackage[]
   packageLoading: boolean
@@ -417,6 +617,7 @@ function PackagesSection({
   roomTypeLookup: Map<string, string>
   mealPlanLookup: Map<string, string>
   serviceLookup: Map<string, string>
+  onAddPackage: () => void
 }) {
   if (packageLoading && packages.length === 0) {
     return <EmptyPanel icon={<Package2 className="h-10 w-10 animate-pulse" />} title="Loading packages" body="Checking packages for this contract..." />
@@ -427,11 +628,33 @@ function PackagesSection({
   }
 
   if (packages.length === 0) {
-    return <EmptyPanel icon={<Package2 className="h-10 w-10" />} title="No packages yet" body="Create a package for this contract before generating inventory." />
+    return (
+      <EmptyPanel
+        icon={<Package2 className="h-10 w-10" />}
+        title="No packages yet"
+        body="Create a package for this contract before generating inventory."
+        action={
+          <button type="button" onClick={onAddPackage} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#004bb4] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800">
+            <Plus className="h-4 w-4" />
+            Add Package
+          </button>
+        }
+      />
+    )
   }
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div>
+          <h2 className="text-base font-bold text-slate-800">Packages</h2>
+          <p className="text-sm text-slate-500">Create and review contract packages.</p>
+        </div>
+        <button type="button" onClick={onAddPackage} className="inline-flex items-center gap-2 rounded-lg bg-[#004bb4] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800">
+          <Plus className="h-4 w-4" />
+          Add Package
+        </button>
+      </div>
       {packageLoading && (
         <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-[#004bb4]">Refreshing package list...</div>
       )}
@@ -490,6 +713,173 @@ function PackagesSection({
   )
 }
 
+function PackageCreateModal({
+  open,
+  form,
+  setForm,
+  roomTypes,
+  ratePlans,
+  isSubmitting,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean
+  form: PackageFormState
+  setForm: Dispatch<SetStateAction<PackageFormState>>
+  roomTypes: Array<{ id: string; name: string }>
+  ratePlans: Array<{ id: string; code: string; name: string; isActive: boolean }>
+  isSubmitting: boolean
+  onClose: () => void
+  onSubmit: () => void
+}) {
+  const updateRoomRate = (id: string, patch: Partial<PackageRoomRateFormRow>) => {
+    setForm((prev) => ({
+      ...prev,
+      roomRates: prev.roomRates.map((row) => row.id === id ? { ...row, ...patch } : row),
+    }))
+  }
+
+  const addRoomRate = () => {
+    setForm((prev) => ({ ...prev, roomRates: [...prev.roomRates, createPackageRoomRate(prev.roomRates.length)] }))
+  }
+
+  const removeRoomRate = (id: string) => {
+    setForm((prev) => ({ ...prev, roomRates: prev.roomRates.length > 1 ? prev.roomRates.filter((row) => row.id !== id) : prev.roomRates }))
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} lockScroll>
+      <div className="flex max-h-[92vh] w-[92vw] max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between bg-[#004bb4] px-6 py-5 text-white">
+          <div>
+            <h2 className="text-xl font-bold">Add Package</h2>
+            <p className="mt-1 text-sm text-blue-100">Create a package and initial room rates for this contract.</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 transition-colors hover:bg-white/20" aria-label="Close">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-6 overflow-y-auto p-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field label="Code">
+              <input value={form.code} onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))} className={fieldClass} placeholder="CORP-PKG" />
+            </Field>
+            <Field label="Name">
+              <input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} className={fieldClass} placeholder="Corporate Package" />
+            </Field>
+            <Field label="Currency">
+              <select value={form.currencyCode} onChange={(event) => setForm((prev) => ({ ...prev, currencyCode: event.target.value }))} className={fieldClass}>
+                <option value="EUR">EUR</option>
+                <option value="USD">USD</option>
+                <option value="EGP">EGP</option>
+              </select>
+            </Field>
+          </div>
+
+          <Field label="Description">
+            <textarea rows={2} value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} className={fieldClass} />
+          </Field>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field label="Effective From">
+              <input type="date" value={form.effectiveFrom} onChange={(event) => setForm((prev) => ({ ...prev, effectiveFrom: event.target.value }))} className={fieldClass} />
+            </Field>
+            <Field label="Effective To">
+              <input type="date" value={form.effectiveTo} onChange={(event) => setForm((prev) => ({ ...prev, effectiveTo: event.target.value }))} className={fieldClass} />
+            </Field>
+            <Field label="Tax %">
+              <input type="number" min="0" value={form.taxPercentage} onChange={(event) => setForm((prev) => ({ ...prev, taxPercentage: event.target.value }))} className={fieldClass} />
+            </Field>
+            <Field label="Discount %">
+              <input type="number" min="0" value={form.discountPercentage} onChange={(event) => setForm((prev) => ({ ...prev, discountPercentage: event.target.value }))} className={fieldClass} />
+            </Field>
+            <Field label="Adult Extra">
+              <input type="number" min="0" value={form.adultExtraPrice} onChange={(event) => setForm((prev) => ({ ...prev, adultExtraPrice: event.target.value }))} className={fieldClass} />
+            </Field>
+            <Field label="Child Extra">
+              <input type="number" min="0" value={form.childExtraPrice} onChange={(event) => setForm((prev) => ({ ...prev, childExtraPrice: event.target.value }))} className={fieldClass} />
+            </Field>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-800">Room Rates</h3>
+                <p className="text-sm text-slate-500">At least one room rate is required.</p>
+              </div>
+              <button type="button" onClick={addRoomRate} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
+                <Plus className="h-4 w-4" />
+                Add Room Rate
+              </button>
+            </div>
+
+            {form.roomRates.map((row, index) => (
+              <div key={row.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <p className="text-sm font-bold text-slate-800">Room Rate {index + 1}</p>
+                  <button
+                    type="button"
+                    onClick={() => removeRoomRate(row.id)}
+                    disabled={form.roomRates.length === 1}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </button>
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Field label="Room Type">
+                    <select value={row.roomTypeId} onChange={(event) => updateRoomRate(row.id, { roomTypeId: event.target.value })} className={fieldClass}>
+                      <option value="">Select room type</option>
+                      {roomTypes.map((roomType) => <option key={roomType.id} value={roomType.id}>{roomType.name}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Adults">
+                    <input type="number" min="0" value={row.adults} onChange={(event) => updateRoomRate(row.id, { adults: event.target.value })} className={fieldClass} />
+                  </Field>
+                  <Field label="Children">
+                    <input type="number" min="0" value={row.children} onChange={(event) => updateRoomRate(row.id, { children: event.target.value })} className={fieldClass} />
+                  </Field>
+                  <Field label="Child Ages">
+                    <input value={row.childAges} onChange={(event) => updateRoomRate(row.id, { childAges: event.target.value })} className={fieldClass} placeholder="Example: 4, 8" />
+                  </Field>
+                  <Field label="Rate Plan">
+                    <select value={row.ratePlanCode} onChange={(event) => updateRoomRate(row.id, { ratePlanCode: event.target.value })} className={fieldClass}>
+                      <option value="">{ratePlans.length ? 'Select rate plan' : 'No active rate plans'}</option>
+                      {ratePlans.filter((ratePlan) => ratePlan.isActive).map((ratePlan) => (
+                        <option key={ratePlan.id} value={ratePlan.code}>
+                          {ratePlan.code} - {ratePlan.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Price / Night">
+                    <input type="number" min="0" value={row.pricePerNight} onChange={(event) => updateRoomRate(row.id, { pricePerNight: event.target.value })} className={fieldClass} />
+                  </Field>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Field label="Version Notes">
+            <textarea rows={2} value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} className={fieldClass} />
+          </Field>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100">
+            Cancel
+          </button>
+          <button type="button" onClick={onSubmit} disabled={isSubmitting} className="rounded-lg bg-[#004bb4] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-70">
+            {isSubmitting ? 'Creating...' : 'Create Package'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 function InventorySection({
   packages,
   selectedPackage,
@@ -541,6 +931,10 @@ function InventorySection({
     return <EmptyPanel icon={<Package2 className="h-10 w-10" />} title="No packages available" body="Create a package before generating corporate inventory." />
   }
 
+  const maxToDate = filters.fromDate
+    ? minDate(addDays(filters.fromDate, maxInventoryRangeDays - 1), selectedVersion?.effectiveTo?.slice(0, 10))
+    : selectedVersion?.effectiveTo?.slice(0, 10) || undefined
+
   return (
     <div className="space-y-6">
       <div className="grid gap-5 rounded-lg border border-slate-200 bg-white p-5 lg:grid-cols-[1.3fr_0.8fr_0.8fr_auto]">
@@ -578,13 +972,35 @@ function InventorySection({
 
           <div className="rounded-lg border border-slate-200 bg-white">
             <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-5">
-              <Field label="From Date"><input type="date" value={filters.fromDate} onChange={(event) => setFilters((prev) => ({ ...prev, fromDate: event.target.value }))} className={fieldClass} /></Field>
-              <Field label="To Date"><input type="date" value={filters.toDate} onChange={(event) => setFilters((prev) => ({ ...prev, toDate: event.target.value }))} className={fieldClass} /></Field>
               <Field label="Room Type">
                 <select value={filters.roomTypeId} onChange={(event) => setFilters((prev) => ({ ...prev, roomTypeId: event.target.value }))} className={fieldClass}>
                   <option value="">All room types</option>
                   {versionRoomRates.map((rate) => <option key={rate.roomTypeId} value={rate.roomTypeId}>{roomTypeLookup.get(rate.roomTypeId) ?? 'Unknown room type'}</option>)}
                 </select>
+              </Field>
+              <Field label="From Date">
+                <input
+                  type="date"
+                  value={filters.fromDate}
+                  onChange={(event) => {
+                    const fromDate = event.target.value
+                    setFilters((prev) => ({ ...prev, ...clampInventoryRange(fromDate, prev.toDate, selectedVersion.effectiveTo) }))
+                  }}
+                  className={fieldClass}
+                />
+              </Field>
+              <Field label="To Date">
+                <input
+                  type="date"
+                  value={filters.toDate}
+                  min={filters.fromDate}
+                  max={maxToDate}
+                  onChange={(event) => {
+                    const next = clampInventoryRange(filters.fromDate, event.target.value, selectedVersion.effectiveTo)
+                    setFilters((prev) => ({ ...prev, ...next }))
+                  }}
+                  className={fieldClass}
+                />
               </Field>
               <FilterToggle
                 label="Only Available"
@@ -596,6 +1012,9 @@ function InventorySection({
                 checked={filters.onlyAdjusted}
                 onChange={(checked) => setFilters((prev) => ({ ...prev, onlyAdjusted: checked }))}
               />
+            </div>
+            <div className="border-b border-slate-100 bg-white px-5 py-3 text-xs font-semibold text-slate-500">
+              Inventory date range is capped at {maxInventoryRangeDays} days to keep the table readable.
             </div>
             {inventoryError && <div className="m-5 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{inventoryError}</div>}
             <InventorySummary inventory={inventory} isLoading={inventoryStatus === 'loading'} />
@@ -1024,12 +1443,13 @@ function RateSummary({ title, icon, rows }: { title: string; icon: ReactNode; ro
   )
 }
 
-function EmptyPanel({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
+function EmptyPanel({ icon, title, body, action }: { icon: ReactNode; title: string; body: string; action?: ReactNode }) {
   return (
     <div className="flex min-h-[340px] flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-slate-400">
       {icon}
       <h3 className="mt-4 text-lg font-bold text-slate-800">{title}</h3>
       <p className="mt-2 max-w-xl text-sm text-slate-500">{body}</p>
+      {action}
     </div>
   )
 }

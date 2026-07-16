@@ -3,11 +3,9 @@ import { Minus, Plus, CheckCircle2, AlertCircle } from 'lucide-react'
 
 import { Modal } from '../../../shared/ui/Modal'
 import { IconImage } from '../../../shared/ui/IconImage'
-import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
+import { useAppDispatch } from '../../../shared/apis/hooks'
 
 import type { ReservationDraft } from '../../../features/reservations/draftSlice'
-import { fetchRoomTypes } from '../../../features/roomTypes/roomTypesSlice'
-import { fetchRoomsAvailability } from '../../../features/rooms/roomsSlice'
 import { assignReservationRoom } from '../../../features/ops/opsSlice'
 import { SuccessAlertModal } from '../../../shared/ui/SuccessAlertModal'
 
@@ -21,16 +19,39 @@ import type { Pricing } from './types'
 import { formatDateForDisplay, formatMoney, parseNumberOrZero } from './utils'
 import type { PmsCheckInParams } from '../../../shared/apis/PmsReservation'
 
+type CheckInRoomAssignmentRow = {
+  reservationRoomId: string
+  roomTypeId: string
+  roomTypeName: string
+  roomId: string | null
+  roomNumber: string | null
+  checkInDate: string
+  checkOutDate: string
+  adults?: number
+  children?: number
+  status?: string | null
+}
+
+type CheckInRoomAvailability = {
+  roomId: string
+  roomNumber: string
+  roomTypeId: string
+  roomTypeName: string
+}
+
 type Props = {
   open: boolean
   onClose: () => void
   value: ReservationDraft
   onChange: (patch: Partial<ReservationDraft>) => void
   pricing: Pricing
-  selectedRoomId?: string
-  onChangeSelectedRoomId?: (roomId: string) => void
+  onRoomAssigned?: () => void
   onSubmitCheckIn?: (notes?: string) => Promise<void>
   submittingCheckIn?: boolean
+  checkInBlockedReason?: string
+  roomAssignmentRows?: CheckInRoomAssignmentRow[]
+  roomAvailabilityByReservationRoom?: Record<string, CheckInRoomAvailability[]>
+  loadingRoomAssignments?: boolean
   reservationDetails?: {
     reservationId: string
     reservationRoomId?: string
@@ -55,30 +76,24 @@ export function CheckInProcessModal({
   onChange,
   pricing,
   reservationDetails,
-  selectedRoomId,
-  onChangeSelectedRoomId,
+  onRoomAssigned,
   onSubmitCheckIn,
   submittingCheckIn = false,
+  checkInBlockedReason,
+  roomAssignmentRows = [],
+  roomAvailabilityByReservationRoom = {},
+  loadingRoomAssignments = false,
 }: Props) {
   const dispatch = useAppDispatch()
-  const roomTypes = useAppSelector((s) => s.roomTypes.items)
-  const roomsAvailability = useAppSelector((s) => s.rooms.availability)
-  const roomsAvailabilityStatus = useAppSelector((s) => s.rooms.availabilityStatus)
-
-
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [idVerified, setIdVerified] = useState(false)
   const [guestInfoConfirmed, setGuestInfoConfirmed] = useState(false)
-  const [assignRoomOpen, setAssignRoomOpen] = useState(false)
-  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState('')
-  const [confirmingAssign, setConfirmingAssign] = useState(false)
-  const [isAssigning, setIsAssigning] = useState(false)
   const [assignAlertOpen, setAssignAlertOpen] = useState(false)
   const [assignAlertVariant, setAssignAlertVariant] = useState<'success' | 'error'>('success')
   const [assignAlertMessage, setAssignAlertMessage] = useState('')
-  const [roomAssignedSuccessfully, setRoomAssignedSuccessfully] = useState(false)
-  const [assignedRoomNumber, setAssignedRoomNumber] = useState<string | null>(null)
+  const [selectedRoomsByReservationRoom, setSelectedRoomsByReservationRoom] = useState<Record<string, string>>({})
+  const [multiAssigning, setMultiAssigning] = useState(false)
 
 
   useEffect(() => {
@@ -86,10 +101,7 @@ export function CheckInProcessModal({
     setStep(1)
     setIdVerified(false)
     setGuestInfoConfirmed(false)
-    setAssignRoomOpen(false)
-    setConfirmingAssign(false)
-    setRoomAssignedSuccessfully(false)
-    setAssignedRoomNumber(null)
+    setSelectedRoomsByReservationRoom({})
 
     // Set default dates: today and end of current month
     const now = new Date()
@@ -110,48 +122,56 @@ export function CheckInProcessModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
+  const hasFolioRoomRows = roomAssignmentRows.length > 0
 
+  const assignedRoomCount = useMemo(
+    () => roomAssignmentRows.filter((room) => room.roomId || (room.roomNumber && room.roomNumber !== 'N/A') || selectedRoomsByReservationRoom[room.reservationRoomId]).length,
+    [roomAssignmentRows, selectedRoomsByReservationRoom],
+  )
 
-  useEffect(() => {
-    if (!open) return
-    void dispatch(fetchRoomTypes())
-  }, [dispatch, open])
+  const pendingMultiAssignments = useMemo(
+    () => roomAssignmentRows.filter((room) => {
+      const selectedRoomId = selectedRoomsByReservationRoom[room.reservationRoomId]
+      return selectedRoomId && selectedRoomId !== room.roomId
+    }),
+    [roomAssignmentRows, selectedRoomsByReservationRoom],
+  )
 
-  // Auto-trigger availability when assignRoomOpen changes or reservationDetails changes
-  useEffect(() => {
-    if (!open) return
-    
-    // Pre-set roomTypeId from reservationDetails if available
-    if (reservationDetails?.reservationId && !selectedRoomTypeId) {
-      if (reservationDetails.roomTypeId) {
-        setSelectedRoomTypeId(reservationDetails.roomTypeId)
-      } else if (reservationDetails.roomTypeName && roomTypes.length > 0) {
-        const matched = roomTypes.find((rt) => rt.name === reservationDetails.roomTypeName)
-        if (matched) setSelectedRoomTypeId(matched.id)
+  const getAvailableRoomsForRow = (row: CheckInRoomAssignmentRow) => {
+    const selectedOrAssignedByOtherRows = new Set(roomAssignmentRows.flatMap((other) => {
+      if (other.reservationRoomId === row.reservationRoomId) return []
+      return selectedRoomsByReservationRoom[other.reservationRoomId] || other.roomId || []
+    }))
+    return (roomAvailabilityByReservationRoom[row.reservationRoomId] ?? []).filter((room) => !selectedOrAssignedByOtherRows.has(room.roomId))
+  }
+
+  const assignSelectedRooms = async () => {
+    if (pendingMultiAssignments.length === 0) return
+    setMultiAssigning(true)
+    try {
+      for (const row of pendingMultiAssignments) {
+        const roomId = selectedRoomsByReservationRoom[row.reservationRoomId]
+        if (!roomId) continue
+        await dispatch(assignReservationRoom({
+          reservationRoomId: row.reservationRoomId,
+          roomId,
+          notes: '',
+        })).unwrap()
       }
+      setAssignAlertVariant('success')
+      setAssignAlertMessage('Rooms have been allocated successfully!')
+      setSelectedRoomsByReservationRoom({})
+      onRoomAssigned?.()
+    } catch (e) {
+      setAssignAlertVariant('error')
+      setAssignAlertMessage(typeof e === 'string' ? e : e instanceof Error ? e.message : 'Failed to allocate rooms.')
+    } finally {
+      setMultiAssigning(false)
+      setAssignAlertOpen(true)
     }
-  }, [open, reservationDetails, selectedRoomTypeId, roomTypes])
+  }
 
-  useEffect(() => {
-    const startDate = reservationDetails?.checkInDate ? formatDateForDisplay(reservationDetails.checkInDate) : value.checkInDate
-    const endDate = reservationDetails?.checkOutDate ? formatDateForDisplay(reservationDetails.checkOutDate) : value.checkOutDate
 
-    if (!open || !selectedRoomTypeId || !startDate || !endDate) return
-
-    void dispatch(
-      fetchRoomsAvailability({
-        StartDate: startDate,
-        EndDate: endDate,
-        RoomTypeId: selectedRoomTypeId,
-      }),
-    ).then(() => {
-      // Clear current selection when dependencies change
-      onChangeSelectedRoomId?.('')
-      onChange({
-        rooms: value.rooms.map((r, idx) => (idx === 0 ? { ...r, roomNumber: '' } : r)),
-      })
-    })
-  }, [dispatch, open, selectedRoomTypeId, value.checkInDate, value.checkOutDate])
 
   const fullName = useMemo(() => {
     if (reservationDetails?.guestName) return reservationDetails.guestName
@@ -171,28 +191,6 @@ export function CheckInProcessModal({
   const totalAmountText = reservationDetails ? formatMoney(reservationDetails.totalAmount, currency) : formatMoney(pricing.totalAmount, currency)
 
 
-
-  const filteredRooms = useMemo(() => {
-    if (roomsAvailabilityStatus === 'succeeded') {
-      return roomsAvailability.map((r) => ({
-        id: r.roomId,
-        roomNumber: r.roomNumber,
-        roomTypeId: r.roomTypeId,
-        roomTypeName: r.roomTypeName,
-        basePrice: r.basePrice,
-      }))
-    }
-    return []
-  }, [roomsAvailability, roomsAvailabilityStatus])
-
-  useEffect(() => {
-    if (!assignRoomOpen) return
-    const count = filteredRooms.length
-    onChange({
-      rooms: value.rooms.map((r, idx) => (idx === 0 ? { ...r, roomCount: count } : r)),
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignRoomOpen, filteredRooms.length])
 
   const remainingBalance = useMemo(() => {
     const paid = parseNumberOrZero(value.paidAmount)
@@ -363,7 +361,99 @@ export function CheckInProcessModal({
               </div>
 
               {/* Room allocation area — deterministic, no toggle dependency */}
-              {reservationDetails?.roomNumber ? (
+              {hasFolioRoomRows ? (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">Room Assignment</div>
+                      <div className="mt-1 text-xs font-semibold text-slate-500">
+                        {assignedRoomCount}/{roomAssignmentRows.length} required rooms assigned
+                      </div>
+                    </div>
+                    {loadingRoomAssignments ? (
+                      <div className="text-xs font-semibold text-slate-400">Loading rooms...</div>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-3">
+                    {roomAssignmentRows.map((row, index) => {
+                      const selectedRoomIdForRow = selectedRoomsByReservationRoom[row.reservationRoomId] ?? ''
+                      const availableRoomsForRow = getAvailableRoomsForRow(row)
+                      const selectedRoom = availableRoomsForRow.find((room) => room.roomId === selectedRoomIdForRow)
+                      const assignedRoomLabel = selectedRoom?.roomNumber || row.roomNumber || 'Not assigned'
+                      const backendAssigned = Boolean(row.roomId || (row.roomNumber && row.roomNumber !== 'N/A'))
+                      const rowAssigned = Boolean(backendAssigned || selectedRoomIdForRow)
+                      return (
+                        <div key={row.reservationRoomId} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-bold text-slate-800">Room {index + 1}</div>
+                              <div className="mt-1 text-xs font-semibold text-slate-500">{row.roomTypeName || 'Room Type'}</div>
+                            </div>
+                            <span className={[
+                              'rounded-full border px-2.5 py-1 text-[11px] font-bold',
+                              rowAssigned ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700',
+                            ].join(' ')}>
+                              {rowAssigned ? 'Assigned' : 'Missing'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_2fr]">
+                            <div className="rounded-lg bg-white px-3 py-2">
+                              <div className="text-[11px] font-semibold text-slate-500">Current Room</div>
+                              <div className="mt-1 text-sm font-bold text-slate-800">{assignedRoomLabel}</div>
+                            </div>
+                            <label className="block">
+                              <span className={['mb-1 block text-[11px] font-semibold', backendAssigned ? 'text-slate-400' : 'text-slate-600'].join(' ')}>
+                                Assign Room
+                              </span>
+                              <select
+                                value={selectedRoomIdForRow}
+                                disabled={backendAssigned || loadingRoomAssignments || availableRoomsForRow.length === 0}
+                                onChange={(event) => {
+                                  const nextRoomId = event.target.value
+                                  setSelectedRoomsByReservationRoom((prev) => ({ ...prev, [row.reservationRoomId]: nextRoomId }))
+                                }}
+                                className={[
+                                  'h-10 w-full rounded-lg border px-3 text-sm outline-none disabled:cursor-not-allowed',
+                                  backendAssigned
+                                    ? 'border-slate-200 bg-slate-100 text-slate-400'
+                                    : 'border-slate-200 bg-white text-slate-700 disabled:bg-slate-100',
+                                ].join(' ')}
+                              >
+                                <option value="">
+                                  {backendAssigned ? 'Already assigned' : availableRoomsForRow.length ? 'Select available room' : 'No available rooms'}
+                                </option>
+                                {availableRoomsForRow.map((room) => (
+                                  <option key={room.roomId} value={room.roomId}>
+                                    {room.roomNumber} - {room.roomTypeName}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <div className="text-xs font-semibold text-slate-500">
+                      {assignedRoomCount === roomAssignmentRows.length
+                        ? 'All rooms are ready for check-in.'
+                        : `Assign ${roomAssignmentRows.length - assignedRoomCount} more room${roomAssignmentRows.length - assignedRoomCount === 1 ? '' : 's'} before check-in.`}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={pendingMultiAssignments.length === 0 || multiAssigning}
+                      onClick={assignSelectedRooms}
+                      className="inline-flex h-10 items-center rounded-xl bg-[#0B4EA2] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      {multiAssigning ? 'Assigning...' : 'Confirm Room Assignments'}
+                    </button>
+                  </div>
+                </div>
+              ) : reservationDetails?.roomNumber ? (
                 // Already assigned from backend
                 <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
@@ -374,171 +464,11 @@ export function CheckInProcessModal({
                     <div className="text-sm font-bold text-emerald-800">Room {reservationDetails.roomNumber}</div>
                   </div>
                 </div>
-              ) : roomAssignedSuccessfully && assignedRoomNumber ? (
-                // Just assigned in this session
-                <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600">Room Assigned</div>
-                    <div className="text-sm font-bold text-emerald-800">Room {assignedRoomNumber}</div>
-                  </div>
-                </div>
               ) : (
-                // No room yet — show Assign Room button and form
-                <>
-                  {!assignRoomOpen && (
-                    <div className="mt-6 flex items-end justify-end">
-                      <div className="w-full max-w-[320px] text-right">
-                        <div className="mb-2 text-xs font-semibold text-slate-700">
-                          Room <span className="text-red-500">*</span>
-                        </div>
-                        <button
-                          type="button"
-                          className="h-11 w-full rounded-xl border border-[#0B4EA2] bg-white text-sm font-semibold text-[#0B4EA2]"
-                          onClick={() => setAssignRoomOpen(true)}
-                        >
-                          Assign Room
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {assignRoomOpen && (
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6">
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        {/* Room Type — read-only */}
-                        <div className="space-y-2">
-                          <div className="text-[12px] font-semibold text-slate-700">Room Type</div>
-                          <input
-                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
-                            value={reservationDetails?.roomTypeName ?? value.rooms[0]?.roomType ?? ''}
-                            disabled
-                            readOnly
-                          />
-                        </div>
-
-                        {/* Rate Plan — read-only */}
-                        <div className="space-y-2">
-                          <div className="text-[12px] font-semibold text-slate-700">Rate Plan</div>
-                          <input
-                            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none"
-                            value={value.ratePlan ?? ''}
-                            disabled
-                          />
-                        </div>
-                      </div>
-
-                      {/* Room Number */}
-                      <div className="mt-4 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="text-[12px] font-semibold text-slate-700">Room Number</div>
-                          {roomsAvailabilityStatus === 'loading' ? (
-                            <div className="text-[10px] text-slate-400">Checking availability...</div>
-                          ) : roomsAvailabilityStatus === 'succeeded' ? (
-                            <div className="text-[10px] font-medium text-emerald-600">
-                              {roomsAvailability.length} rooms available
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <select
-                          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none disabled:bg-slate-50"
-                          value={selectedRoomId ?? ''}
-                          disabled={roomsAvailabilityStatus === 'loading'}
-                          onChange={(e) => {
-                            const nextRoomId = e.target.value
-                            const room = filteredRooms.find((r) => r.id === nextRoomId)
-                            const nextRoomNumber = room?.roomNumber ?? ''
-                            onChangeSelectedRoomId?.(nextRoomId)
-                            onChange({
-                              rooms: value.rooms.map((r, idx) => (idx === 0 ? { ...r, roomNumber: nextRoomNumber } : r)),
-                            })
-                            setConfirmingAssign(false)
-                          }}
-                        >
-                          <option value="" disabled>
-                            {roomsAvailabilityStatus === 'loading' ? 'Loading available rooms...' : 'Select room number'}
-                          </option>
-                          {filteredRooms.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.roomNumber}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Confirm button */}
-                      {selectedRoomId && !confirmingAssign && (
-                        <div className="mt-4">
-                          <button
-                            type="button"
-                            className="w-full rounded-xl bg-[#0B4EA2] py-2.5 text-sm font-semibold text-white hover:bg-[#093d81] transition-colors"
-                            onClick={() => setConfirmingAssign(true)}
-                          >
-                            Confirm
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Inline confirmation dialog */}
-                      {confirmingAssign && (
-                        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                          <div className="mb-3 text-sm font-semibold text-slate-800">
-                            Are you sure you want to allocate this room?
-                          </div>
-                          <div className="flex gap-3">
-                            <button
-                              type="button"
-                              className="flex-1 rounded-xl bg-[#0B4EA2] py-2.5 text-sm font-semibold text-white hover:bg-[#093d81] disabled:opacity-60 transition-colors"
-                              disabled={isAssigning}
-                              onClick={async () => {
-                                const reservationRoomId = reservationDetails?.reservationRoomId
-                                const roomIdToAssign = selectedRoomId ?? ''
-                                if (!reservationRoomId || !roomIdToAssign) {
-                                  alert(`Missing data! reservationRoomId: ${reservationRoomId}, roomId: ${roomIdToAssign}`)
-                                  return
-                                }
-                                setIsAssigning(true)
-                                try {
-                                  await dispatch(assignReservationRoom({
-                                    reservationRoomId,
-                                    roomId: roomIdToAssign,
-                                    notes: '',
-                                  })).unwrap()
-                                  const room = filteredRooms.find((r) => r.id === roomIdToAssign)
-                                  setAssignedRoomNumber(room?.roomNumber ?? '')
-                                  setRoomAssignedSuccessfully(true)
-                                  setAssignRoomOpen(false)
-                                  setAssignAlertVariant('success')
-                                  setAssignAlertMessage('Room has been allocated successfully!')
-                                } catch (e) {
-                                  setAssignAlertVariant('error')
-                                  setAssignAlertMessage(typeof e === 'string' ? e : 'Failed to allocate room.')
-                                } finally {
-                                  setIsAssigning(false)
-                                  setConfirmingAssign(false)
-                                  setAssignAlertOpen(true)
-                                }
-                              }}
-                            >
-                              {isAssigning ? 'Allocating...' : 'Yes, Confirm'}
-                            </button>
-                            <button
-                              type="button"
-                              className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                              onClick={() => setConfirmingAssign(false)}
-                              disabled={isAssigning}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
+                // Folio-driven assignment data should be present before this modal is shown.
+                <div className="mt-5 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
+                  Room assignment data is not available yet. Please refresh or reopen the check-in process.
+                </div>
               )}
 
 
@@ -1040,6 +970,11 @@ export function CheckInProcessModal({
             </div>
           ) : (
             <>
+              {step === 3 && checkInBlockedReason ? (
+                <div className="max-w-md rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
+                  {checkInBlockedReason}
+                </div>
+              ) : null}
               <button
                 type="button"
                 className="h-12 rounded-xl border border-[#0B4EA2] bg-white px-16 text-sm font-semibold text-[#0B4EA2]"
@@ -1060,7 +995,7 @@ export function CheckInProcessModal({
                   'h-12 rounded-xl px-16 text-sm font-semibold',
                   'bg-[#0B4EA2] text-white',
                 ].join(' ')}
-                disabled={step === 3 && submittingCheckIn}
+                disabled={step === 3 && (submittingCheckIn || Boolean(checkInBlockedReason))}
                 onClick={async () => {
                   if (step === 1) {
                     setStep(2)

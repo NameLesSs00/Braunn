@@ -14,6 +14,7 @@ import { selectIsShiftActive, fetchBusinessDate, fetchCurrentShift } from '../..
 import { SelectReservationTypeModal } from '../../reservations/SelectReservationTypeModal/SelectReservationTypeModal'
 import { OtaReservationModal } from '../../reservations/OtaReservationModal/OtaReservationModal'
 import { GroupReservationModal } from '../../reservations/GroupReservationModal/GroupReservationModal'
+import { CorporateReservationModal } from '../../reservations/CorporateReservationModal/CorporateReservationModal'
 import { useEffect } from 'react'
 import { getSavedReservationDrafts, type SavedReservationStep, type SavedReservationStep4Page } from '../../../features/reservations/reservationDraftStorage'
 import {
@@ -58,6 +59,7 @@ export function DashboardLayout() {
     : titleByPath[location.pathname] ?? 'Dashboard'
   const [selectReservationTypeOpen, setSelectReservationTypeOpen] = useState(false)
   const [newReservationOpen, setNewReservationOpen] = useState(false)
+  const [corporateReservationOpen, setCorporateReservationOpen] = useState(false)
   const [otaReservationOpen, setOtaReservationOpen] = useState(false)
   const [groupReservationOpen, setGroupReservationOpen] = useState(false)
   const [shiftStartOpen, setShiftStartOpen] = useState(false)
@@ -166,6 +168,10 @@ export function DashboardLayout() {
           dispatch(resetDraft())
           openNewReservation()
         }}
+        onSelectCorporate={() => {
+          setSelectReservationTypeOpen(false)
+          setCorporateReservationOpen(true)
+        }}
         onSelectOta={() => {
           setSelectReservationTypeOpen(false)
           setOtaReservationOpen(true)
@@ -183,6 +189,7 @@ export function DashboardLayout() {
         onActiveDraftIdChange={setActiveReservationDraftId}
         onClose={() => setNewReservationOpen(false)}
       />
+      <CorporateReservationModal open={corporateReservationOpen} onClose={() => setCorporateReservationOpen(false)} />
       <OtaReservationModal open={otaReservationOpen} onClose={() => setOtaReservationOpen(false)} />
       <GroupReservationModal
         open={groupReservationOpen}

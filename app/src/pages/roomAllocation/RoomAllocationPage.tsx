@@ -8,6 +8,7 @@ import { routes } from '../../shared/lib/routes'
 type AllocationStatusFilter = 'All status' | 'Allocated' | 'Not Allocated'
 type FloorFilter = 'All Floor' | '1' | '2' | '3' | '4' | '5'
 type RoomTypeFilter = 'All Types' | 'Single' | 'Double' | 'Triple' | 'Suite' | 'Deluxe'
+type SourceFilter = 'All Sources' | string
 
 const roomAllocationFiltersStorageKey = 'room-allocation-page-filters'
 
@@ -16,6 +17,7 @@ interface RoomAllocationFilters {
   allocationStatus: AllocationStatusFilter
   floor: FloorFilter
   roomType: RoomTypeFilter
+  source: SourceFilter
   arrivalDate: string
   departureDate: string
 }
@@ -48,6 +50,14 @@ function getDifferenceInDays(date1: string, date2: string): number {
   return diffDays
 }
 
+function normalizeSource(value?: string | null) {
+  return (value || '').replace(/[\s_-]/g, '').toLowerCase()
+}
+
+function getReservationSourceLabel(reservation: { bookingSource?: string | null; sourceType?: string | null; channelName?: string | null; reservationType?: string | null }) {
+  return reservation.bookingSource || reservation.sourceType || reservation.channelName || reservation.reservationType || '-----'
+}
+
 export function RoomAllocationPage() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
@@ -65,6 +75,7 @@ export function RoomAllocationPage() {
     allocationStatus: 'All status',
     floor: 'All Floor',
     roomType: 'All Types',
+    source: 'All Sources',
     arrivalDate: today,
     departureDate: defaultEndDate,
   }), [defaultEndDate, today])
@@ -73,6 +84,7 @@ export function RoomAllocationPage() {
   const [allocationStatus, setAllocationStatus] = useState<AllocationStatusFilter>(initialFilters.allocationStatus)
   const [floor, setFloor] = useState<FloorFilter>(initialFilters.floor)
   const [roomType, setRoomType] = useState<RoomTypeFilter>(initialFilters.roomType)
+  const [source, setSource] = useState<SourceFilter>(initialFilters.source)
   const [arrivalDate, setArrivalDate] = useState(initialFilters.arrivalDate)
   const [departureDate, setDepartureDate] = useState(initialFilters.departureDate)
 
@@ -82,12 +94,13 @@ export function RoomAllocationPage() {
       allocationStatus,
       floor,
       roomType,
+      source,
       arrivalDate,
       departureDate,
     }
 
     sessionStorage.setItem(roomAllocationFiltersStorageKey, JSON.stringify(filters))
-  }, [query, allocationStatus, floor, roomType, arrivalDate, departureDate])
+  }, [query, allocationStatus, floor, roomType, source, arrivalDate, departureDate])
 
   const computedDateRange = useMemo(() => ({
     startDate: arrivalDate || today,
@@ -104,16 +117,28 @@ export function RoomAllocationPage() {
     return () => request.abort()
   }, [dispatch, computedDateRange])
 
-  const filteredRows = useMemo(() => {
-    let result = pmsReservations.filter((reservation) => {
+  const activeRows = useMemo(() => {
+    return pmsReservations.filter((reservation) => {
       const status = (reservation.status ?? '').replace(/[\s_-]/g, '').toLowerCase()
       return status !== 'checkedout' && status !== 'checkedin'
     })
+  }, [pmsReservations])
+
+  const sourceOptions = useMemo(() => {
+    return Array.from(new Set(
+      activeRows
+        .map((reservation) => getReservationSourceLabel(reservation))
+        .filter((value) => value && value !== '-----')
+    )).sort((a, b) => a.localeCompare(b))
+  }, [activeRows])
+
+  const filteredRows = useMemo(() => {
+    let result = activeRows
     const q = query.trim().toLowerCase()
 
     if (q) {
       result = result.filter((r) =>
-        [r.guestName, r.id].some((v) => (v ?? '').toLowerCase().includes(q))
+        [r.guestName, r.id, getReservationSourceLabel(r)].some((v) => (v ?? '').toLowerCase().includes(q))
       )
     }
 
@@ -142,8 +167,12 @@ export function RoomAllocationPage() {
       )
     }
 
+    if (source !== 'All Sources') {
+      result = result.filter((r) => normalizeSource(getReservationSourceLabel(r)) === normalizeSource(source))
+    }
+
     return result
-  }, [pmsReservations, query, allocationStatus, arrivalDate, departureDate, floor, roomType])
+  }, [activeRows, query, allocationStatus, arrivalDate, departureDate, floor, roomType, source])
 
   const selectClass =
     'h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-9 text-sm text-slate-600 outline-none transition-all focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10'
@@ -176,7 +205,7 @@ export function RoomAllocationPage() {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
         <div className="space-y-1.5">
           <div className="text-[12px] font-semibold text-slate-700">Allocation Status</div>
           <div className="relative">
@@ -232,6 +261,23 @@ export function RoomAllocationPage() {
         </div>
 
         <div className="space-y-1.5">
+          <div className="text-[12px] font-semibold text-slate-700">Source</div>
+          <div className="relative">
+            <select
+              className={selectClass}
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+            >
+              <option>All Sources</option>
+              {sourceOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
           <div className="text-[12px] font-semibold text-slate-700">Arrival Date</div>
           <div className="relative">
             <input
@@ -258,13 +304,14 @@ export function RoomAllocationPage() {
       </div>
 
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-100">
-        <div className="grid grid-cols-[1.5fr_0.8fr_1.1fr_1.1fr_0.8fr_1fr_1.2fr] bg-[#EAF2FF] px-5 py-3 text-[12px] font-bold text-slate-700">
+        <div className="grid grid-cols-[1.5fr_0.7fr_1.1fr_1.1fr_0.8fr_1fr_1fr_1.2fr] bg-[#EAF2FF] px-5 py-3 text-[12px] font-bold text-slate-700">
           <div>Guest</div>
           <div>Nights</div>
           <div>Arrival Date</div>
           <div>Departure Date</div>
           <div>Status</div>
           <div>Allocation</div>
+          <div>Source</div>
           <div className="text-right">Action</div>
         </div>
 
@@ -290,7 +337,7 @@ export function RoomAllocationPage() {
                 <div
                   key={`${r.id}-${idx}`}
                   className={[
-                    'grid grid-cols-[1.5fr_0.8fr_1.1fr_1.1fr_0.8fr_1fr_1.2fr] items-center px-5 py-3 text-[13px]',
+                    'grid grid-cols-[1.5fr_0.7fr_1.1fr_1.1fr_0.8fr_1fr_1fr_1.2fr] items-center px-5 py-3 text-[13px]',
                     idx % 2 === 0 ? 'bg-white' : 'bg-[#F4F9FF]',
                   ].join(' ')}
                 >
@@ -314,6 +361,7 @@ export function RoomAllocationPage() {
                       </>
                     )}
                   </div>
+                  <div className="truncate text-slate-600">{getReservationSourceLabel(r)}</div>
                   <div className="flex justify-end">
                     <button
                       type="button"

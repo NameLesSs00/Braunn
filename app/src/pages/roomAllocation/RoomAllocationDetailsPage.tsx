@@ -36,7 +36,13 @@ export function RoomAllocationDetailsPage() {
     return <div className="p-8 text-center text-slate-500">Reservation not found.</div>
   }
 
-  const isAllocated = !!reservation.roomNumber
+  const reservationRooms = reservation.reservationRooms ?? []
+  const hasTopLevelRoom = Boolean(reservation.roomNumber && reservation.roomNumber !== 'N/A')
+  const requiredRoomCount = reservationRooms.length || 1
+  const assignedRoomCount = reservationRooms.length
+    ? reservationRooms.filter((room) => Boolean(room.roomId || (room.roomNumber && room.roomNumber !== 'N/A'))).length
+    : hasTopLevelRoom ? 1 : 0
+  const isAllocated = assignedRoomCount === requiredRoomCount
   const paymentStatus = reservation.paidAmount >= reservation.totalAmount ? 'Fully Paid' : reservation.paidAmount > 0 ? 'deposit paid' : 'Unpaid'
   const nights = getDifferenceInDays(reservation.checkInDate, reservation.checkOutDate)
 
@@ -156,9 +162,24 @@ export function RoomAllocationDetailsPage() {
                 <div className="mb-2 text-[12px] text-[#6B7280]">Allocation Status</div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-[#F3F4F6] px-3 py-1.5 text-[12px] font-medium text-[#4B5563]">
                   <span className={`h-1.5 w-1.5 rounded-full ${isAllocated ? 'bg-[#10B981]' : 'bg-[#9CA3AF]'}`} />
-                  {isAllocated ? `Allocated (${reservation.roomNumber})` : 'Not Assigned'}
+                  {isAllocated ? `Allocated (${assignedRoomCount}/${requiredRoomCount})` : `Missing Rooms (${assignedRoomCount}/${requiredRoomCount})`}
                 </div>
               </div>
+
+              {reservationRooms.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="mb-1 text-[12px] text-slate-500">Required Rooms</div>
+                  {reservationRooms.map((room, index) => (
+                    <div key={room.reservationRoomId} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[13px] font-semibold text-slate-700">Room {index + 1}</span>
+                        <span className="text-[12px] font-semibold text-slate-500">{room.roomNumber || 'Not assigned'}</span>
+                      </div>
+                      <div className="mt-1 text-[12px] text-slate-500">{room.roomTypeName || reservation.roomTypeName || 'Room Type'}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               <div className="pt-2">
                 <button
@@ -166,7 +187,7 @@ export function RoomAllocationDetailsPage() {
                   className="w-full rounded-lg bg-[#0B4EA2] py-2.5 text-[14px] font-medium text-white transition-all hover:bg-[#093d81] active:scale-[0.98]"
                   onClick={() => setModalOpen(true)}
                 >
-                  {isAllocated ? 'Change Room' : 'Allocate Room'}
+                  {isAllocated ? 'Manage Rooms' : 'Allocate Rooms'}
                 </button>
               </div>
             </div>
@@ -178,6 +199,9 @@ export function RoomAllocationDetailsPage() {
         <AllocateRoomModal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
+          onAssigned={() => {
+            if (id) void dispatch(fetchPmsReservationById(id))
+          }}
           reservation={reservation}
         />
       )}

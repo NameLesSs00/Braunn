@@ -76,9 +76,16 @@ export interface PmsFinance {
 export interface PmsReservationRoom {
   reservationRoomId: string
   roomTypeId: string
+  roomTypeName?: string | null
   roomId: string | null
+  roomNumber?: string | null
   checkInDate: string
   checkOutDate: string
+  actualCheckInAt?: string | null
+  actualCheckOutAt?: string | null
+  assignedAt?: string | null
+  adults?: number
+  children?: number
   status: string
   pricePerNight: number
   totalPrice: number
@@ -235,7 +242,9 @@ export interface FolioCompanion {
 
 export interface FolioReservationRoom {
   reservationRoomId: string
+  roomTypeId?: string | null
   roomTypeName: string | null
+  roomId?: string | null
   roomNumber: string | null
   checkInDate: string
   checkOutDate: string

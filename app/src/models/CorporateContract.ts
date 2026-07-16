@@ -181,7 +181,7 @@ export type CorporateContract = {
   cancellationPolicy?: string
   penaltyPercentage?: number
   depositAmount?: number
-  creditLimit?: number
+  creditLimit?: number | null
   currency: string
   releaseDaysBefore: number | null
   billingCycle?: BillingCycle
@@ -207,7 +207,7 @@ export type CreateCorporateContractRequest = {
   startDate: string
   endDate: string
   corporateCancellationPolicyId: number
-  creditLimit: number
+  creditLimit: number | null
   currency: string
   releaseDaysBefore: number | null
   notes?: string

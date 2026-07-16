@@ -5,12 +5,17 @@ import type { SavedGroupReservationDraft } from '../reservations/groupReservatio
 
 export type Notification = {
   id: string
-  type: 'reservation_draft' | 'group_reservation_draft' | 'shift_start'
+  type: 'reservation_draft' | 'group_reservation_draft' | 'shift_start' | 'corporate_reservation_created'
   draftId?: string
   firstName?: string
   surName?: string
   groupName?: string
   contactName?: string
+  bookingReference?: string
+  guestName?: string
+  status?: string
+  currency?: string
+  grandTotal?: number
   draft?: ReservationDraft
   timestamp: number
   isOptional?: boolean

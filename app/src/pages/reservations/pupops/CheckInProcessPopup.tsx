@@ -6,13 +6,18 @@ import { CheckInProcessModal } from '../../../widgets/reservations/CheckInProces
 import type { Pricing } from '../../../widgets/reservations/CheckInProcessModal/types'
 
 import { getRoomTypeById } from '../../../shared/apis/roomTypesApi'
+import { getPmsReservationFolio } from '../../../shared/apis/PmsReservation'
+import { getRoomsAvailability } from '../../../shared/apis/roomsApi'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { fetchLocalReservationById } from '../../../features/localReservations/localReservationsSlice'
 import { checkInRoom } from '../../../features/ops/opsSlice'
 import { fetchRooms } from '../../../features/rooms/roomsSlice'
 import type { LocalReservation } from '../../../models/LocalReservation'
+import type { PmsReservationFolio } from '../../../models/PmsReservation'
+import type { RoomAvailability } from '../../../models/Room'
+import { Modal } from '../../../shared/ui/Modal'
 import { SuccessAlertModal } from '../../../shared/ui/SuccessAlertModal'
-import { AlertCircle, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 
 type Props = {
   open: boolean
@@ -80,6 +85,22 @@ function viewTypeLabel(viewType?: number) {
   return '-----'
 }
 
+function normalizeStatus(value?: string | null) {
+  return (value || '').replace(/[\s_-]/g, '').toLowerCase()
+}
+
+function hasAssignedReservationRoom(room: any, roomsList: Array<{ id: string; roomNumber: string }>) {
+  return Boolean(
+    room?.roomId ||
+    (room?.roomNumber && room.roomNumber !== 'N/A') ||
+    (room?.roomId && roomsList.some((item) => item.id === room.roomId)),
+  )
+}
+
+function dateOnly(value?: string | null) {
+  return value ? value.replace('T', ' ').split(' ')[0] : ''
+}
+
 export function CheckInProcessPopup({ open, onClose, reservationId, onSuccess }: Props) {
   const dispatch = useAppDispatch()
   const pmsSelected = useAppSelector((s) => s.localReservations.selected)
@@ -125,27 +146,69 @@ export function CheckInProcessPopup({ open, onClose, reservationId, onSuccess }:
 
 
   const [roomView, setRoomView] = useState('-----')
-  const [selectedRoomId, setSelectedRoomId] = useState('')
 
   const [alertOpen, setAlertOpen] = useState(false)
   const [alertMessage, setAlertMessage] = useState('')
   const [alertVariant, setAlertVariant] = useState<'success' | 'error'>('success')
+  const [folio, setFolio] = useState<PmsReservationFolio | null>(null)
+  const [folioLoading, setFolioLoading] = useState(false)
+  const [roomAvailabilityByReservationRoom, setRoomAvailabilityByReservationRoom] = useState<Record<string, RoomAvailability[]>>({})
 
   const [draft, setDraft] = useState<ReservationDraft>(staticDraft)
 
   useEffect(() => {
     if (!open || !reservationId) return
 
+    let cancelled = false
     setRoomView('-----')
     setDraft(staticDraft)
-    setSelectedRoomId('')
     setAlertOpen(false)
     setAlertMessage('')
     setAlertVariant('success')
+    setFolio(null)
+    setRoomAvailabilityByReservationRoom({})
+    setFolioLoading(true)
 
-    void dispatch(fetchLocalReservationById(reservationId))
     void dispatch(fetchRooms())
-  }, [dispatch, open, reservationId])
+
+    async function loadFolioFirst() {
+      try {
+        const folioResponse = await getPmsReservationFolio(reservationId)
+        if (cancelled) return
+        setFolio(folioResponse)
+
+        const availabilityEntries = await Promise.all((folioResponse.reservationRooms ?? []).map(async (room) => {
+          if (!room.reservationRoomId || !room.roomTypeId) return [room.reservationRoomId, []] as const
+          const rooms = await getRoomsAvailability({
+            StartDate: dateOnly(room.checkInDate || folioResponse.checkInDate),
+            EndDate: dateOnly(room.checkOutDate || folioResponse.checkOutDate),
+            RoomTypeId: room.roomTypeId,
+          })
+          return [room.reservationRoomId, rooms] as const
+        }))
+        if (!cancelled) {
+          setRoomAvailabilityByReservationRoom(Object.fromEntries(availabilityEntries))
+        }
+        await dispatch(fetchLocalReservationById(reservationId)).unwrap()
+      } catch (e) {
+        if (!cancelled) {
+          setAlertVariant('error')
+          setAlertMessage(e instanceof Error ? e.message : 'Could not load reservation folio.')
+          setAlertOpen(true)
+        }
+      } finally {
+        if (!cancelled) {
+          setFolioLoading(false)
+        }
+      }
+    }
+
+    void loadFolioFirst()
+
+    return () => {
+      cancelled = true
+    }
+  }, [dispatch, open, reservationId, staticDraft])
 
 
   useEffect(() => {
@@ -153,7 +216,6 @@ export function CheckInProcessPopup({ open, onClose, reservationId, onSuccess }:
 
     setDraft((prev) => ({ ...prev, ...reservationToDraft(pmsSelected as any) }))
     const firstRoom = (pmsSelected as any).reservationRooms?.[0]
-    setSelectedRoomId(firstRoom?.roomId ?? '')
     
     if (firstRoom?.roomTypeId) {
       void getRoomTypeById(firstRoom.roomTypeId)
@@ -169,7 +231,7 @@ export function CheckInProcessPopup({ open, onClose, reservationId, onSuccess }:
   }, [pmsSelected])
 
   const pricing = useMemo<Pricing>(() => {
-    const totalAmount = pmsSelected?.finance?.grandTotal ?? 0
+    const totalAmount = folio?.grandTotal ?? pmsSelected?.finance?.grandTotal ?? 0
     return {
       baseTotal: totalAmount,
       extraAdultTotal: 0,
@@ -183,9 +245,9 @@ export function CheckInProcessPopup({ open, onClose, reservationId, onSuccess }:
       discountValue: 0,
       totalAmount,
       requiredDeposit: 0,
-      currency: pmsSelected?.finance?.currency ?? '$',
+      currency: folio?.currency ?? pmsSelected?.finance?.currency ?? '$',
     }
-  }, [pmsSelected?.finance?.grandTotal, pmsSelected?.finance?.currency])
+  }, [folio?.currency, folio?.grandTotal, pmsSelected?.finance?.grandTotal, pmsSelected?.finance?.currency])
 
   const companionsText = useMemo(() => {
     const names = pmsSelected?.companions?.map((c: any) => c.fullName).filter(Boolean) ?? []
@@ -194,23 +256,70 @@ export function CheckInProcessPopup({ open, onClose, reservationId, onSuccess }:
 
   const guestsCount = useMemo(() => (pmsSelected ? (pmsSelected.companions?.length ?? 0) + 1 : 0), [pmsSelected])
 
+  const reservationRooms = useMemo(
+    () => ((folio?.reservationRooms?.length ? folio.reservationRooms : (pmsSelected as any)?.reservationRooms) ?? []) as any[],
+    [folio?.reservationRooms, pmsSelected],
+  )
+
+  const missingAssignedRooms = useMemo(
+    () => reservationRooms.filter((room) => !hasAssignedReservationRoom(room, roomsList)),
+    [reservationRooms, roomsList],
+  )
+
+  const checkInTargets = useMemo(() => {
+    if (reservationRooms.length > 0) {
+      return reservationRooms
+        .filter((room) => hasAssignedReservationRoom(room, roomsList))
+        .filter((room) => normalizeStatus(room.status) !== 'checkedin' && normalizeStatus(room.status) !== 'inhouse')
+        .map((room) => room.reservationRoomId)
+        .filter(Boolean)
+    }
+    const firstRoomId = pmsSelected?.reservationRoomIds?.[0] ?? (pmsSelected as any)?.reservationRooms?.[0]?.reservationRoomId ?? (pmsSelected as any)?.reservationRooms?.[0]?.id
+    return firstRoomId ? [firstRoomId] : []
+  }, [pmsSelected, reservationRooms, roomsList])
+
+  const roomAssignmentRows = useMemo(
+    () => reservationRooms.map((room) => ({
+      reservationRoomId: room.reservationRoomId,
+      roomTypeId: room.roomTypeId ?? '',
+      roomTypeName: room.roomTypeName ?? folio?.roomTypeName ?? pmsSelected?.roomTypeName ?? 'Room',
+      roomId: room.roomId ?? null,
+      roomNumber: room.roomNumber ?? null,
+      checkInDate: room.checkInDate ?? folio?.checkInDate ?? pmsSelected?.checkInDate ?? '',
+      checkOutDate: room.checkOutDate ?? folio?.checkOutDate ?? pmsSelected?.checkOutDate ?? '',
+      adults: room.adults,
+      children: room.children,
+      status: room.status,
+    })),
+    [folio?.checkInDate, folio?.checkOutDate, folio?.roomTypeName, pmsSelected?.checkInDate, pmsSelected?.checkOutDate, pmsSelected?.roomTypeName, reservationRooms],
+  )
+
+  const checkInBlockedReason = useMemo(() => {
+    if (reservationRooms.length === 0) return undefined
+    if (missingAssignedRooms.length > 0) {
+      return `Assign all required rooms before check-in. Missing ${missingAssignedRooms.length} of ${reservationRooms.length}.`
+    }
+    if (checkInTargets.length === 0) return 'All reservation rooms are already checked in.'
+    return undefined
+  }, [checkInTargets.length, missingAssignedRooms.length, reservationRooms.length])
+
   const reservationDetails = useMemo(
     () => ({
       reservationId: reservationId ?? '',
-      reservationRoomId: pmsSelected?.reservationRoomIds?.[0] ?? pmsSelected?.reservationRooms?.[0]?.reservationRoomId ?? (pmsSelected?.reservationRooms?.[0] as any)?.id ?? reservationId ?? '',
-      guestName: pmsSelected?.guest?.fullName ?? pmsSelected?.guest?.firstName ?? '-----',
-      roomTypeId: pmsSelected?.reservationRooms?.[0]?.roomTypeId ?? '',
-      roomTypeName: pmsSelected?.roomTypeName ?? '-----',
-      roomNumber: pmsSelected?.roomNumber ?? (pmsSelected?.reservationRooms?.[0]?.roomId ? roomsList.find((r) => r.id === pmsSelected.reservationRooms![0].roomId)?.roomNumber : null) ?? null,
-      checkInDate: pmsSelected?.checkInDate ?? '',
-      checkOutDate: pmsSelected?.checkOutDate ?? '',
+      reservationRoomId: folio?.reservationRooms?.[0]?.reservationRoomId ?? pmsSelected?.reservationRoomIds?.[0] ?? pmsSelected?.reservationRooms?.[0]?.reservationRoomId ?? (pmsSelected?.reservationRooms?.[0] as any)?.id ?? reservationId ?? '',
+      guestName: folio?.guestName ?? pmsSelected?.guest?.fullName ?? pmsSelected?.guest?.firstName ?? '-----',
+      roomTypeId: folio?.reservationRooms?.[0]?.roomTypeId ?? pmsSelected?.reservationRooms?.[0]?.roomTypeId ?? '',
+      roomTypeName: folio?.roomTypeName ?? pmsSelected?.roomTypeName ?? '-----',
+      roomNumber: folio?.roomNumber ?? pmsSelected?.roomNumber ?? (pmsSelected?.reservationRooms?.[0]?.roomId ? roomsList.find((r) => r.id === pmsSelected.reservationRooms![0].roomId)?.roomNumber : null) ?? null,
+      checkInDate: folio?.checkInDate ?? pmsSelected?.checkInDate ?? '',
+      checkOutDate: folio?.checkOutDate ?? pmsSelected?.checkOutDate ?? '',
       roomView,
       extras: '-----',
-      totalAmount: pmsSelected?.finance?.grandTotal ?? 0,
+      totalAmount: folio?.grandTotal ?? pmsSelected?.finance?.grandTotal ?? 0,
       companions: companionsText,
       guestsCount,
     }),
-    [companionsText, guestsCount, pmsSelected, reservationId, roomView, roomsList],
+    [companionsText, folio, guestsCount, pmsSelected, reservationId, roomView, roomsList],
   )
 
   const onChangeDraft = (patch: Partial<ReservationDraft>) => {
@@ -218,13 +327,21 @@ export function CheckInProcessPopup({ open, onClose, reservationId, onSuccess }:
   }
 
   const onSubmitCheckIn = async (notes: string = '') => {
-    if (!reservationId || !reservationDetails.reservationRoomId) return
+    if (!reservationId || checkInTargets.length === 0) return
+    if (checkInBlockedReason) {
+      setAlertVariant('error')
+      setAlertMessage(checkInBlockedReason)
+      setAlertOpen(true)
+      throw new Error(checkInBlockedReason)
+    }
 
     try {
-      await dispatch(checkInRoom({ reservationRoomId: reservationDetails.reservationRoomId, notes })).unwrap()
+      for (const reservationRoomId of checkInTargets) {
+        await dispatch(checkInRoom({ reservationRoomId, notes })).unwrap()
+      }
       
       setAlertVariant('success')
-      setAlertMessage(`Checked in successfully to Room ${reservationDetails.roomNumber ?? ''}`.trim())
+      setAlertMessage(checkInTargets.length > 1 ? `Checked in ${checkInTargets.length} rooms successfully.` : `Checked in successfully to Room ${reservationDetails.roomNumber ?? ''}`.trim())
       setAlertOpen(true)
       
       if (onSuccess) {
@@ -239,20 +356,77 @@ export function CheckInProcessPopup({ open, onClose, reservationId, onSuccess }:
     }
   }
 
+  const loadingCheckInData = open && Boolean(reservationId) && (folioLoading || (!folio && !alertOpen))
+
   return (
     <>
-      <CheckInProcessModal
-        open={open}
-        onClose={onClose}
-        value={draft}
-        onChange={onChangeDraft}
-        pricing={pricing}
-        reservationDetails={reservationDetails}
-        selectedRoomId={selectedRoomId}
-        onChangeSelectedRoomId={setSelectedRoomId}
-        onSubmitCheckIn={onSubmitCheckIn}
-        submittingCheckIn={submittingCheckIn}
-      />
+      {loadingCheckInData ? (
+        <Modal open={open} onClose={onClose}>
+          <div className="flex h-[420px] w-[min(720px,calc(100vw-32px))] flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="flex items-start justify-between bg-[#0B4EA2] px-8 py-5">
+              <div>
+                <div className="text-lg font-semibold text-white">Check-In Process</div>
+                <div className="mt-1 text-sm text-white/80">Loading reservation room data</div>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid h-10 w-10 place-items-center rounded-full text-white/90 hover:bg-white/10"
+                aria-label="Close"
+              >
+                <span className="text-2xl leading-none">x</span>
+              </button>
+            </div>
+            <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+              <Loader2 className="h-10 w-10 animate-spin text-[#0B4EA2]" />
+              <div className="mt-5 text-base font-bold text-slate-800">Loading check-in data...</div>
+              <div className="mt-2 max-w-md text-sm font-medium text-slate-500">
+                Fetching the folio, required rooms, and available room assignments.
+              </div>
+            </div>
+          </div>
+        </Modal>
+      ) : (
+        <CheckInProcessModal
+          open={open}
+          onClose={onClose}
+          value={draft}
+          onChange={onChangeDraft}
+          pricing={pricing}
+          reservationDetails={reservationDetails}
+          onRoomAssigned={async () => {
+            if (!reservationId) return
+            setFolioLoading(true)
+            try {
+              const folioResponse = await getPmsReservationFolio(reservationId)
+              setFolio(folioResponse)
+              const availabilityEntries = await Promise.all((folioResponse.reservationRooms ?? []).map(async (room) => {
+                if (!room.reservationRoomId || !room.roomTypeId) return [room.reservationRoomId, []] as const
+                const rooms = await getRoomsAvailability({
+                  StartDate: dateOnly(room.checkInDate || folioResponse.checkInDate),
+                  EndDate: dateOnly(room.checkOutDate || folioResponse.checkOutDate),
+                  RoomTypeId: room.roomTypeId,
+                })
+                return [room.reservationRoomId, rooms] as const
+              }))
+              setRoomAvailabilityByReservationRoom(Object.fromEntries(availabilityEntries))
+              await dispatch(fetchLocalReservationById(reservationId)).unwrap()
+            } catch (e) {
+              setAlertVariant('error')
+              setAlertMessage(e instanceof Error ? e.message : 'Could not refresh reservation room data.')
+              setAlertOpen(true)
+            } finally {
+              setFolioLoading(false)
+            }
+          }}
+          onSubmitCheckIn={onSubmitCheckIn}
+          submittingCheckIn={submittingCheckIn}
+          checkInBlockedReason={checkInBlockedReason}
+          roomAssignmentRows={roomAssignmentRows}
+          roomAvailabilityByReservationRoom={roomAvailabilityByReservationRoom}
+          loadingRoomAssignments={folioLoading}
+        />
+      )}
 
       <SuccessAlertModal
         open={alertOpen}

@@ -1,10 +1,9 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
-import { MdCancel } from 'react-icons/md'
-import { Clock, ArrowRightLeft, Moon, CalendarPlus } from 'lucide-react'
+import { Clock, ArrowRightLeft, Moon, CalendarPlus, Ban } from 'lucide-react'
 
 const tabs = [
-  { id: 'corporate-cancellation', label: 'Corporate Cancellation', to: routes.policies.corporateCancellation, Icon: MdCancel },
+  { id: 'cancellation',           label: 'Cancellation',           to: routes.policies.corporateCancellation, Icon: Ban },
   { id: 'early-checkout',         label: 'Early Checkout',         to: routes.policies.earlyCheckout,        Icon: Clock },
   { id: 'room-change',            label: 'Room Change',            to: routes.policies.roomChange,            Icon: ArrowRightLeft },
   { id: 'late-checkout',          label: 'Late Checkout',          to: routes.policies.lateCheckout,          Icon: Moon },

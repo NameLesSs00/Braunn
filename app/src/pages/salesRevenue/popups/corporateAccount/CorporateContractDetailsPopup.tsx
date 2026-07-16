@@ -101,6 +101,7 @@ const emptyServiceRate = () => ({
 })
 
 const fieldClass = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition-colors focus:border-[#004bb4] focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400'
+const maxInventoryRangeDays = 21
 
 const createInitialForm = (currency = 'EUR'): PackageForm => ({
   code: '',
@@ -129,6 +130,29 @@ function formatDate(value?: string | null) {
 function formatMoney(value?: number | null, currency = 'EUR') {
   if (value === null || value === undefined) return '---'
   return `${value.toLocaleString()} ${currency}`
+}
+
+function addDays(date: string, days: number) {
+  const parsed = new Date(`${date}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) return ''
+  parsed.setDate(parsed.getDate() + days)
+  const year = parsed.getFullYear()
+  const month = String(parsed.getMonth() + 1).padStart(2, '0')
+  const day = String(parsed.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function minDate(...dates: Array<string | undefined | null>) {
+  return dates.filter(Boolean).sort()[0] ?? ''
+}
+
+function clampInventoryRange(fromDate: string, toDate: string, effectiveTo?: string | null) {
+  if (!fromDate) return { fromDate, toDate }
+  const maxToDate = minDate(addDays(fromDate, maxInventoryRangeDays - 1), effectiveTo?.slice(0, 10))
+  let nextToDate = toDate || maxToDate
+  if (nextToDate < fromDate) nextToDate = fromDate
+  if (maxToDate && nextToDate > maxToDate) nextToDate = maxToDate
+  return { fromDate, toDate: nextToDate }
 }
 
 function parseChildAges(value: string) {
@@ -165,7 +189,7 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
   const isPackagesLoading = packagesStatus === 'loading'
   const hasContractPackages = contractPackages.length > 0
   const contractStatus = activeContract.status ?? activeContract.contractStatus ?? '---'
-  const creditLimit = activeContract.creditLimit ?? activeContract.credit?.creditLimit ?? 0
+  const creditLimit = activeContract.creditLimit ?? activeContract.credit?.creditLimit ?? null
   const [activeTab, setActiveTab] = useState<TabKey>('Overview')
   const [isAddingPackage, setIsAddingPackage] = useState(false)
   const [isSubmittingPackage, setIsSubmittingPackage] = useState(false)
@@ -233,8 +257,11 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
 
     setInventoryFilters((prev) => ({
       ...prev,
-      fromDate: selectedInventoryVersion.effectiveFrom?.slice(0, 10) || '',
-      toDate: selectedInventoryVersion.effectiveTo?.slice(0, 10) || '',
+      ...clampInventoryRange(
+        selectedInventoryVersion.effectiveFrom?.slice(0, 10) || '',
+        selectedInventoryVersion.effectiveTo?.slice(0, 10) || '',
+        selectedInventoryVersion.effectiveTo,
+      ),
       roomTypeId: '',
     }))
 
@@ -253,9 +280,9 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
     const request = dispatch(fetchCorporateInventory({
       contractId: activeContract.id,
       params: {
+        roomTypeId: inventoryFilters.roomTypeId || undefined,
         fromDate: inventoryFilters.fromDate || selectedInventoryVersion.effectiveFrom?.slice(0, 10),
         toDate: inventoryFilters.toDate || selectedInventoryVersion.effectiveTo?.slice(0, 10) || undefined,
-        roomTypeId: inventoryFilters.roomTypeId || undefined,
         packageId: selectedInventoryPackage.id,
         versionId: selectedInventoryVersion.id,
         onlyAvailable: inventoryFilters.onlyAvailable,
@@ -318,11 +345,12 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
     for (const [index, row] of packageForm.roomRates.entries()) {
       if (!row.roomTypeId) return `Room rate ${index + 1} needs a room type.`
       if (!row.ratePlanCode.trim()) return `Room rate ${index + 1} needs a rate plan.`
-      if (Number(row.adults) < 0 || Number(row.children) < 0 || Number(row.pricePerNight) < 0) {
+      const childrenCount = Number(row.children || 0)
+      if (Number(row.adults) < 0 || childrenCount < 0 || Number(row.pricePerNight) < 0) {
         return `Room rate ${index + 1} has an invalid number.`
       }
       const ages = parseChildAges(row.childAges)
-      if (ages.length > 0 && ages.length !== Number(row.children)) {
+      if (childrenCount > 0 && ages.length !== childrenCount) {
         return `Room rate ${index + 1} child ages must match the children count.`
       }
     }
@@ -350,8 +378,8 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
     const roomRates: CorporatePackageRoomRate[] = packageForm.roomRates.map((row) => ({
       roomTypeId: row.roomTypeId,
       adults: Number(row.adults),
-      children: Number(row.children),
-      childAges: parseChildAges(row.childAges),
+      children: Number(row.children || 0),
+      childAges: Number(row.children || 0) > 0 ? parseChildAges(row.childAges) : [],
       ratePlanCode: row.ratePlanCode.trim(),
       pricePerNight: Number(row.pricePerNight),
     }))
@@ -436,9 +464,9 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
       await dispatch(fetchCorporateInventory({
         contractId: activeContract.id,
         params: {
+          roomTypeId: inventoryFilters.roomTypeId || undefined,
           fromDate: inventoryFilters.fromDate || selectedInventoryVersion.effectiveFrom?.slice(0, 10),
           toDate: inventoryFilters.toDate || selectedInventoryVersion.effectiveTo?.slice(0, 10) || undefined,
-          roomTypeId: inventoryFilters.roomTypeId || undefined,
           packageId: selectedInventoryPackage.id,
           versionId: selectedInventoryVersion.id,
           onlyAvailable: inventoryFilters.onlyAvailable,
@@ -834,9 +862,9 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
                       void dispatch(fetchCorporateInventory({
                         contractId: activeContract.id,
                         params: {
+                          roomTypeId: inventoryFilters.roomTypeId || undefined,
                           fromDate: inventoryFilters.fromDate || selectedInventoryVersion.effectiveFrom?.slice(0, 10),
                           toDate: inventoryFilters.toDate || selectedInventoryVersion.effectiveTo?.slice(0, 10) || undefined,
-                          roomTypeId: inventoryFilters.roomTypeId || undefined,
                           packageId: selectedInventoryPackage.id,
                           versionId: selectedInventoryVersion.id,
                           onlyAvailable: inventoryFilters.onlyAvailable,
@@ -953,22 +981,6 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
 
                         <div className="rounded-lg border border-slate-200 bg-white">
                           <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-5">
-                            <Field label="From Date">
-                              <input
-                                type="date"
-                                value={inventoryFilters.fromDate}
-                                onChange={(event) => setInventoryFilters((prev) => ({ ...prev, fromDate: event.target.value }))}
-                                className={fieldClass}
-                              />
-                            </Field>
-                            <Field label="To Date">
-                              <input
-                                type="date"
-                                value={inventoryFilters.toDate}
-                                onChange={(event) => setInventoryFilters((prev) => ({ ...prev, toDate: event.target.value }))}
-                                className={fieldClass}
-                              />
-                            </Field>
                             <Field label="Room Type">
                               <select
                                 value={inventoryFilters.roomTypeId}
@@ -982,6 +994,30 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
                                   </option>
                                 ))}
                               </select>
+                            </Field>
+                            <Field label="From Date">
+                              <input
+                                type="date"
+                                value={inventoryFilters.fromDate}
+                                onChange={(event) => {
+                                  const fromDate = event.target.value
+                                  setInventoryFilters((prev) => ({ ...prev, ...clampInventoryRange(fromDate, prev.toDate, selectedInventoryVersion.effectiveTo) }))
+                                }}
+                                className={fieldClass}
+                              />
+                            </Field>
+                            <Field label="To Date">
+                              <input
+                                type="date"
+                                value={inventoryFilters.toDate}
+                                min={inventoryFilters.fromDate}
+                                max={inventoryFilters.fromDate ? minDate(addDays(inventoryFilters.fromDate, maxInventoryRangeDays - 1), selectedInventoryVersion.effectiveTo?.slice(0, 10)) : selectedInventoryVersion.effectiveTo?.slice(0, 10)}
+                                onChange={(event) => {
+                                  const next = clampInventoryRange(inventoryFilters.fromDate, event.target.value, selectedInventoryVersion.effectiveTo)
+                                  setInventoryFilters((prev) => ({ ...prev, ...next }))
+                                }}
+                                className={fieldClass}
+                              />
                             </Field>
                             <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-slate-700">
                               <input
@@ -999,6 +1035,9 @@ export function CorporateContractDetailsPopup({ contract, onClose }: CorporateCo
                               />
                               Only adjusted
                             </label>
+                          </div>
+                          <div className="border-b border-slate-100 bg-white px-5 py-3 text-xs font-semibold text-slate-500">
+                            Inventory date range is capped at {maxInventoryRangeDays} days to keep the table readable.
                           </div>
 
                           {inventoryError && (

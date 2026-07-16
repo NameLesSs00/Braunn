@@ -286,6 +286,17 @@ export function ReservationsPage() {
     return () => request.abort()
   }, [activeTab, dispatch, checkInFrom, checkInTo])
 
+  useEffect(() => {
+    if (activeTab === 'group') return
+
+    const onReservationsRefresh = () => {
+      void dispatch(fetchReservationsTable({ startDate: checkInFrom, endDate: checkInTo }))
+    }
+
+    window.addEventListener('braun:reservations-refresh', onReservationsRefresh)
+    return () => window.removeEventListener('braun:reservations-refresh', onReservationsRefresh)
+  }, [activeTab, dispatch, checkInFrom, checkInTo])
+
   const [query, setQuery] = useState(initialFilters.query)
   const [openMenuForId, setOpenMenuForId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)

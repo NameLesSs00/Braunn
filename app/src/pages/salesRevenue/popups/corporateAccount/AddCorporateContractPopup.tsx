@@ -111,7 +111,6 @@ export function AddCorporateContractPopup({ accountId, onClose }: AddCorporateCo
       return 'End date must be after start date.'
     }
     if (!formData.corporateCancellationPolicyId) return 'Please select a cancellation policy.'
-    if (!formData.creditLimit || Number(formData.creditLimit) < 0) return 'Credit limit must be zero or more.'
     if (!formData.currency.trim()) return 'Currency is required.'
     if (formData.contractType === ContractType.Allotment) {
       if (formData.releaseDaysBefore === '' || Number(formData.releaseDaysBefore) < 0) {
@@ -138,7 +137,7 @@ export function AddCorporateContractPopup({ accountId, onClose }: AddCorporateCo
       startDate: toIsoDateTime(formData.startDate),
       endDate: toIsoDateTime(formData.endDate),
       corporateCancellationPolicyId: Number(formData.corporateCancellationPolicyId),
-      creditLimit: Number(formData.creditLimit),
+      creditLimit: null,
       currency: formData.currency.trim().toUpperCase(),
       releaseDaysBefore: formData.contractType === ContractType.Commitment ? null : Number(formData.releaseDaysBefore),
       notes: formData.notes.trim(),
@@ -277,17 +276,18 @@ export function AddCorporateContractPopup({ accountId, onClose }: AddCorporateCo
 
             <div className="grid gap-4 md:grid-cols-3">
               <div className="min-w-0">
-                <label className="mb-1 block text-sm font-semibold text-slate-700">Credit Limit *</label>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">Credit Limit</label>
                 <div className="relative">
                   <input
-                    type="number"
-                    min="0"
-                    value={formData.creditLimit}
-                    onChange={(e) => updateField('creditLimit', e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-4 py-2.5 pr-10 text-slate-700 outline-none focus:border-[#004bb4] focus:ring-2 focus:ring-blue-100"
+                    type="text"
+                    value="Null on create"
+                    disabled
+                    readOnly
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 pr-10 text-slate-400 outline-none"
                   />
                   <Coins className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 </div>
+                <p className="mt-2 text-xs text-slate-500">New corporate contracts submit credit limit as null.</p>
               </div>
               <div className="min-w-0">
                 <label className="mb-1 block text-sm font-semibold text-slate-700">Currency *</label>

@@ -5,11 +5,12 @@ interface SelectReservationTypeModalProps {
   open: boolean
   onClose: () => void
   onSelectIndividual: () => void
+  onSelectCorporate?: () => void
   onSelectOta?: () => void
   onSelectGroup?: () => void
 }
 
-export function SelectReservationTypeModal({ open, onClose, onSelectIndividual, onSelectOta, onSelectGroup }: SelectReservationTypeModalProps) {
+export function SelectReservationTypeModal({ open, onClose, onSelectIndividual, onSelectCorporate, onSelectOta, onSelectGroup }: SelectReservationTypeModalProps) {
   if (!open) return null
 
   return (
@@ -39,7 +40,13 @@ export function SelectReservationTypeModal({ open, onClose, onSelectIndividual, 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Corporate account */}
-              <button className="flex flex-col items-center text-center p-8 border border-indigo-100 rounded-2xl hover:shadow-md hover:border-indigo-300 transition-all group bg-white">
+              <button
+                onClick={() => {
+                  onClose();
+                  onSelectCorporate?.();
+                }}
+                className="flex flex-col items-center text-center p-8 border border-indigo-100 rounded-2xl hover:shadow-md hover:border-indigo-300 transition-all group bg-white"
+              >
                 <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Building2 className="w-8 h-8 text-indigo-700" />
                 </div>
