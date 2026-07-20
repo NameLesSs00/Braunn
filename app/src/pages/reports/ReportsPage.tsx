@@ -18,7 +18,6 @@ export function ReportsPage() {
   const todayStr = today.toISOString().split('T')[0]
   const [dateFrom, setDateFrom] = useState(todayStr)
   const [dateTo, setDateTo] = useState(todayStr)
-  const [property, setProperty] = useState('All Properties')
   const [roomType, setRoomType] = useState('All Room Types')
   const [marketSegment, setMarketSegment] = useState('All Segments')
 
@@ -33,8 +32,6 @@ export function ReportsPage() {
         setDateFrom={setDateFrom}
         dateTo={dateTo}
         setDateTo={setDateTo}
-        property={property}
-        setProperty={setProperty}
         roomType={roomType}
         setRoomType={setRoomType}
         marketSegment={marketSegment}
