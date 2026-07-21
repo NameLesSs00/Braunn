@@ -28,7 +28,7 @@ export type ReservationDraft = {
   childCount: number
   childAges: number[]
   
-  rooms: { id: number; roomTypeId: string; roomType: string; roomCount: number; roomNumber?: string; roomView?: string }[]
+  rooms: { id: number; roomTypeId: string; roomType: string; roomCount: number; roomNumber?: string; roomView?: string; pricePerNight?: number }[]
   
   rateCode: string
   ratePlan: string
@@ -59,6 +59,14 @@ export type ReservationDraft = {
   cardSeriesCode: string
   
   companions: { id: number, firstName: string, lastName: string, phoneNumber: string, email: string, address: string, nationalId: string }[]
+  
+  isOptionalReservation: boolean
+  expiresAt: string
+
+  editingOptionalReservationId?: string
+  editingOptionalReservationVersion?: number
+  convertingOptionalReservationId?: string
+  convertingOptionalReservationVersion?: number
 }
 
 const initialState: ReservationDraft = {
@@ -119,7 +127,9 @@ const initialState: ReservationDraft = {
   cardExpire: '',
   cardSeriesCode: '',
   
-  companions: []
+  companions: [],
+  isOptionalReservation: false,
+  expiresAt: ''
 }
 
 const draftSlice = createSlice({

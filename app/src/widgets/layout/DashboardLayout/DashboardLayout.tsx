@@ -83,7 +83,7 @@ export function DashboardLayout() {
   }, [dispatch])
 
   const openNewReservation = (options?: OpenNewReservationOptions) => {
-    if (!options?.draftId) {
+    if (!options?.draftId && !options?.skipReset) {
       dispatch(resetDraft())
     }
 

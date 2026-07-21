@@ -16,6 +16,8 @@ countries.registerLocale(enLocale)
 
 type Props = {
   value: ReservationDraft
+  onChange?: (patch: Partial<ReservationDraft>) => void
+  validationErrors?: Record<string, string>
 }
 
 function InfoRow({
@@ -108,7 +110,7 @@ function formatDateForDisplay(value: string) {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' })
 }
 
-export function NewReservationStep3({ value }: Props) {
+export function NewReservationStep3({ value, onChange, validationErrors = {} }: Props) {
   const localAriState = useAppSelector((state) => state.localAri)
   const fullName = [value.firstName, value.surName].filter(Boolean).join(' ')
 
@@ -201,6 +203,24 @@ export function NewReservationStep3({ value }: Props) {
         <div className="rounded-xl bg-[#F7F4FF] p-4 text-sm text-slate-700">
           {value.specialRequests || '—'}
         </div>
+        {value.isOptionalReservation && (
+          <div className="mt-4">
+            <label className="mb-1 block text-sm font-semibold text-slate-700">
+              Expiration Date <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={value.expiresAt || ''}
+              onChange={(e) => onChange?.({ expiresAt: e.target.value })}
+              className={`w-full rounded-xl border ${
+                validationErrors?.expiresAt ? 'border-red-500 bg-red-50' : 'border-slate-200 bg-white'
+              } px-4 py-2.5 text-sm outline-none transition-colors focus:border-blue-500`}
+            />
+            {validationErrors?.expiresAt && (
+              <div className="mt-1 text-[13px] text-red-500">{validationErrors.expiresAt}</div>
+            )}
+          </div>
+        )}
       </Card>
 
 

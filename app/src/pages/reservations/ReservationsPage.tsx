@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import { Building2, ChevronLeft, ChevronRight, Download, Eye, Globe, LogIn, MoreHorizontal, User, Users } from 'lucide-react'
+import { Building2, CalendarClock, ChevronLeft, ChevronRight, Download, Eye, Globe, LogIn, MoreHorizontal, User, Users } from 'lucide-react'
 import { IoSearchSharp } from "react-icons/io5";
 
 import { IconImage } from '../../shared/ui/IconImage'
@@ -18,6 +18,7 @@ import { OtaReservationModal } from '../../widgets/reservations/OtaReservationMo
 import { MoveRoomPopup } from './pupops/MoveRoomPopup'
 import { ExportInHouseListPopup } from '../inHouseList/ExportInHouseListPopup'
 import { GroupReservationsPage } from '../groupReservations/GroupReservationsPage'
+import { OptionalReservationsTab } from './optionalReservations/OptionalReservationsTab'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -53,17 +54,18 @@ const bookingSourceOptions = [
 ] as const
 
 type BookingSourceOption = typeof bookingSourceOptions[number]
-type ReservationsTabId = 'normal' | 'group' | 'corporate' | 'ota'
+type ReservationsTabId = 'normal' | 'group' | 'corporate' | 'ota' | 'optional'
 
 const reservationTabs: Array<{ id: ReservationsTabId; label: string; Icon: typeof User }> = [
   { id: 'normal', label: 'Normal Reservations', Icon: User },
   { id: 'group', label: 'Group Reservations', Icon: Users },
   { id: 'corporate', label: 'Corporate Reservations', Icon: Building2 },
   { id: 'ota', label: 'OTA Reservations', Icon: Globe },
+  { id: 'optional', label: 'Optional Reservations', Icon: CalendarClock },
 ]
 
 function normalizeReservationsTab(value: string | null): ReservationsTabId {
-  if (value === 'group' || value === 'corporate' || value === 'ota') return value
+  if (value === 'group' || value === 'corporate' || value === 'ota' || value === 'optional') return value
   return 'normal'
 }
 
@@ -281,13 +283,13 @@ export function ReservationsPage() {
   const [checkInTo, setCheckInTo] = useState(initialFilters.checkInTo)
 
   useEffect(() => {
-    if (activeTab === 'group') return
+    if (activeTab === 'group' || activeTab === 'optional') return
     const request = dispatch(fetchReservationsTable({ startDate: checkInFrom, endDate: checkInTo }))
     return () => request.abort()
   }, [activeTab, dispatch, checkInFrom, checkInTo])
 
   useEffect(() => {
-    if (activeTab === 'group') return
+    if (activeTab === 'group' || activeTab === 'optional') return
 
     const onReservationsRefresh = () => {
       void dispatch(fetchReservationsTable({ startDate: checkInFrom, endDate: checkInTo }))
@@ -376,7 +378,7 @@ export function ReservationsPage() {
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    let result = pmsReservations.filter((reservation) => matchesReservationsTab(reservation, activeTab))
+    let result = pmsReservations.filter((reservation) => matchesReservationsTab(reservation, activeTab === 'optional' ? 'normal' : activeTab))
 
     if (q) {
       result = result.filter((r) => [r.guestName, r.bookingReference, r.id, r.roomTypeName, getReservationSourceLabel(r)].some((v) => (v ?? '').toLowerCase().includes(q)))
@@ -531,6 +533,8 @@ export function ReservationsPage() {
 
       {activeTab === 'group' ? (
         <GroupReservationsPage />
+      ) : activeTab === 'optional' ? (
+        <OptionalReservationsTab />
       ) : (
         <>
       <ReservationDetailsPopup
