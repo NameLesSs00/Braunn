@@ -58,6 +58,8 @@ import { DepartmentsTab } from './pages/HRMPages/setting/tabs/DepartmentsTab'
 import { ShiftsTab } from './pages/HRMPages/setting/tabs/ShiftsTab'
 import { NotificationsTab } from './pages/HRMPages/setting/tabs/NotificationsTab'
 import { PositionsTab } from './pages/HRMPages/setting/tabs/PositionsTab'
+import { RestaurantPOSPage } from './pages/POSPages/restaurant/RestaurantPOSPage'
+import { CashierPOSView } from './pages/POSPages/restaurant/components/CashierPOSView'
 
 export default function App() {
   return (
@@ -67,6 +69,14 @@ export default function App() {
         
         <Route element={<AuthGuard />}>
           <Route path="/" element={<Navigate to={routes.dashboard} replace />} />
+
+          <Route path={routes.pos.root} element={<RestaurantPOSPage />}>
+            <Route index element={<Navigate to={routes.pos.menu} replace />} />
+            <Route path={routes.pos.menu} element={<CashierPOSView section="Menu" />} />
+            <Route path={routes.pos.orders} element={<CashierPOSView section="Orders" />} />
+            <Route path={routes.pos.tableReservation} element={<CashierPOSView section="Table Reservation" />} />
+            <Route path={routes.pos.guestMeals} element={<CashierPOSView section="Guest Meals" />} />
+          </Route>
 
           <Route element={<DashboardLayout />}>
             <Route path={routes.dashboard} element={<DashboardPage />} />

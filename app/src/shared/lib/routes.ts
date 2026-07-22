@@ -64,6 +64,13 @@ export const routes = {
       positions: '/HRM/Setting/Positions',
     },
   },
+  pos: {
+    root: '/POS',
+    menu: '/POS/menu',
+    orders: '/POS/orders',
+    tableReservation: '/POS/table-reservation',
+    guestMeals: '/POS/guest-meals',
+  },
   login: '/login',
 } as const
 

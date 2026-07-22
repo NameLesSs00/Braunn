@@ -114,14 +114,16 @@ export function Header({ title, onAddReservationClick, onOpenGroupReservationDra
         <h1 className="text-[22px] font-semibold text-slate-800">{title}</h1>
 
         <div className="flex items-center gap-5">
-          <button
-            type="button"
-            onClick={onAddReservationClick}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#0B4EA2] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"
-          >
-            <span className="text-lg leading-none">+</span>
-            Add Reservation
-          </button>
+          {onAddReservationClick ? (
+            <button
+              type="button"
+              onClick={onAddReservationClick}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0B4EA2] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#093d81] active:scale-95"
+            >
+              <span className="text-lg leading-none">+</span>
+              Add Reservation
+            </button>
+          ) : null}
 
           <div className="relative" ref={notificationsRef}>
             <button

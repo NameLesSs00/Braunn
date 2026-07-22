@@ -49,6 +49,7 @@ const titleByPath: Record<string, string> = {
   [routes.policies.roomChange]: 'Policies',
   [routes.policies.lateCheckout]: 'Policies',
   [routes.policies.extendStay]: 'Policies',
+  [routes.pos.root]: 'Restaurant POS',
 }
 
 export function DashboardLayout() {
