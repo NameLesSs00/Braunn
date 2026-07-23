@@ -983,41 +983,41 @@ function QuickWithdrawModal({
 function AdminSidebar({ activeKey }: { activeKey: AdminTabKey }) {
   return (
     <aside
-      className="flex h-full w-[306px] flex-col shadow-sm"
+      className="flex h-full w-[260px] flex-col shadow-sm"
       style={{
-        background: 'linear-gradient(to right, #0B4EA2 0 47px, #ffffff 47px 100%)',
+        background: 'linear-gradient(to right, #0B4EA2 0 44px, #ffffff 44px 100%)',
       }}
     >
-      <div className="grid flex-shrink-0 grid-cols-[47px_1fr]">
+      <div className="grid flex-shrink-0 grid-cols-[44px_1fr]">
         <div />
-        <div className="border-b border-slate-100 px-7 pb-5 pt-7">
-          <img src="/assets/Asset 9 1.svg" alt="Braun" className="h-11 w-auto" />
-          <div className="mt-5 text-[17px] font-semibold text-[#063272]">Restaurant Management</div>
+        <div className="border-b border-slate-100 px-5 pb-5 pt-6">
+          <img src="/assets/Asset 9 1.svg" alt="Braun" className="h-10 w-auto" />
+          <div className="mt-4 text-[15px] font-semibold text-[#063272]">Restaurant Management</div>
         </div>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden pb-6 pt-11">
+      <nav className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden pb-4 pt-10">
         {adminNavItems.map((item) => {
           const Icon = item.icon
 
           return (
-            <NavLink key={item.key} to={item.to} className="relative grid grid-cols-[47px_1fr] items-center text-slate-700">
-              <div className="grid h-[58px] w-[47px] place-items-center bg-[#0B4EA2]">
-                <Icon className="h-6 w-6 text-white" />
+            <NavLink key={item.key} to={item.to} className="relative grid grid-cols-[44px_1fr] items-center text-slate-700">
+              <div className="grid h-14 w-11 place-items-center bg-[#0B4EA2]">
+                <Icon className="h-5 w-5 text-white" />
               </div>
-              <div className="relative flex h-[58px] items-center px-4 text-[20px]">
+              <div className="relative flex h-14 items-center px-5 text-[15px]">
                 {activeKey === item.key ? (
                   <>
-                    <span className="absolute inset-y-0 left-0 right-4 rounded-sm bg-[#D9E9FF]" aria-hidden="true" />
+                    <span className="absolute inset-y-2 left-0 right-3 rounded-lg bg-[#D9E9FF]" aria-hidden="true" />
                     <span
                       className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2"
                       aria-hidden="true"
                       style={{
                         width: 0,
                         height: 0,
-                        borderTop: '9px solid transparent',
-                        borderBottom: '9px solid transparent',
-                        borderRight: '9px solid #D9E9FF',
+                        borderTop: '8px solid transparent',
+                        borderBottom: '8px solid transparent',
+                        borderRight: '8px solid #D9E9FF',
                       }}
                     />
                   </>
@@ -2404,7 +2404,7 @@ export function AdminPOSView() {
 
   return (
     <div className="h-screen w-full overflow-hidden bg-white text-[#071329]">
-      <div className="grid h-full w-full min-w-[1180px] grid-cols-[306px_minmax(0,1fr)]">
+      <div className="grid h-full w-full min-w-[1180px] grid-cols-[260px_minmax(0,1fr)]">
         <AdminSidebar activeKey={activeTab.key} />
         <main className="flex min-w-0 flex-col overflow-hidden">
           <AdminHeader title={activeTab.label} />
