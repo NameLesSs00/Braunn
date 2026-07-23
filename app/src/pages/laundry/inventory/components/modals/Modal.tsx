@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiX } from 'react-icons/fi';
+import { translateAppDomTree, translateAppText } from '../../../../../shared/lib/appTranslation';
 
 interface ModalProps {
   isOpen: boolean;
@@ -35,6 +36,24 @@ export function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = '
     };
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const root = modalRef.current;
+    translateAppDomTree(root);
+
+    const observer = new MutationObserver(() => translateAppDomTree(root));
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['placeholder', 'aria-label', 'title', 'alt'],
+    });
+
+    return () => observer.disconnect();
+  }, [isOpen]);
+
   if (!isOpen || !mounted) return null;
 
   return createPortal(
@@ -45,9 +64,9 @@ export function Modal({ isOpen, onClose, title, subtitle, children, maxWidth = '
       >
         {/* Header */}
         <div className="bg-[#0a4bbd] px-8 py-6 text-white relative flex-shrink-0">
-          <h2 className="text-xl font-semibold pr-10">{title}</h2>
+          <h2 className="text-xl font-semibold pr-10">{translateAppText(title)}</h2>
           {subtitle && (
-            <p className="mt-1 text-blue-100 text-[14px]">{subtitle}</p>
+            <p className="mt-1 text-blue-100 text-[14px]">{translateAppText(subtitle)}</p>
           )}
           <button 
             onClick={onClose}

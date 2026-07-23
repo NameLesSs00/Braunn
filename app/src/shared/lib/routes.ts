@@ -33,10 +33,10 @@ export const routes = {
     extendStay: '/policies/extend-stay',
   },
   laundry: {
-    overview: '/laundry/overview',
-    roomRequests: '/laundry/room-requests',
-    inventory: '/laundry/inventory',
-    settings: '/laundry/settings',
+    overview: '/waescherei/uebersicht',
+    roomRequests: '/waescherei/zimmeranfragen',
+    inventory: '/waescherei/inventar',
+    settings: '/waescherei/einstellungen',
   },
   hk: {
     dashboard: '/HK/Dashboard',

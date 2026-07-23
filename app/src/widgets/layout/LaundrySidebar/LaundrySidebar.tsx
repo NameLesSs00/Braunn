@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
+import { translateAppText } from '../../../shared/lib/appTranslation'
 import { IoHomeOutline, IoSettingsOutline } from 'react-icons/io5'
 import { MdOutlineInventory2 } from 'react-icons/md'
 import { PiTShirt } from 'react-icons/pi'
@@ -19,9 +20,13 @@ const navItems: NavItem[] = [
 ]
 
 function LaundrySidebarLink({ item }: { item: NavItem }) {
+  const label = translateAppText(item.label)
+
   return (
     <NavLink
       to={item.to}
+      aria-label={label}
+      title={label}
       className={({ isActive }) =>
         [
           'relative grid grid-cols-[44px_1fr] items-center',
@@ -57,7 +62,7 @@ function LaundrySidebarLink({ item }: { item: NavItem }) {
                 }}
               />
             ) : null}
-            <span className="relative truncate">{item.label}</span>
+            <span className="relative truncate">{label}</span>
           </div>
         </>
       )}
@@ -78,7 +83,7 @@ export function LaundrySidebar() {
         <div className="bg-transparent" />
         <div className="flex flex-col justify-center px-6 py-5 border-b border-slate-100">
           <img src="/assets/Asset 9 1.svg" alt="Braun" className="h-10 w-auto" />
-          <p className="mt-1 text-[11px] font-medium text-[#0B4EA2]">Laundry department</p>
+          <p className="mt-1 text-[11px] font-medium text-[#0B4EA2]">{translateAppText('Laundry department')}</p>
         </div>
       </div>
 

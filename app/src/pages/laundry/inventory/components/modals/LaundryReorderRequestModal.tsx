@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiTrash2, FiPlus } from 'react-icons/fi';
 import { Modal } from '../../../../HKPages/inventory/components/modals/Modal';
 import { useAppDispatch } from '../../../../../shared/apis/hooks';
+import { translateAppText } from '../../../../../shared/lib/appTranslation';
 import { getLaundryInventoryItems } from '../../../../../shared/Laundryshared/api/laundryInventoryItemsApi';
 import { createLaundryPurchase } from '../../../../../features/Laundryfeatures/laundryPurchases/laundryPurchasesSlice';
 import type { LaundryInventoryItemReadDto } from '../../../../../models/Laundrymodels/LaundryInventoryItem';
@@ -76,12 +77,12 @@ export function LaundryReorderRequestModal({ isOpen, onClose, initialItem }: Lau
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supplierName) {
-      alert('Supplier is required');
+      alert(translateAppText('Supplier is required'));
       return;
     }
     const validItems = purchaseItems.filter((i) => i.selectedItem && i.quantity > 0);
     if (validItems.length === 0) {
-      alert('At least one item is required');
+      alert(translateAppText('At least one item is required'));
       return;
     }
 
@@ -99,7 +100,7 @@ export function LaundryReorderRequestModal({ isOpen, onClose, initialItem }: Lau
       onClose();
     } catch (error) {
       console.error(error);
-      alert('Failed to submit request.');
+      alert(translateAppText('Failed to submit request.'));
     } finally {
       setIsLoading(false);
     }

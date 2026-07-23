@@ -130,7 +130,12 @@ export default function App() {
           </Route>
 
           <Route element={<LaundryLayout />}>
+            <Route path="/waescherei" element={<Navigate to={routes.laundry.overview} replace />} />
             <Route path="/laundry" element={<Navigate to={routes.laundry.overview} replace />} />
+            <Route path="/laundry/overview" element={<Navigate to={routes.laundry.overview} replace />} />
+            <Route path="/laundry/room-requests" element={<Navigate to={routes.laundry.roomRequests} replace />} />
+            <Route path="/laundry/inventory" element={<Navigate to={routes.laundry.inventory} replace />} />
+            <Route path="/laundry/settings" element={<Navigate to={routes.laundry.settings} replace />} />
             <Route path={routes.laundry.overview} element={<LaundryOverviewPage />} />
             <Route path={routes.laundry.roomRequests} element={<RoomRequestsPage />} />
             <Route path={routes.laundry.inventory} element={<InventoryLaundryPage />} />
