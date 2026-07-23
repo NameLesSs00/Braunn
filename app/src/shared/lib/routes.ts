@@ -70,6 +70,14 @@ export const routes = {
     orders: '/POS/orders',
     tableReservation: '/POS/table-reservation',
     guestMeals: '/POS/guest-meals',
+    admin: {
+      dashboard: '/POS/admin',
+      liveOrders: '/POS/admin/live-orders',
+      reservationsMeals: '/POS/admin/reservations-meals',
+      menuManagement: '/POS/admin/menu-management',
+      inventory: '/POS/admin/inventory',
+      reports: '/POS/admin/reports',
+    },
   },
   login: '/login',
 } as const

@@ -76,6 +76,12 @@ export default function App() {
             <Route path={routes.pos.orders} element={<CashierPOSView section="Orders" />} />
             <Route path={routes.pos.tableReservation} element={<CashierPOSView section="Table Reservation" />} />
             <Route path={routes.pos.guestMeals} element={<CashierPOSView section="Guest Meals" />} />
+            <Route path={routes.pos.admin.dashboard} element={<Navigate to={routes.pos.menu} replace />} />
+            <Route path={routes.pos.admin.liveOrders} element={<Navigate to={routes.pos.menu} replace />} />
+            <Route path={routes.pos.admin.reservationsMeals} element={<Navigate to={routes.pos.menu} replace />} />
+            <Route path={routes.pos.admin.menuManagement} element={<Navigate to={routes.pos.menu} replace />} />
+            <Route path={routes.pos.admin.inventory} element={<Navigate to={routes.pos.menu} replace />} />
+            <Route path={routes.pos.admin.reports} element={<Navigate to={routes.pos.menu} replace />} />
           </Route>
 
           <Route element={<DashboardLayout />}>

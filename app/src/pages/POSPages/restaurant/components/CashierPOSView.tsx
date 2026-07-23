@@ -569,7 +569,7 @@ function ProcessPaymentModal({
   onClose,
 }: {
   open: boolean
-  selectedMethod: PaymentMethod
+  selectedMethod: PaymentMethod | null
   onMethodChange: (method: PaymentMethod) => void
   onConfirm: () => void
   onClose: () => void
@@ -581,6 +581,7 @@ function ProcessPaymentModal({
     { label: 'Card', icon: CreditCard },
     { label: 'Charge to Room', icon: Hotel },
   ]
+  const canConfirm = selectedMethod !== null
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/30 px-4">
@@ -619,7 +620,15 @@ function ProcessPaymentModal({
           })}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <button className="h-12 rounded-lg bg-[#7EA5D6] text-base text-white" type="button" onClick={onConfirm}>
+          <button
+            className={[
+              'h-12 rounded-lg text-base text-white transition-colors',
+              canConfirm ? 'bg-[#0B4EA2] hover:bg-[#093f82]' : 'cursor-not-allowed bg-[#88ACD9]',
+            ].join(' ')}
+            type="button"
+            onClick={onConfirm}
+            disabled={!canConfirm}
+          >
             Confirm Payment
           </button>
           <button className="h-12 rounded-lg bg-slate-200 text-base text-slate-700" type="button" onClick={onClose}>
@@ -637,7 +646,7 @@ function PaymentSuccessModal({
   onClose,
 }: {
   open: boolean
-  method: PaymentMethod
+  method: PaymentMethod | null
   onClose: () => void
 }) {
   if (!open) return null
@@ -673,7 +682,7 @@ function PaymentSuccessModal({
         </div>
         <div className="mt-4 flex justify-between border-t border-slate-200 pt-4 text-sm">
           <span className="text-slate-500">Payment Method:</span>
-          <span>{method}</span>
+          <span>{method ?? 'Cash'}</span>
         </div>
         <div className="mt-5 border-t border-slate-200 pt-5 text-center text-sm text-slate-500">Thank you for dining with us!</div>
         <div className="mt-5 grid grid-cols-2 gap-3">
@@ -1224,7 +1233,7 @@ export function CashierPOSView({ section }: { section: PosSection }) {
   const [orderType, setOrderType] = useState<'dine-in' | 'hotel-guest'>('dine-in')
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [successOpen, setSuccessOpen] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null)
   const [cart, setCart] = useState<CartLine[]>([
     {
       id: 'mockup-fresh-orange-juice',
@@ -1285,11 +1294,12 @@ export function CashierPOSView({ section }: { section: PosSection }) {
   }
 
   const openPayment = () => {
-    setPaymentMethod('Cash')
+    setPaymentMethod(null)
     setPaymentOpen(true)
   }
 
   const confirmPayment = () => {
+    if (!paymentMethod) return
     setPaymentOpen(false)
     setSuccessOpen(true)
   }
@@ -1360,7 +1370,7 @@ export function CashierPOSView({ section }: { section: PosSection }) {
               <div className="mt-7 border-t border-slate-100 pt-4">
                 <StatusLegend />
               </div>
-              <div className="mt-6 grid max-h-[calc(100vh-260px)] grid-cols-1 gap-1.5 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="mt-6 grid max-h-[calc(100vh-228px)] grid-cols-1 gap-1.5 overflow-y-auto pb-20 pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {filteredTables.map((table) => (
                   <TableCard
                     key={table.id}
@@ -1372,7 +1382,7 @@ export function CashierPOSView({ section }: { section: PosSection }) {
               </div>
             </section>
 
-            <section className="min-w-0 overflow-y-auto px-5 py-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <section className="min-w-0 overflow-y-auto px-5 pb-24 pt-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <div className="flex items-start justify-between gap-5">
                 <div>
                   <div className="flex items-center gap-2">
@@ -1446,7 +1456,7 @@ export function CashierPOSView({ section }: { section: PosSection }) {
                 })}
               </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-x-4 gap-y-9 pr-2">
+              <div className="mt-4 grid grid-cols-3 gap-x-4 gap-y-9 pb-12 pr-2">
                 {displayItems.map((item) => (
                   <article key={item.id} className="rounded-2xl border border-slate-200 bg-white px-2.5 py-3 shadow-sm">
                     <div className="grid h-12 place-items-center">

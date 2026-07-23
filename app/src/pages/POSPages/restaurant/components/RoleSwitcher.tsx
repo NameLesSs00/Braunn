@@ -5,8 +5,8 @@ import type { RestaurantRole } from '../data/restaurantPOSData'
 type RoleSwitcherProps = {
   role: RestaurantRole
   onRoleChange: (role: RestaurantRole) => void
-  adminPreview: 'cashier' | 'chef'
-  onAdminPreviewChange: (preview: 'cashier' | 'chef') => void
+  adminPreview: RestaurantRole
+  onAdminPreviewChange: (preview: RestaurantRole) => void
 }
 
 const roleOptions: Array<{
@@ -17,7 +17,7 @@ const roleOptions: Array<{
 }> = [
   { value: 'cashier', label: 'Cashier', helper: 'Order entry view', icon: CircleUserRound },
   { value: 'chef', label: 'Chef', helper: 'Kitchen board view', icon: ChefHat },
-  { value: 'admin', label: 'Admin', helper: 'Preview all views', icon: ShieldCheck },
+  { value: 'admin', label: 'Admin', helper: 'Admin dashboard', icon: ShieldCheck },
 ]
 
 export function RoleSwitcher({ role, onRoleChange, adminPreview, onAdminPreviewChange }: RoleSwitcherProps) {
@@ -69,6 +69,7 @@ export function RoleSwitcher({ role, onRoleChange, adminPreview, onAdminPreviewC
                   ].join(' ')}
                   onClick={() => {
                     onRoleChange(option.value)
+                    if (option.value === 'admin') onAdminPreviewChange('admin')
                     setOpen(false)
                   }}
                 >
@@ -84,9 +85,9 @@ export function RoleSwitcher({ role, onRoleChange, adminPreview, onAdminPreviewC
           </div>
           {role === 'admin' ? (
             <div className="border-t border-slate-100 p-3">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Admin view</div>
-              <div className="grid grid-cols-2 rounded-full bg-slate-100 p-1">
-                {(['cashier', 'chef'] as const).map((preview) => (
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Admin preview</div>
+              <div className="grid grid-cols-3 rounded-full bg-slate-100 p-1">
+                {(['admin', 'cashier', 'chef'] as const).map((preview) => (
                   <button
                     key={preview}
                     type="button"
