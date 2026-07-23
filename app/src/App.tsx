@@ -130,6 +130,17 @@ export default function App() {
     { from: alternateRoutes.hrm.setting.positions, to: routes.hrm.setting.positions },
   ]
 
+  const hkAliases = [
+    { from: alternateRoutes.hk.root, to: routes.hk.dashboard },
+    { from: alternateRoutes.hk.dashboard, to: routes.hk.dashboard },
+    { from: alternateRoutes.hk.roomStatus, to: routes.hk.roomStatus },
+    { from: alternateRoutes.hk.cleaningTasks, to: routes.hk.cleaningTasks },
+    { from: alternateRoutes.hk.guestRequests, to: routes.hk.guestRequests },
+    { from: alternateRoutes.hk.foundsAndLost, to: routes.hk.foundsAndLost },
+    { from: alternateRoutes.hk.inventory, to: routes.hk.inventory },
+    { from: alternateRoutes.hk.settings, to: routes.hk.settings },
+  ]
+
   return (
     <BrowserRouter>
       <Routes>
@@ -210,7 +221,10 @@ export default function App() {
           </Route>
 
           <Route element={<HousekeepingLayout />}>
-            <Route path="/HK" element={<Navigate to={routes.hk.dashboard} replace />} />
+            <Route path={routes.hk.root} element={<Navigate to={routes.hk.dashboard} replace />} />
+            {hkAliases.map(({ from, to }) => (
+              from === to ? null : <Route key={from} path={from} element={<Navigate to={to} replace />} />
+            ))}
             <Route path={routes.hk.dashboard} element={<DashboardHKPage />} />
             <Route path={routes.hk.roomStatus} element={<RoomStatusHKPage />} />
             <Route path={routes.hk.cleaningTasks} element={<CleaningTasksHKPage />} />

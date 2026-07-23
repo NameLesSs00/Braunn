@@ -1,8 +1,10 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { translateAppDomTree } from '../../../shared/lib/appTranslation'
 
 export function HKTranslationBoundary({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const location = useLocation()
 
   useEffect(() => {
     if (!rootRef.current) return
@@ -34,7 +36,7 @@ export function HKTranslationBoundary({ children }: { children: ReactNode }) {
       if (frameId) window.cancelAnimationFrame(frameId)
       observer.disconnect()
     }
-  }, [])
+  }, [location.pathname])
 
   return <div ref={rootRef} className="contents">{children}</div>
 }

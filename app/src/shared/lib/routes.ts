@@ -34,16 +34,6 @@ const sharedRoutes = {
     lateCheckout: '/policies/late-checkout',
     extendStay: '/policies/extend-stay',
   },
-  hk: {
-    root: '/HK',
-    dashboard: '/HK/Dashboard',
-    cleaningTasks: '/HK/CleaningTasks',
-    guestRequests: '/HK/GuestRequests',
-    foundsAndLost: '/HK/FoundsAndLost',
-    inventory: '/HK/Inventory',
-    settings: '/HK/Settings',
-    roomStatus: '/HK/RoomStatus',
-  },
   login: '/login',
 } as const
 
@@ -88,6 +78,16 @@ export const englishRoutes = {
       inventory: '/POS/admin/inventory',
       reports: '/POS/admin/reports',
     },
+  },
+  hk: {
+    root: '/HK',
+    dashboard: '/HK/Dashboard',
+    cleaningTasks: '/HK/CleaningTasks',
+    guestRequests: '/HK/GuestRequests',
+    foundsAndLost: '/HK/FoundsAndLost',
+    inventory: '/HK/Inventory',
+    settings: '/HK/Settings',
+    roomStatus: '/HK/RoomStatus',
   },
 } as const
 
@@ -165,6 +165,16 @@ export const germanRoutes = {
       inventory: '/restaurant-kasse/admin/inventar',
       reports: '/restaurant-kasse/admin/berichte',
     },
+  },
+  hk: {
+    root: '/haushaltsplan',
+    dashboard: '/haushaltsplan/uebersicht',
+    cleaningTasks: '/haushaltsplan/reinigungsaufgaben',
+    guestRequests: '/haushaltsplan/gaesteanfragen',
+    foundsAndLost: '/haushaltsplan/fundsachen',
+    inventory: '/haushaltsplan/inventar',
+    settings: '/haushaltsplan/einstellungen',
+    roomStatus: '/haushaltsplan/zimmerstatus',
   },
 } as const
 
