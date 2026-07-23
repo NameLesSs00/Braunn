@@ -67,8 +67,20 @@ export default function App() {
       <Routes>
         <Route path={routes.login} element={<LoginPage />} />
         
-        <Route element={<AuthGuard />}>
+          <Route element={<AuthGuard />}>
           <Route path="/" element={<Navigate to={routes.dashboard} replace />} />
+
+          <Route path="/POS" element={<Navigate to={routes.pos.root} replace />} />
+          <Route path="/POS/menu" element={<Navigate to={routes.pos.menu} replace />} />
+          <Route path="/POS/orders" element={<Navigate to={routes.pos.orders} replace />} />
+          <Route path="/POS/table-reservation" element={<Navigate to={routes.pos.tableReservation} replace />} />
+          <Route path="/POS/guest-meals" element={<Navigate to={routes.pos.guestMeals} replace />} />
+          <Route path="/POS/admin" element={<Navigate to={routes.pos.admin.dashboard} replace />} />
+          <Route path="/POS/admin/live-orders" element={<Navigate to={routes.pos.admin.liveOrders} replace />} />
+          <Route path="/POS/admin/reservations-meals" element={<Navigate to={routes.pos.admin.reservationsMeals} replace />} />
+          <Route path="/POS/admin/menu-management" element={<Navigate to={routes.pos.admin.menuManagement} replace />} />
+          <Route path="/POS/admin/inventory" element={<Navigate to={routes.pos.admin.inventory} replace />} />
+          <Route path="/POS/admin/reports" element={<Navigate to={routes.pos.admin.reports} replace />} />
 
           <Route path={routes.pos.root} element={<RestaurantPOSPage />}>
             <Route index element={<Navigate to={routes.pos.menu} replace />} />

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet, useSearchParams } from 'react-router-dom'
 import { AdminPOSView } from './components/AdminPOSView'
 import { ChefKitchenView } from './components/ChefKitchenView'
+import { PosTranslationBoundary } from './components/PosTranslationBoundary'
 import { RoleSwitcher } from './components/RoleSwitcher'
 import type { RestaurantRole } from './data/restaurantPOSData'
 
@@ -44,7 +45,7 @@ export function RestaurantPOSPage() {
   const visibleView = role === 'admin' ? (previewParam ?? adminPreview) : role
 
   return (
-    <>
+    <PosTranslationBoundary>
       {visibleView === 'chef' ? (
         <ChefKitchenView />
       ) : visibleView === 'admin' ? (
@@ -59,6 +60,6 @@ export function RestaurantPOSPage() {
         adminPreview={adminPreview}
         onAdminPreviewChange={setAdminPreview}
       />
-    </>
+    </PosTranslationBoundary>
   )
 }
