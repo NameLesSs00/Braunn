@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { routes } from '../../shared/lib/routes'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { adminLogin, clearAuthError } from '../../features/auth/authSlice'
+import { AuthTranslationBoundary } from './components/AuthTranslationBoundary'
 
 export function LoginPage() {
   const [email, setEmail] = useState('admin@gear.com')
@@ -37,7 +38,8 @@ export function LoginPage() {
   const isLoading = status === 'loading'
 
   return (
-    <div className="min-h-screen bg-[#F6F8FC] flex flex-col items-center justify-center p-4">
+    <AuthTranslationBoundary>
+      <div className="min-h-screen bg-[#F6F8FC] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-[450px] animate-in fade-in zoom-in-95 duration-500">
         <div className="flex justify-center mb-10">
           <img src="/assets/Asset 9 1.svg" alt="Braun" className="h-16 w-auto" />
@@ -126,5 +128,6 @@ export function LoginPage() {
         </p>
       </div>
     </div>
+    </AuthTranslationBoundary>
   )
 }

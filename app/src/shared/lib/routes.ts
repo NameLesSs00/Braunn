@@ -1,4 +1,6 @@
-export const routes = {
+import { APP_LANGUAGE } from '../../config/appConfig'
+
+const sharedRoutes = {
   dashboard: '/dashboard',
   reservations: '/reservations',
   groupReservations: '/group-reservations',
@@ -32,13 +34,8 @@ export const routes = {
     lateCheckout: '/policies/late-checkout',
     extendStay: '/policies/extend-stay',
   },
-  laundry: {
-    overview: '/waescherei/uebersicht',
-    roomRequests: '/waescherei/zimmeranfragen',
-    inventory: '/waescherei/inventar',
-    settings: '/waescherei/einstellungen',
-  },
   hk: {
+    root: '/HK',
     dashboard: '/HK/Dashboard',
     cleaningTasks: '/HK/CleaningTasks',
     guestRequests: '/HK/GuestRequests',
@@ -47,7 +44,20 @@ export const routes = {
     settings: '/HK/Settings',
     roomStatus: '/HK/RoomStatus',
   },
+  login: '/login',
+} as const
+
+export const englishRoutes = {
+  ...sharedRoutes,
+  laundry: {
+    root: '/laundry',
+    overview: '/laundry/overview',
+    roomRequests: '/laundry/room-requests',
+    inventory: '/laundry/inventory',
+    settings: '/laundry/settings',
+  },
   hrm: {
+    root: '/HRM',
     dashboard: '/HRM/Dashboard',
     employees: '/HRM/Employees',
     shiftManagement: '/HRM/ShiftManagement',
@@ -65,6 +75,83 @@ export const routes = {
     },
   },
   pos: {
+    root: '/POS',
+    menu: '/POS/menu',
+    orders: '/POS/orders',
+    tableReservation: '/POS/table-reservation',
+    guestMeals: '/POS/guest-meals',
+    admin: {
+      dashboard: '/POS/admin',
+      liveOrders: '/POS/admin/live-orders',
+      reservationsMeals: '/POS/admin/reservations-meals',
+      menuManagement: '/POS/admin/menu-management',
+      inventory: '/POS/admin/inventory',
+      reports: '/POS/admin/reports',
+    },
+  },
+} as const
+
+export const germanRoutes = {
+  ...sharedRoutes,
+  dashboard: '/uebersicht',
+  reservations: '/reservierungen',
+  groupReservations: '/gruppenreservierungen',
+  groupReservationDetails: '/gruppenreservierungen/:groupReservationId',
+  roomPlan: '/zimmerplan',
+  guests: '/gaeste',
+  reports: '/berichte',
+  complaints: '/beschwerden',
+  housekeeping: '/housekeeping',
+  servicesRequests: '/service-anfragen',
+  inHouseList: '/im-haus-liste',
+  roomAllocation: '/zimmerzuweisung',
+  roomAllocationGroup: '/zimmerzuweisung/gruppe',
+  roomAllocationDetails: '/zimmerzuweisung/:id',
+  salesRevenue: {
+    dashboard: '/vertrieb-umsatz',
+    rateCalendar: '/vertrieb-umsatz/ratenkalender',
+    roomTypes: '/vertrieb-umsatz/zimmertypen',
+    pricing: '/vertrieb-umsatz/preise',
+    corporateAccount: '/vertrieb-umsatz/firmenkonten',
+    corporateContractDetails: '/vertrieb-umsatz/firmenkonten/vertragsdetails',
+    groupContracts: '/vertrieb-umsatz/gruppenvertraege',
+    productionReport: '/vertrieb-umsatz/produktionsbericht',
+    discounts: '/vertrieb-umsatz/rabatte',
+    packages: '/vertrieb-umsatz/pakete',
+  },
+  policies: {
+    corporateCancellation: '/richtlinien/firmenstornierung',
+    earlyCheckout: '/richtlinien/frueher-checkout',
+    roomChange: '/richtlinien/zimmerwechsel',
+    lateCheckout: '/richtlinien/spaeter-checkout',
+    extendStay: '/richtlinien/aufenthalt-verlaengern',
+  },
+  laundry: {
+    root: '/waescherei',
+    overview: '/waescherei/uebersicht',
+    roomRequests: '/waescherei/zimmeranfragen',
+    inventory: '/waescherei/inventar',
+    settings: '/waescherei/einstellungen',
+  },
+  hrm: {
+    root: '/personalwesen',
+    dashboard: '/personalwesen/uebersicht',
+    employees: '/personalwesen/mitarbeiter',
+    shiftManagement: '/personalwesen/schichtplanung',
+    attendance: '/personalwesen/anwesenheit',
+    leaveManagement: '/personalwesen/abwesenheiten',
+    departments: '/personalwesen/abteilungen',
+    salaryIncrements: '/personalwesen/gehaltserhoehungen',
+    payroll: '/personalwesen/lohnabrechnung',
+    setting: {
+      root: '/personalwesen/einstellungen',
+      departments: '/personalwesen/einstellungen/abteilungen',
+      shifts: '/personalwesen/einstellungen/schichten',
+      notifications: '/personalwesen/einstellungen/benachrichtigungen',
+      positions: '/personalwesen/einstellungen/positionen',
+    },
+  },
+  pos: {
     root: '/restaurant-kasse',
     menu: '/restaurant-kasse/speisekarte',
     orders: '/restaurant-kasse/bestellungen',
@@ -79,7 +166,9 @@ export const routes = {
       reports: '/restaurant-kasse/admin/berichte',
     },
   },
-  login: '/login',
 } as const
 
-export type RoutePath = (typeof routes)[keyof typeof routes]
+export const routes = APP_LANGUAGE === 'de' ? germanRoutes : englishRoutes
+export const alternateRoutes = APP_LANGUAGE === 'de' ? englishRoutes : germanRoutes
+
+export type AppRoutes = typeof routes

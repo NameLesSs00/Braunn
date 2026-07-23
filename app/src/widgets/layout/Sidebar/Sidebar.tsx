@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 
 import { routes } from '../../../shared/lib/routes'
+import { translateAppText } from '../../../shared/lib/appTranslation'
 import { IconImage } from '../../../shared/ui/IconImage'
 import { IoHomeOutline } from "react-icons/io5";
 import type { IconType } from 'react-icons';
@@ -38,9 +39,13 @@ const secondaryNavItems: NavItem[] = [
 ]
 
 function SidebarLink({ item }: { item: NavItem }) {
+  const label = translateAppText(item.label)
+
   return (
     <NavLink
       to={item.to}
+      aria-label={label}
+      title={label}
       className={({ isActive }) =>
         [
           'relative grid grid-cols-[44px_1fr] items-center',
@@ -53,7 +58,7 @@ function SidebarLink({ item }: { item: NavItem }) {
           <div className="relative grid h-14 w-11 place-items-center bg-[#0B4EA2]">
             <IconImage
               src={item.iconSrc}
-              alt={item.label}
+              alt={label}
               className="h-5 w-5 brightness-0 invert"
             />
           </div>
@@ -78,7 +83,7 @@ function SidebarLink({ item }: { item: NavItem }) {
                 }}
               />
             ) : null}
-            <span className="relative truncate">{item.label}</span>
+            <span className="relative truncate">{label}</span>
           </div>
         </>
       )}

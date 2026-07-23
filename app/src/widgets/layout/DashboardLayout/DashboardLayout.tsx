@@ -15,6 +15,7 @@ import { SelectReservationTypeModal } from '../../reservations/SelectReservation
 import { OtaReservationModal } from '../../reservations/OtaReservationModal/OtaReservationModal'
 import { GroupReservationModal } from '../../reservations/GroupReservationModal/GroupReservationModal'
 import { CorporateReservationModal } from '../../reservations/CorporateReservationModal/CorporateReservationModal'
+import { PMSTranslationBoundary } from '../../../pages/PMSPages/components/PMSTranslationBoundary'
 import { useEffect } from 'react'
 import { getSavedReservationDrafts, type SavedReservationStep, type SavedReservationStep4Page } from '../../../features/reservations/reservationDraftStorage'
 import {
@@ -55,7 +56,8 @@ const titleByPath: Record<string, string> = {
 export function DashboardLayout() {
   const dispatch = useAppDispatch()
   const location = useLocation()
-  const title = location.pathname.startsWith('/group-reservations/')
+  const groupReservationDetailsBase = routes.groupReservationDetails.split('/:')[0]
+  const title = location.pathname.startsWith(`${groupReservationDetailsBase}/`)
     ? 'Group Reservations Details'
     : titleByPath[location.pathname] ?? 'Dashboard'
   const [selectReservationTypeOpen, setSelectReservationTypeOpen] = useState(false)
@@ -126,13 +128,14 @@ export function DashboardLayout() {
 
   return (
     <div className="h-screen overflow-hidden bg-[#F6F8FC]">
-      <NewReservationModalProvider value={{ openNewReservation }}>
-        <div className="flex h-full">
-          <div className="shrink-0">
-            <Sidebar />
-          </div>
+      <PMSTranslationBoundary>
+        <NewReservationModalProvider value={{ openNewReservation }}>
+          <div className="flex h-full">
+            <div className="shrink-0">
+              <Sidebar />
+            </div>
 
-          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
             {(!isShiftActive && shiftStatus !== 'idle' && shiftStatus !== 'loading') && (
               <div 
                 className="flex cursor-pointer items-center justify-center gap-3 bg-amber-400 px-8 py-2.5 text-center transition-colors hover:bg-amber-500"
@@ -157,50 +160,51 @@ export function DashboardLayout() {
             <main className="min-w-0 flex-1 overflow-y-auto px-8 pb-10">
               <Outlet />
             </main>
+            </div>
           </div>
-        </div>
-      </NewReservationModalProvider>
+        </NewReservationModalProvider>
 
-      <SelectReservationTypeModal
-        open={selectReservationTypeOpen}
-        onClose={() => setSelectReservationTypeOpen(false)}
-        onSelectIndividual={() => {
-          setSelectReservationTypeOpen(false)
-          dispatch(resetDraft())
-          openNewReservation()
-        }}
-        onSelectCorporate={() => {
-          setSelectReservationTypeOpen(false)
-          setCorporateReservationOpen(true)
-        }}
-        onSelectOta={() => {
-          setSelectReservationTypeOpen(false)
-          setOtaReservationOpen(true)
-        }}
-        onSelectGroup={() => {
-          setSelectReservationTypeOpen(false)
-          openGroupReservation()
-        }}
-      />
-      <NewReservationModal
-        open={newReservationOpen}
-        activeDraftId={activeReservationDraftId}
-        initialStep={initialReservationStep}
-        initialStep4Page={initialReservationStep4Page}
-        onActiveDraftIdChange={setActiveReservationDraftId}
-        onClose={() => setNewReservationOpen(false)}
-      />
-      <CorporateReservationModal open={corporateReservationOpen} onClose={() => setCorporateReservationOpen(false)} />
-      <OtaReservationModal open={otaReservationOpen} onClose={() => setOtaReservationOpen(false)} />
-      <GroupReservationModal
-        open={groupReservationOpen}
-        activeDraftId={activeGroupReservationDraftId}
-        initialDraft={initialGroupReservationDraft}
-        initialStep={initialGroupReservationStep}
-        onActiveDraftIdChange={setActiveGroupReservationDraftId}
-        onClose={() => setGroupReservationOpen(false)}
-      />
-      <ShiftStartModal open={shiftStartOpen} onClose={() => setShiftStartOpen(false)} />
+        <SelectReservationTypeModal
+          open={selectReservationTypeOpen}
+          onClose={() => setSelectReservationTypeOpen(false)}
+          onSelectIndividual={() => {
+            setSelectReservationTypeOpen(false)
+            dispatch(resetDraft())
+            openNewReservation()
+          }}
+          onSelectCorporate={() => {
+            setSelectReservationTypeOpen(false)
+            setCorporateReservationOpen(true)
+          }}
+          onSelectOta={() => {
+            setSelectReservationTypeOpen(false)
+            setOtaReservationOpen(true)
+          }}
+          onSelectGroup={() => {
+            setSelectReservationTypeOpen(false)
+            openGroupReservation()
+          }}
+        />
+        <NewReservationModal
+          open={newReservationOpen}
+          activeDraftId={activeReservationDraftId}
+          initialStep={initialReservationStep}
+          initialStep4Page={initialReservationStep4Page}
+          onActiveDraftIdChange={setActiveReservationDraftId}
+          onClose={() => setNewReservationOpen(false)}
+        />
+        <CorporateReservationModal open={corporateReservationOpen} onClose={() => setCorporateReservationOpen(false)} />
+        <OtaReservationModal open={otaReservationOpen} onClose={() => setOtaReservationOpen(false)} />
+        <GroupReservationModal
+          open={groupReservationOpen}
+          activeDraftId={activeGroupReservationDraftId}
+          initialDraft={initialGroupReservationDraft}
+          initialStep={initialGroupReservationStep}
+          onActiveDraftIdChange={setActiveGroupReservationDraftId}
+          onClose={() => setGroupReservationOpen(false)}
+        />
+        <ShiftStartModal open={shiftStartOpen} onClose={() => setShiftStartOpen(false)} />
+      </PMSTranslationBoundary>
     </div>
   )
 }

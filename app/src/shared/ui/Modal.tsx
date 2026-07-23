@@ -1,5 +1,6 @@
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { translateAppDomTree } from '../lib/appTranslation'
 
 type Props = {
   open: boolean
@@ -10,6 +11,8 @@ type Props = {
 }
 
 export function Modal({ open, onClose, children, lockScroll = true, closeOnBackdrop = false }: Props) {
+  const portalRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
     if (!open) return
 
@@ -31,10 +34,43 @@ export function Modal({ open, onClose, children, lockScroll = true, closeOnBackd
     }
   }, [lockScroll, open])
 
+  useEffect(() => {
+    if (!open || !portalRef.current) return
+
+    const root = portalRef.current
+    let frameId = 0
+    const observerOptions: MutationObserverInit = {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['placeholder', 'aria-label', 'title', 'alt'],
+    }
+
+    const observer = new MutationObserver(() => {
+      if (frameId) return
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0
+        observer.disconnect()
+        translateAppDomTree(root)
+        observer.observe(root, observerOptions)
+      })
+    })
+
+    translateAppDomTree(root)
+    observer.observe(root, observerOptions)
+
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId)
+      observer.disconnect()
+    }
+  }, [open])
+
   if (!open) return null
 
   return createPortal(
     <div
+      ref={portalRef}
       className={[
         'fixed inset-0 z-50',
         closeOnBackdrop ? '' : 'pointer-events-none',

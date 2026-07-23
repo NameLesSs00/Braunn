@@ -27,7 +27,7 @@ import { EarlyCheckoutPoliciesPage } from './pages/policies/EarlyCheckoutPolicie
 import { RoomChangePoliciesPage } from './pages/policies/RoomChangePoliciesPage'
 import { LateCheckoutPoliciesPage } from './pages/policies/LateCheckoutPoliciesPage'
 import { ExtendStayPoliciesPage } from './pages/policies/ExtendStayPoliciesPage'
-import { routes } from './shared/lib/routes'
+import { alternateRoutes, routes } from './shared/lib/routes'
 import { DashboardLayout } from './widgets/layout/DashboardLayout/DashboardLayout'
 import { LaundryLayout } from './widgets/layout/LaundryLayout/LaundryLayout'
 import { LoginPage } from './pages/auth/LoginPage'
@@ -62,6 +62,74 @@ import { RestaurantPOSPage } from './pages/POSPages/restaurant/RestaurantPOSPage
 import { CashierPOSView } from './pages/POSPages/restaurant/components/CashierPOSView'
 
 export default function App() {
+  const posAliases = [
+    { from: alternateRoutes.pos.root, to: routes.pos.root },
+    { from: alternateRoutes.pos.menu, to: routes.pos.menu },
+    { from: alternateRoutes.pos.orders, to: routes.pos.orders },
+    { from: alternateRoutes.pos.tableReservation, to: routes.pos.tableReservation },
+    { from: alternateRoutes.pos.guestMeals, to: routes.pos.guestMeals },
+    { from: alternateRoutes.pos.admin.dashboard, to: routes.pos.admin.dashboard },
+    { from: alternateRoutes.pos.admin.liveOrders, to: routes.pos.admin.liveOrders },
+    { from: alternateRoutes.pos.admin.reservationsMeals, to: routes.pos.admin.reservationsMeals },
+    { from: alternateRoutes.pos.admin.menuManagement, to: routes.pos.admin.menuManagement },
+    { from: alternateRoutes.pos.admin.inventory, to: routes.pos.admin.inventory },
+    { from: alternateRoutes.pos.admin.reports, to: routes.pos.admin.reports },
+  ]
+
+  const pmsAliases = [
+    { from: alternateRoutes.dashboard, to: routes.dashboard },
+    { from: alternateRoutes.reservations, to: routes.reservations },
+    { from: alternateRoutes.groupReservations, to: routes.groupReservations },
+    { from: alternateRoutes.roomPlan, to: routes.roomPlan },
+    { from: alternateRoutes.guests, to: routes.guests },
+    { from: alternateRoutes.reports, to: routes.reports },
+    { from: alternateRoutes.complaints, to: routes.complaints },
+    { from: alternateRoutes.housekeeping, to: routes.housekeeping },
+    { from: alternateRoutes.servicesRequests, to: routes.servicesRequests },
+    { from: alternateRoutes.inHouseList, to: routes.inHouseList },
+    { from: alternateRoutes.roomAllocation, to: routes.roomAllocation },
+    { from: alternateRoutes.roomAllocationGroup, to: routes.roomAllocationGroup },
+    { from: alternateRoutes.salesRevenue.dashboard, to: routes.salesRevenue.dashboard },
+    { from: alternateRoutes.salesRevenue.rateCalendar, to: routes.salesRevenue.rateCalendar },
+    { from: alternateRoutes.salesRevenue.roomTypes, to: routes.salesRevenue.roomTypes },
+    { from: alternateRoutes.salesRevenue.pricing, to: routes.salesRevenue.pricing },
+    { from: alternateRoutes.salesRevenue.corporateAccount, to: routes.salesRevenue.corporateAccount },
+    { from: alternateRoutes.salesRevenue.corporateContractDetails, to: routes.salesRevenue.corporateContractDetails },
+    { from: alternateRoutes.salesRevenue.groupContracts, to: routes.salesRevenue.groupContracts },
+    { from: alternateRoutes.salesRevenue.productionReport, to: routes.salesRevenue.productionReport },
+    { from: alternateRoutes.salesRevenue.discounts, to: routes.salesRevenue.discounts },
+    { from: alternateRoutes.policies.corporateCancellation, to: routes.policies.corporateCancellation },
+    { from: alternateRoutes.policies.earlyCheckout, to: routes.policies.earlyCheckout },
+    { from: alternateRoutes.policies.roomChange, to: routes.policies.roomChange },
+    { from: alternateRoutes.policies.lateCheckout, to: routes.policies.lateCheckout },
+    { from: alternateRoutes.policies.extendStay, to: routes.policies.extendStay },
+  ]
+
+  const laundryAliases = [
+    { from: alternateRoutes.laundry.root, to: routes.laundry.overview },
+    { from: alternateRoutes.laundry.overview, to: routes.laundry.overview },
+    { from: alternateRoutes.laundry.roomRequests, to: routes.laundry.roomRequests },
+    { from: alternateRoutes.laundry.inventory, to: routes.laundry.inventory },
+    { from: alternateRoutes.laundry.settings, to: routes.laundry.settings },
+  ]
+
+  const hrmAliases = [
+    { from: alternateRoutes.hrm.root, to: routes.hrm.dashboard },
+    { from: alternateRoutes.hrm.dashboard, to: routes.hrm.dashboard },
+    { from: alternateRoutes.hrm.employees, to: routes.hrm.employees },
+    { from: alternateRoutes.hrm.shiftManagement, to: routes.hrm.shiftManagement },
+    { from: alternateRoutes.hrm.attendance, to: routes.hrm.attendance },
+    { from: alternateRoutes.hrm.leaveManagement, to: routes.hrm.leaveManagement },
+    { from: alternateRoutes.hrm.departments, to: routes.hrm.departments },
+    { from: alternateRoutes.hrm.salaryIncrements, to: routes.hrm.salaryIncrements },
+    { from: alternateRoutes.hrm.payroll, to: routes.hrm.payroll },
+    { from: alternateRoutes.hrm.setting.root, to: routes.hrm.setting.departments },
+    { from: alternateRoutes.hrm.setting.departments, to: routes.hrm.setting.departments },
+    { from: alternateRoutes.hrm.setting.shifts, to: routes.hrm.setting.shifts },
+    { from: alternateRoutes.hrm.setting.notifications, to: routes.hrm.setting.notifications },
+    { from: alternateRoutes.hrm.setting.positions, to: routes.hrm.setting.positions },
+  ]
+
   return (
     <BrowserRouter>
       <Routes>
@@ -70,17 +138,9 @@ export default function App() {
           <Route element={<AuthGuard />}>
           <Route path="/" element={<Navigate to={routes.dashboard} replace />} />
 
-          <Route path="/POS" element={<Navigate to={routes.pos.root} replace />} />
-          <Route path="/POS/menu" element={<Navigate to={routes.pos.menu} replace />} />
-          <Route path="/POS/orders" element={<Navigate to={routes.pos.orders} replace />} />
-          <Route path="/POS/table-reservation" element={<Navigate to={routes.pos.tableReservation} replace />} />
-          <Route path="/POS/guest-meals" element={<Navigate to={routes.pos.guestMeals} replace />} />
-          <Route path="/POS/admin" element={<Navigate to={routes.pos.admin.dashboard} replace />} />
-          <Route path="/POS/admin/live-orders" element={<Navigate to={routes.pos.admin.liveOrders} replace />} />
-          <Route path="/POS/admin/reservations-meals" element={<Navigate to={routes.pos.admin.reservationsMeals} replace />} />
-          <Route path="/POS/admin/menu-management" element={<Navigate to={routes.pos.admin.menuManagement} replace />} />
-          <Route path="/POS/admin/inventory" element={<Navigate to={routes.pos.admin.inventory} replace />} />
-          <Route path="/POS/admin/reports" element={<Navigate to={routes.pos.admin.reports} replace />} />
+          {posAliases.map(({ from, to }) => (
+            from === to ? null : <Route key={from} path={from} element={<Navigate to={to} replace />} />
+          ))}
 
           <Route path={routes.pos.root} element={<RestaurantPOSPage />}>
             <Route index element={<Navigate to={routes.pos.menu} replace />} />
@@ -97,6 +157,15 @@ export default function App() {
           </Route>
 
           <Route element={<DashboardLayout />}>
+            {pmsAliases.map(({ from, to }) => (
+              from === to ? null : <Route key={from} path={from} element={<Navigate to={to} replace />} />
+            ))}
+            {alternateRoutes.groupReservationDetails === routes.groupReservationDetails ? null : (
+              <Route path={alternateRoutes.groupReservationDetails} element={<GroupReservationDetailsPage />} />
+            )}
+            {alternateRoutes.roomAllocationDetails === routes.roomAllocationDetails ? null : (
+              <Route path={alternateRoutes.roomAllocationDetails} element={<RoomAllocationDetailsPage />} />
+            )}
             <Route path={routes.dashboard} element={<DashboardPage />} />
             <Route path={routes.reservations} element={<ReservationsPage />} />
             <Route path={routes.groupReservations} element={<Navigate to={`${routes.reservations}?tab=group`} replace />} />
@@ -130,12 +199,10 @@ export default function App() {
           </Route>
 
           <Route element={<LaundryLayout />}>
-            <Route path="/waescherei" element={<Navigate to={routes.laundry.overview} replace />} />
-            <Route path="/laundry" element={<Navigate to={routes.laundry.overview} replace />} />
-            <Route path="/laundry/overview" element={<Navigate to={routes.laundry.overview} replace />} />
-            <Route path="/laundry/room-requests" element={<Navigate to={routes.laundry.roomRequests} replace />} />
-            <Route path="/laundry/inventory" element={<Navigate to={routes.laundry.inventory} replace />} />
-            <Route path="/laundry/settings" element={<Navigate to={routes.laundry.settings} replace />} />
+            <Route path={routes.laundry.root} element={<Navigate to={routes.laundry.overview} replace />} />
+            {laundryAliases.map(({ from, to }) => (
+              from === to ? null : <Route key={from} path={from} element={<Navigate to={to} replace />} />
+            ))}
             <Route path={routes.laundry.overview} element={<LaundryOverviewPage />} />
             <Route path={routes.laundry.roomRequests} element={<RoomRequestsPage />} />
             <Route path={routes.laundry.inventory} element={<InventoryLaundryPage />} />
@@ -154,7 +221,10 @@ export default function App() {
           </Route>
 
           <Route element={<HRMLayout />}>
-            <Route path="/HRM" element={<Navigate to={routes.hrm.dashboard} replace />} />
+            <Route path={routes.hrm.root} element={<Navigate to={routes.hrm.dashboard} replace />} />
+            {hrmAliases.map(({ from, to }) => (
+              from === to ? null : <Route key={from} path={from} element={<Navigate to={to} replace />} />
+            ))}
             <Route path={routes.hrm.dashboard} element={<DashboardHRMPage />} />
             <Route path={routes.hrm.employees} element={<EmployeesHRMPage />} />
             <Route path={routes.hrm.shiftManagement} element={<ShiftManagementHRMPage />} />
