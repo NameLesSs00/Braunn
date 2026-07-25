@@ -1,5 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
+import { translateAppDomTree } from '../../shared/lib/appTranslation'
 import {
   Utensils,
   Wifi,
@@ -101,9 +102,43 @@ export function genId() {
 // ─── Modal wrapper ────────────────────────────────────────────────────────────
 
 export function ModalPortal({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+  const portalRef = React.useRef<HTMLDivElement | null>(null)
+
+  React.useEffect(() => {
+    if (!open || !portalRef.current) return
+
+    const root = portalRef.current
+    let frameId = 0
+    const observerOptions: MutationObserverInit = {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['placeholder', 'aria-label', 'title', 'alt'],
+    }
+
+    const observer = new MutationObserver(() => {
+      if (frameId) return
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0
+        observer.disconnect()
+        translateAppDomTree(root)
+        observer.observe(root, observerOptions)
+      })
+    })
+
+    translateAppDomTree(root)
+    observer.observe(root, observerOptions)
+
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId)
+      observer.disconnect()
+    }
+  }, [open])
+
   if (!open) return null
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onMouseDown={onClose}>
+    <div ref={portalRef} className="fixed inset-0 z-50 flex items-center justify-center p-4" onMouseDown={onClose}>
       <div className="absolute inset-0 bg-black/40" />
       <div className="relative z-10" onMouseDown={(e) => e.stopPropagation()}>
         {children}

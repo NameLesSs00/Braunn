@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
 import { Notification, removeNotification } from '../../../features/notifications/notificationsSlice'
@@ -10,11 +10,24 @@ import { ShiftCloseModal } from '../../../features/shiftClose'
 import { ShiftStartModal } from '../../../features/shiftStart'
 import { selectIsShiftActive } from '../../../features/shift/shiftSlice'
 
+const titleByRoute: Record<string, string> = {
+  [routes.hk.dashboard]: 'Overview',
+  [routes.hk.roomStatus]: 'Room Status',
+  [routes.hk.cleaningTasks]: 'Cleaning Tasks',
+  [routes.hk.guestRequests]: 'Guest Requests',
+  [routes.hk.foundsAndLost]: 'Lost & Found Management',
+  [routes.hk.inventory]: 'Inventory Management',
+  [routes.hk.settings]: 'Settings',
+}
+
 export function HousekeepingHeader() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const notifications = useAppSelector((state) => state.notifications.items)
   const isShiftActive = useAppSelector(selectIsShiftActive)
+
+  const pageTitle = titleByRoute[location.pathname] ?? 'Overview'
 
   const [profileOpen, setProfileOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -59,7 +72,7 @@ export function HousekeepingHeader() {
   return (
     <>
       <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-8 py-4">
-        <h1 className="text-[22px] font-semibold text-slate-800">Overview</h1>
+        <h1 className="text-[22px] font-semibold text-slate-800">{pageTitle}</h1>
 
         <div className="flex items-center gap-4">
           {/* Bell */}

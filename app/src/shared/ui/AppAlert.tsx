@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
+import { translateAppText } from '../lib/appTranslation'
 import { Modal } from './Modal'
 
 type AlertIcon = 'success' | 'error' | 'warning' | 'info' | 'question'
@@ -36,6 +37,20 @@ function normalizeArgs(args: FireArgs): AlertOptions {
   return { title, text, icon }
 }
 
+function translateNode(node: ReactNode) {
+  return typeof node === 'string' ? translateAppText(node) : node
+}
+
+function translateAlertOptions(options: AlertOptions): AlertOptions {
+  return {
+    ...options,
+    title: translateNode(options.title),
+    text: translateNode(options.text),
+    html: translateNode(options.html),
+    confirmButtonText: options.confirmButtonText ? translateAppText(options.confirmButtonText) : options.confirmButtonText,
+  }
+}
+
 function iconConfig(icon: AlertIcon | undefined) {
   switch (icon) {
     case 'success':
@@ -69,7 +84,7 @@ function iconConfig(icon: AlertIcon | undefined) {
 
 export const appAlert = {
   fire: (...args: FireArgs) => {
-    const options = normalizeArgs(args)
+    const options = translateAlertOptions(normalizeArgs(args))
     if (!showAlert) {
       window.alert(String(options.text ?? options.title ?? ''))
       return Promise.resolve({ isConfirmed: true, isDismissed: false })
@@ -121,7 +136,7 @@ export function AppAlertProvider({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => closeAlert({ isConfirmed: false, isDismissed: true })}
               className="absolute right-4 top-4 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Close"
+              aria-label={translateAppText('Close')}
             >
               <X className="h-4 w-4" />
             </button>

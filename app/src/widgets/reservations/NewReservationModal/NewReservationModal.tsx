@@ -13,7 +13,9 @@ import {
 } from '../../../features/reservations/reservationDraftStorage'
 import { createLocalReservation } from '../../../features/localReservations/localReservationsSlice'
 import type { CreateLocalReservationRequest } from '../../../models/LocalReservation'
-import { createOptionalReservation } from '../../../features/reservations/optionalReservationsSlice'
+import { createOptionalReservation, updateOptionalReservation, previewOptionalReservationConversionThunk, convertOptionalReservationThunk } from '../../../features/reservations/optionalReservationsSlice'
+import type { ConvertOptionalReservationRequest, ConversionPreviewResponse } from '../../../models/OptionalReservation'
+import { generateOptionalReservationPdf } from './utils/generateReservationPdf'
 
 
 
@@ -22,6 +24,7 @@ import { NewReservationStep1 } from './steps/NewReservationStep1'
 import { NewReservationStep2 } from './steps/NewReservationStep2'
 import { NewReservationStep3 } from './steps/NewReservationStep3'
 import { NewReservationStep4 } from './steps/NewReservationStep4'
+import { ConversionPreview } from './steps/ConversionPreview'
 
 import { CheckInProcessModal } from '../CheckInProcessModal/CheckInProcessModal'
 import { ExtendStayModal } from '../ExtendStayModal/ExtendStayModal'
@@ -86,6 +89,10 @@ export function NewReservationModal({
   const [creatingReservationResultUnknown, setCreatingReservationResultUnknown] = useState(false)
   const [savingOptionalReservation, setSavingOptionalReservation] = useState(false)
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
+  const [conversionPreview, setConversionPreview] = useState<ConversionPreviewResponse | null>(null)
+  const [fetchingConversionPreview, setFetchingConversionPreview] = useState(false)
+  const [pdfFilename, setPdfFilename] = useState('')
+  const [pdfDraftSnapshot, setPdfDraftSnapshot] = useState<typeof draft | null>(null)
   const creatingReservationRef = useRef(false)
   const savingOptionalReservationRef = useRef(false)
 
@@ -317,28 +324,31 @@ export function NewReservationModal({
 
         <div className="px-8 py-7">
           <div className="mx-auto flex w-full max-w-xl items-center justify-between">
-            {steps.map((s, idx) => (
-              <div key={s} className="flex flex-1 items-center">
-                {s < step ? (
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-500 text-sm font-semibold text-white">
-                    ✓
-                  </div>
-                ) : (
-                  <div
-                    className={[
-                      'grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-semibold',
-                      s === step ? 'bg-[#0B4EA2] text-white' : 'bg-slate-200 text-slate-700',
-                    ].join(' ')}
-                  >
-                    {s}
-                  </div>
-                )}
+            {[1, 2, 3, 4].map((s) => {
+              if (s === 4 && draft.editingOptionalReservationId) return null;
+              return (
+                <div key={s} className="flex flex-1 items-center">
+                  {s < step ? (
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-500 text-sm font-semibold text-white">
+                      ✓
+                    </div>
+                  ) : (
+                    <div
+                      className={[
+                        'grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-semibold',
+                        s === step ? 'bg-[#0B4EA2] text-white' : 'bg-slate-200 text-slate-700',
+                      ].join(' ')}
+                    >
+                      {s}
+                    </div>
+                  )}
 
-                {idx < steps.length - 1 ? (
-                  <div className="mx-3 h-[2px] w-full bg-slate-200" />
-                ) : null}
-              </div>
-            ))}
+                  {s < (draft.editingOptionalReservationId ? 3 : 4) ? (
+                    <div className="mx-3 h-[2px] w-full bg-slate-200" />
+                  ) : null}
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -348,16 +358,20 @@ export function NewReservationModal({
             ) : step === 2 ? (
               <NewReservationStep2 value={draft} onChange={handleUpdateDraft} validationErrors={validationErrors} />
             ) : step === 3 ? (
-              <NewReservationStep3 value={draft} />
+              <NewReservationStep3 value={draft} onChange={handleUpdateDraft} validationErrors={validationErrors} />
             ) : step === 4 ? (
-              <NewReservationStep4
-                value={draft}
-                onChange={handleUpdateDraft}
-                page={step4Page}
-                onOpenCheckIn={openCheckInProcess}
-                onOpenExtendStay={openExtendStay}
-                validationErrors={validationErrors}
-              />
+              draft.convertingOptionalReservationId ? (
+                <ConversionPreview preview={conversionPreview} />
+              ) : (
+                <NewReservationStep4
+                  value={draft}
+                  onChange={handleUpdateDraft}
+                  page={step4Page}
+                  onOpenCheckIn={openCheckInProcess}
+                  onOpenExtendStay={openExtendStay}
+                  validationErrors={validationErrors}
+                />
+              )
             ) : (
               <div className="rounded-xl border border-slate-200 p-6 text-sm text-slate-600">
                 Step {step}
@@ -411,21 +425,104 @@ export function NewReservationModal({
                     if (savingOptionalReservationRef.current || creatingReservationRef.current) return
                     if (!validateThroughStep(2)) return
 
+                    if (draft.bookingSource?.toLowerCase() === 'email') {
+                      appAlert.fire({
+                        icon: 'error',
+                        title: 'Not Allowed',
+                        text: 'Optional reservations cannot be created for Email bookings.',
+                      })
+                      return
+                    }
+
+                    if (!draft.isOptionalReservation) {
+                      handleUpdateDraft({ isOptionalReservation: true })
+                      return
+                    }
+
+                    if (!draft.expiresAt) {
+                      setValidationErrors({ ...validationErrors, expiresAt: 'Expiration Date is required' })
+                      return
+                    }
+
                     savingOptionalReservationRef.current = true
                     setSavingOptionalReservation(true)
 
                     const payload = {
-                      guestName: `${draft.firstName} ${draft.surName}`.trim() || 'Guest',
-                      email: draft.email || '',
-                      expectedCheckIn: draft.checkInDate ? new Date(draft.checkInDate).toISOString() : '',
-                      expectedCheckOut: draft.checkOutDate ? new Date(draft.checkOutDate).toISOString() : '',
-                      totalAmount: checkInPricing.totalAmount || 0,
-                      expirationDate: draft.checkInDate ? new Date(draft.checkInDate).toISOString() : new Date().toISOString()
+                      guest: {
+                        firstName: draft.firstName || 'Unknown',
+                        lastName: draft.surName || 'Unknown',
+                        email: draft.email || '',
+                        phone: draft.phone || '',
+                        nationalId: draft.idNumber || '',
+                        address: draft.addressLine || '',
+                        streetName: draft.addressLine || '',
+                        countryCode: draft.countryCode || draft.nationality || '',
+                      },
+                      checkInDate: draft.checkInDate || new Date().toISOString().split('T')[0],
+                      checkOutDate: draft.checkOutDate || new Date().toISOString().split('T')[0],
+                      bookingSource: draft.bookingSource || 'WalkIn',
+                      reservationType: draft.isVip ? 'VIP' : 'Normal',
+                      currency: draft.currency || 'USD',
+                      roomRequests: draft.rooms
+                        .filter((r) => r.roomTypeId && r.roomTypeId.trim() !== '')
+                        .map((r) => ({
+                          roomTypeId: r.roomTypeId,
+                          roomQuantity: Number(r.roomCount) || 1,
+                          adults: Number(draft.adultCount) || 1,
+                          children: Number(draft.childCount) || 0,
+                          childAges: draft.childAges || [],
+                          ratePlanCode: draft.rateCode || 'STD',
+                          pricePerNight: localAriState.rates[0]?.amountBeforeTax ?? localAriState.rates[0]?.basePriceBeforeTax ?? 0,
+                        })),
+                      selectedServices: draft.extras
+                        .filter((extra) => extra.item && extra.item.trim() !== '' && financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)?.id)
+                        .map((extra) => ({
+                          additionalServiceId: financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)!.id,
+                          price: extra.price || 0,
+                          serviceDate: extra.serviceDate || draft.checkInDate || new Date().toISOString().split('T')[0],
+                        })),
+                      selectedMealPlans: draft.mealPlans
+                        .filter((mp) => mp.mealPlanId && mp.mealPlanId.trim() !== '')
+                        .map((mp) => {
+                          const start = new Date(mp.serviceDateStart || draft.checkInDate || new Date().toISOString().split('T')[0]);
+                          const end = new Date(mp.serviceDateEnd || draft.checkOutDate || new Date().toISOString().split('T')[0]);
+                          const diffDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                          return {
+                            mealPlanId: mp.mealPlanId,
+                            price: mp.price || 0,
+                            serviceDateStart: mp.serviceDateStart || new Date().toISOString().split('T')[0],
+                            numberOfDays: diffDays,
+                          }
+                        }),
+                      companions: (draft.companions || [])
+                        .filter((c) => c.firstName && c.firstName.trim() !== '')
+                        .map((c) => ({
+                          firstName: c.firstName,
+                          lastName: c.lastName,
+                          phoneNumber: c.phoneNumber,
+                          email: c.email,
+                          address: c.address,
+                          nationalId: c.nationalId,
+                        })),
+                      specialRequests: draft.specialRequests || '',
+                      comments: draft.notes || '',
+                      discountPercentage: 0,
+                      paymentMethod: draft.paymentMethod || 'Card',
+                      guarantee: {},
+                      expiresAt: draft.expiresAt
                     }
 
                     try {
-                      await dispatch(createOptionalReservation(payload)).unwrap()
+                      if (draft.editingOptionalReservationId) {
+                        await dispatch(updateOptionalReservation({ id: draft.editingOptionalReservationId, data: { ...payload, expectedVersion: draft.editingOptionalReservationVersion || 0 } as any })).unwrap()
+                      } else {
+                        await dispatch(createOptionalReservation(payload)).unwrap()
+                      }
                       removeActiveSavedDraft()
+                      const snapshot = { ...draft }
+                      const filename = generateOptionalReservationPdf(snapshot, false)
+                      setPdfFilename(filename)
+                      setPdfDraftSnapshot(snapshot)
                       dispatch(resetDraft())
                       resetModalProgress()
                       setSuccessOpen(true)
@@ -436,7 +533,6 @@ export function NewReservationModal({
                         icon: 'error',
                         title: 'Error',
                         text: 'Failed to save optional reservation: ' + message,
-                        confirmButtonColor: '#0B4EA2',
                       })
                     } finally {
                       savingOptionalReservationRef.current = false
@@ -445,20 +541,32 @@ export function NewReservationModal({
                   }}
                 >
                   {(optionalReservations.status === 'loading' || savingOptionalReservation) && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {savingOptionalReservation ? 'Saving...' : 'Save As Optional Reservation'}
+                  {savingOptionalReservation 
+                    ? 'Saving...' 
+                    : draft.editingOptionalReservationId 
+                      ? 'Update Optional Reservation'
+                      : draft.isOptionalReservation 
+                        ? 'Confirm Optional Reservation' 
+                        : 'Save As Optional Reservation'
+                  }
                 </button>
 
               )}
 
+              {(!draft.editingOptionalReservationId || step < 3) && (
               <button
                 type="button"
                 className={[
                   'h-12 rounded-xl px-16 text-sm font-semibold flex items-center justify-center gap-2',
-                  creatingReservation || savingOptionalReservation || creatingReservationResultUnknown
+                  creatingReservation || savingOptionalReservation || creatingReservationResultUnknown ||
+                  (draft.convertingOptionalReservationId && step === 4 && conversionPreview && !conversionPreview.canConvert)
                     ? 'bg-blue-300 text-white cursor-not-allowed'
                     : 'bg-[#0B4EA2] text-white'
                 ].join(' ')}
-                disabled={creatingReservation || savingOptionalReservation || creatingReservationResultUnknown}
+                disabled={
+                  creatingReservation || savingOptionalReservation || creatingReservationResultUnknown ||
+                  Boolean(draft.convertingOptionalReservationId && step === 4 && conversionPreview && !conversionPreview.canConvert)
+                }
                 onClick={async () => {
                   if (creatingReservationRef.current || savingOptionalReservationRef.current || creatingReservationResultUnknown) return
 
@@ -547,7 +655,52 @@ export function NewReservationModal({
                       }
 
                 try {
-                  await dispatch(createLocalReservation(localReservationPayload)).unwrap()
+                  if (draft.convertingOptionalReservationId) {
+                    const payload: ConvertOptionalReservationRequest = {
+                      expectedVersion: draft.convertingOptionalReservationVersion || 0,
+                      overrideCheckInDate: draft.checkInDate || new Date().toISOString().split('T')[0],
+                      overrideCheckOutDate: draft.checkOutDate || new Date().toISOString().split('T')[0],
+                      overrideCurrency: localAriState.rates[0]?.currency || draft.currency || 'USD',
+                      overrideBookingSource: draft.bookingSource || 'WalkIn',
+                      overrideReservationType: draft.isVip ? 'VIP' : 'Normal',
+                      overrideRoomRequests: draft.rooms
+                        .filter((r) => r.roomTypeId && r.roomTypeId.trim() !== '')
+                        .map((r) => ({
+                          roomTypeId: r.roomTypeId,
+                          roomQuantity: Number(r.roomCount) || 1,
+                          adults: Number(draft.adultCount) || 1,
+                          children: Number(draft.childCount) || 0,
+                          childAges: draft.childAges || [],
+                          ratePlanCode: draft.rateCode || 'STD',
+                          pricePerNight: r.pricePerNight ?? 0,
+                        })),
+                      overrideSelectedServices: draft.extras
+                        .filter((extra) => extra.item && extra.item.trim() !== '' && financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)?.id)
+                        .map((extra) => ({
+                          additionalServiceId: financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)!.id,
+                          price: extra.price || 0,
+                          serviceDate: extra.serviceDate || draft.checkInDate || new Date().toISOString().split('T')[0],
+                        })),
+                      overrideSelectedMealPlans: draft.mealPlans
+                        .filter((mp) => mp.mealPlanId && mp.mealPlanId.trim() !== '')
+                        .map((mp) => {
+                          const start = new Date(mp.serviceDateStart || draft.checkInDate || new Date().toISOString().split('T')[0]);
+                          const end = new Date(mp.serviceDateEnd || draft.checkOutDate || new Date().toISOString().split('T')[0]);
+                          const diffDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                          return {
+                            mealPlanId: mp.mealPlanId,
+                            price: mp.price || 0,
+                            serviceDateStart: mp.serviceDateStart || new Date().toISOString().split('T')[0],
+                            numberOfDays: diffDays,
+                          }
+                        }),
+                      overrideDiscountPercentage: 0,
+                      comments: draft.notes || '',
+                    }
+                    await dispatch(convertOptionalReservationThunk({ id: draft.convertingOptionalReservationId, data: payload })).unwrap()
+                  } else {
+                    await dispatch(createLocalReservation(localReservationPayload)).unwrap()
+                  }
                     setFinalConfirmationOpen(true)
                     setStep4Page(2)
                   creatingReservationRef.current = false
@@ -563,7 +716,6 @@ export function NewReservationModal({
                         icon: 'warning',
                         title: 'Reservation may still be processing',
                         text: 'The server did not confirm the result in time. Please check the Reservations list before trying again, so the same reservation is not created twice.',
-                        confirmButtonColor: '#0B4EA2',
                       })
                     } else {
                       creatingReservationRef.current = false
@@ -573,7 +725,6 @@ export function NewReservationModal({
                       icon: 'error',
                       title: 'Error',
                         text: 'Failed to confirm reservation: ' + message,
-                      confirmButtonColor: '#0B4EA2',
                     })
                     }
                 }
@@ -587,13 +738,87 @@ export function NewReservationModal({
                   }
 
                   if (step < 4 && !validateStep(step)) return
+
+                  if (step === 3 && draft.convertingOptionalReservationId) {
+                    setFetchingConversionPreview(true)
+                    try {
+                      const payload: ConvertOptionalReservationRequest = {
+                        expectedVersion: draft.convertingOptionalReservationVersion || 0,
+                        overrideCheckInDate: draft.checkInDate || new Date().toISOString().split('T')[0],
+                        overrideCheckOutDate: draft.checkOutDate || new Date().toISOString().split('T')[0],
+                        overrideCurrency: localAriState.rates[0]?.currency || draft.currency || 'USD',
+                        overrideBookingSource: draft.bookingSource || 'WalkIn',
+                        overrideReservationType: draft.isVip ? 'VIP' : 'Normal',
+                        overrideRoomRequests: draft.rooms
+                          .filter((r) => r.roomTypeId && r.roomTypeId.trim() !== '')
+                          .map((r) => ({
+                            roomTypeId: r.roomTypeId,
+                            roomQuantity: Number(r.roomCount) || 1,
+                            adults: Number(draft.adultCount) || 1,
+                            children: Number(draft.childCount) || 0,
+                            childAges: draft.childAges || [],
+                            ratePlanCode: draft.rateCode || 'STD',
+                            pricePerNight: r.pricePerNight ?? 0,
+                          })),
+                        overrideSelectedServices: draft.extras
+                          .filter((extra) => extra.item && extra.item.trim() !== '' && financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)?.id)
+                          .map((extra) => ({
+                            additionalServiceId: financialSettings.services.find((s: { name: string; id: string }) => s.name === extra.item)!.id,
+                            price: extra.price || 0,
+                            serviceDate: extra.serviceDate || draft.checkInDate || new Date().toISOString().split('T')[0],
+                          })),
+                        overrideSelectedMealPlans: draft.mealPlans
+                          .filter((mp) => mp.mealPlanId && mp.mealPlanId.trim() !== '')
+                          .map((mp) => {
+                            const start = new Date(mp.serviceDateStart || draft.checkInDate || new Date().toISOString().split('T')[0]);
+                            const end = new Date(mp.serviceDateEnd || draft.checkOutDate || new Date().toISOString().split('T')[0]);
+                            const diffDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                            return {
+                              mealPlanId: mp.mealPlanId,
+                              price: mp.price || 0,
+                              serviceDateStart: mp.serviceDateStart || new Date().toISOString().split('T')[0],
+                              numberOfDays: diffDays,
+                            }
+                          }),
+                        overrideDiscountPercentage: 0,
+                        comments: draft.notes || '',
+                      }
+                      
+                      const response = await dispatch(previewOptionalReservationConversionThunk({ id: draft.convertingOptionalReservationId, data: payload })).unwrap()
+                      setConversionPreview(response)
+                      setStep(4)
+                      setStep4Page(1)
+                    } catch (err) {
+                      const message = getErrorMessage(err)
+                      appAlert.fire({
+                        icon: 'error',
+                        title: 'Preview Failed',
+                        text: 'Failed to fetch conversion preview: ' + message,
+                      })
+                    } finally {
+                      setFetchingConversionPreview(false)
+                    }
+                    return
+                  }
+
                   setStep((prev) => (prev < 4 ? ((prev + 1) as Step) : prev))
                 }}
 
               >
-                {creatingReservation ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {creatingReservation ? 'Creating reservation...' : creatingReservationResultUnknown ? 'Check Reservations List' : nextLabel}
+                {creatingReservation || fetchingConversionPreview ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {creatingReservation
+                  ? (draft.convertingOptionalReservationId ? 'Converting...' : 'Creating reservation...')
+                  : fetchingConversionPreview
+                  ? 'Fetching preview...'
+                  : creatingReservationResultUnknown
+                  ? 'Check Reservations List'
+                  : (draft.convertingOptionalReservationId && step === 4)
+                  ? 'Finalize Conversion'
+                  : step < 4
+                  ? 'Next'
+                  : 'Confirm Reservation'}
               </button>
+              )}
             </div>
           </div>
         ) : null}
@@ -634,15 +859,17 @@ export function NewReservationModal({
                   </svg>
                 </div>
                 <div className="text-left">
-                  <div className="text-[15px] font-bold text-slate-800">Reservation_Details.pdf</div>
-                  <div className="text-[12px] font-medium text-slate-400">2.4 MB • PDF File</div>
+                  <div className="text-[15px] font-bold text-slate-800 truncate max-w-[220px]" title={pdfFilename || 'optional reservation.pdf'}>
+                    {pdfFilename || 'optional reservation.pdf'}
+                  </div>
+                  <div className="text-[12px] font-medium text-slate-400">PDF File</div>
                 </div>
               </div>
               
-              <button 
+              <button
                 type="button"
                 className="group flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white hover:text-[#0B4EA2] hover:shadow-sm"
-                onClick={() => alert("Downloading...")}
+                onClick={() => pdfDraftSnapshot && generateOptionalReservationPdf(pdfDraftSnapshot)}
               >
                 <svg className="h-5 w-5 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

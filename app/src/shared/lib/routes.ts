@@ -1,4 +1,6 @@
-export const routes = {
+import { APP_LANGUAGE } from '../../config/appConfig'
+
+const sharedRoutes = {
   dashboard: '/dashboard',
   reservations: '/reservations',
   groupReservations: '/group-reservations',
@@ -44,22 +46,20 @@ export const routes = {
     lateCheckout: '/policies/late-checkout',
     extendStay: '/policies/extend-stay',
   },
+  login: '/login',
+} as const
+
+export const englishRoutes = {
+  ...sharedRoutes,
   laundry: {
+    root: '/laundry',
     overview: '/laundry/overview',
     roomRequests: '/laundry/room-requests',
     inventory: '/laundry/inventory',
     settings: '/laundry/settings',
   },
-  hk: {
-    dashboard: '/HK/Dashboard',
-    cleaningTasks: '/HK/CleaningTasks',
-    guestRequests: '/HK/GuestRequests',
-    foundsAndLost: '/HK/FoundsAndLost',
-    inventory: '/HK/Inventory',
-    settings: '/HK/Settings',
-    roomStatus: '/HK/RoomStatus',
-  },
   hrm: {
+    root: '/HRM',
     dashboard: '/HRM/Dashboard',
     employees: '/HRM/Employees',
     shiftManagement: '/HRM/ShiftManagement',
@@ -76,7 +76,121 @@ export const routes = {
       positions: '/HRM/Setting/Positions',
     },
   },
-  login: '/login',
+  pos: {
+    root: '/POS',
+    menu: '/POS/menu',
+    orders: '/POS/orders',
+    tableReservation: '/POS/table-reservation',
+    guestMeals: '/POS/guest-meals',
+    admin: {
+      dashboard: '/POS/admin',
+      liveOrders: '/POS/admin/live-orders',
+      reservationsMeals: '/POS/admin/reservations-meals',
+      menuManagement: '/POS/admin/menu-management',
+      inventory: '/POS/admin/inventory',
+      reports: '/POS/admin/reports',
+    },
+  },
+  hk: {
+    root: '/HK',
+    dashboard: '/HK/Dashboard',
+    cleaningTasks: '/HK/CleaningTasks',
+    guestRequests: '/HK/GuestRequests',
+    foundsAndLost: '/HK/FoundsAndLost',
+    inventory: '/HK/Inventory',
+    settings: '/HK/Settings',
+    roomStatus: '/HK/RoomStatus',
+  },
 } as const
 
-export type RoutePath = (typeof routes)[keyof typeof routes]
+export const germanRoutes = {
+  ...sharedRoutes,
+  dashboard: '/uebersicht',
+  reservations: '/reservierungen',
+  groupReservations: '/gruppenreservierungen',
+  groupReservationDetails: '/gruppenreservierungen/:groupReservationId',
+  roomPlan: '/zimmerplan',
+  guests: '/gaeste',
+  reports: '/berichte',
+  complaints: '/beschwerden',
+  housekeeping: '/housekeeping',
+  servicesRequests: '/service-anfragen',
+  inHouseList: '/im-haus-liste',
+  roomAllocation: '/zimmerzuweisung',
+  roomAllocationGroup: '/zimmerzuweisung/gruppe',
+  roomAllocationDetails: '/zimmerzuweisung/:id',
+  salesRevenue: {
+    dashboard: '/vertrieb-umsatz',
+    rateCalendar: '/vertrieb-umsatz/ratenkalender',
+    roomTypes: '/vertrieb-umsatz/zimmertypen',
+    pricing: '/vertrieb-umsatz/preise',
+    corporateAccount: '/vertrieb-umsatz/firmenkonten',
+    corporateContractDetails: '/vertrieb-umsatz/firmenkonten/vertragsdetails',
+    groupContracts: '/vertrieb-umsatz/gruppenvertraege',
+    productionReport: '/vertrieb-umsatz/produktionsbericht',
+    discounts: '/vertrieb-umsatz/rabatte',
+    packages: '/vertrieb-umsatz/pakete',
+  },
+  policies: {
+    corporateCancellation: '/richtlinien/firmenstornierung',
+    earlyCheckout: '/richtlinien/frueher-checkout',
+    roomChange: '/richtlinien/zimmerwechsel',
+    lateCheckout: '/richtlinien/spaeter-checkout',
+    extendStay: '/richtlinien/aufenthalt-verlaengern',
+  },
+  laundry: {
+    root: '/waescherei',
+    overview: '/waescherei/uebersicht',
+    roomRequests: '/waescherei/zimmeranfragen',
+    inventory: '/waescherei/inventar',
+    settings: '/waescherei/einstellungen',
+  },
+  hrm: {
+    root: '/personalwesen',
+    dashboard: '/personalwesen/uebersicht',
+    employees: '/personalwesen/mitarbeiter',
+    shiftManagement: '/personalwesen/schichtplanung',
+    attendance: '/personalwesen/anwesenheit',
+    leaveManagement: '/personalwesen/abwesenheiten',
+    departments: '/personalwesen/abteilungen',
+    salaryIncrements: '/personalwesen/gehaltserhoehungen',
+    payroll: '/personalwesen/lohnabrechnung',
+    setting: {
+      root: '/personalwesen/einstellungen',
+      departments: '/personalwesen/einstellungen/abteilungen',
+      shifts: '/personalwesen/einstellungen/schichten',
+      notifications: '/personalwesen/einstellungen/benachrichtigungen',
+      positions: '/personalwesen/einstellungen/positionen',
+    },
+  },
+  pos: {
+    root: '/restaurant-kasse',
+    menu: '/restaurant-kasse/speisekarte',
+    orders: '/restaurant-kasse/bestellungen',
+    tableReservation: '/restaurant-kasse/tischreservierung',
+    guestMeals: '/restaurant-kasse/gaestemahlzeiten',
+    admin: {
+      dashboard: '/restaurant-kasse/admin',
+      liveOrders: '/restaurant-kasse/admin/live-bestellungen',
+      reservationsMeals: '/restaurant-kasse/admin/gaestemahlzeiten',
+      menuManagement: '/restaurant-kasse/admin/speisekartenverwaltung',
+      inventory: '/restaurant-kasse/admin/inventar',
+      reports: '/restaurant-kasse/admin/berichte',
+    },
+  },
+  hk: {
+    root: '/haushaltsplan',
+    dashboard: '/haushaltsplan/uebersicht',
+    cleaningTasks: '/haushaltsplan/reinigungsaufgaben',
+    guestRequests: '/haushaltsplan/gaesteanfragen',
+    foundsAndLost: '/haushaltsplan/fundsachen',
+    inventory: '/haushaltsplan/inventar',
+    settings: '/haushaltsplan/einstellungen',
+    roomStatus: '/haushaltsplan/zimmerstatus',
+  },
+} as const
+
+export const routes = APP_LANGUAGE === 'de' ? germanRoutes : englishRoutes
+export const alternateRoutes = APP_LANGUAGE === 'de' ? englishRoutes : germanRoutes
+
+export type AppRoutes = typeof routes

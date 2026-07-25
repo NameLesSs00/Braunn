@@ -6,6 +6,7 @@ export type OpenNewReservationOptions = {
   draftId?: string | null
   step?: SavedReservationStep
   step4Page?: SavedReservationStep4Page
+  skipReset?: boolean
 }
 
 type NewReservationModalContextValue = {

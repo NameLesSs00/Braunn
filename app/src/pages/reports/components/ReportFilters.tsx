@@ -5,8 +5,6 @@ interface ReportFiltersProps {
   setDateFrom: (v: string) => void
   dateTo: string
   setDateTo: (v: string) => void
-  property: string
-  setProperty: (v: string) => void
   roomType: string
   setRoomType: (v: string) => void
   marketSegment: string
@@ -48,8 +46,6 @@ export function ReportFilters({
   setDateFrom,
   dateTo,
   setDateTo,
-  property,
-  setProperty,
   roomType,
   setRoomType,
   marketSegment,
@@ -83,19 +79,13 @@ export function ReportFilters({
       </div>
 
       <FilterDropdown
-        label="Property"
-        value={property}
-        onChange={setProperty}
-        options={['All Properties', 'Property A', 'Property B']}
-      />
-      <FilterDropdown
         label="Room Type"
         value={roomType}
         onChange={setRoomType}
         options={['All Room Types', 'Standard', 'Deluxe', 'Suite']}
       />
       <FilterDropdown
-        label="Market Segment"
+        label="Reservation source"
         value={marketSegment}
         onChange={setMarketSegment}
         options={['All Segments', 'Leisure', 'Corporate', 'Group', 'Other']}

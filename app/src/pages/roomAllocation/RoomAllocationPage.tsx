@@ -367,7 +367,7 @@ export function RoomAllocationPage() {
                       type="button"
                       className="flex items-center justify-center gap-1.5 h-8 w-28 whitespace-nowrap rounded-lg bg-[#0B4EA2] px-4 text-[12px] font-semibold text-white transition-colors hover:bg-[#0a3f85]"
                       onClick={() => {
-                        navigate(`/room-allocation/${r.id}`)
+                        navigate(routes.roomAllocationDetails.replace(':id', r.id))
                       }}
                     >
                       Allocate Room
