@@ -8,21 +8,21 @@ type Props = {
   children: ReactNode
   lockScroll?: boolean
   closeOnBackdrop?: boolean
+  disableEscape?: boolean
 }
 
-export function Modal({ open, onClose, children, lockScroll = true, closeOnBackdrop = false }: Props) {
+export function Modal({ open, onClose, children, lockScroll = true, closeOnBackdrop = false, disableEscape = false }: Props) {
   const portalRef = useRef<HTMLDivElement | null>(null)
-
   useEffect(() => {
     if (!open) return
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !disableEscape) onClose()
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
+  }, [open, onClose, disableEscape])
 
   useEffect(() => {
     if (!open || !lockScroll) return

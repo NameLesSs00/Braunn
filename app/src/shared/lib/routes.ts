@@ -11,6 +11,18 @@ const sharedRoutes = {
   complaints: '/complaints',
   housekeeping: '/housekeeping',
   servicesRequests: '/services-requests',
+  maintenance: {
+    dashboard: '/maintenance/dashboard',
+    requests: '/maintenance/requests',
+    workOrders: '/maintenance/work-orders',
+    newRequest: '/maintenance/new-request',
+    inventory: '/maintenance/inventory',
+    categories: '/maintenance/categories',
+        preventive: '/maintenance/preventive',
+
+    assets: '/maintenance/assets',
+    notifications: '/maintenance/notifications',
+  },
   inHouseList: '/in-house-list',
   roomAllocation: '/room-allocation',
   roomAllocationGroup: '/room-allocation/group',

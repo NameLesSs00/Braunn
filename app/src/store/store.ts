@@ -56,6 +56,13 @@ import { roomPlanReducer } from '../features/roomPlan/roomPlanSlice'
 import { dashboardReducer } from '../features/dashboard/dashboardSlice'
 import { frontOfficeComplaintsReducer } from '../features/frontOfficeComplaints/frontOfficeComplaintsSlice'
 import { corporateCancellationPoliciesReducer } from '../features/policies/corporateCancellationPoliciesSlice'
+import { maintenanceItemsReducer } from '../features/maintenance/maintenanceItemsSlice'
+import { maintenanceIssuesReducer } from '../features/maintenance/maintenanceIssuesSlice'
+import { maintenancePurchasesReducer } from '../features/maintenance/maintenancePurchasesSlice'
+import { maintenanceCategoriesReducer } from '../features/maintenance/maintenanceCategoriesSlice'
+import { maintenanceUnitsReducer } from '../features/maintenance/maintenanceUnitsSlice'
+import { maintenanceRequestsReducer } from '../features/maintenance/maintenanceRequestsSlice'
+import { preventiveMaintenanceReducer } from '../features/maintenance/preventiveMaintenanceSlice'
 
 export const store = configureStore({
   reducer: {
@@ -116,6 +123,13 @@ export const store = configureStore({
     dashboard: dashboardReducer,
     frontOfficeComplaints: frontOfficeComplaintsReducer,
     corporateCancellationPolicies: corporateCancellationPoliciesReducer,
+    maintenanceItems: maintenanceItemsReducer,
+    maintenanceIssues: maintenanceIssuesReducer,
+    maintenancePurchases: maintenancePurchasesReducer,
+    maintenanceCategories: maintenanceCategoriesReducer,
+    maintenanceUnits: maintenanceUnitsReducer,
+    maintenanceRequests: maintenanceRequestsReducer,
+    preventiveMaintenance: preventiveMaintenanceReducer,
   },
 })
 

@@ -58,14 +58,21 @@ export async function apiRequest<T>({ method, path, body, signal }: RequestOptio
 
   console.log(`[API] ${method} ${url}`, body ?? '')
 
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json'
+  }
+
   const res = await fetch(url, {
     method,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers,
+    body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
     signal,
   })
 
@@ -80,7 +87,9 @@ export async function apiRequest<T>({ method, path, body, signal }: RequestOptio
     let errorMessage = ''
     if (errorPayload && typeof errorPayload === 'object') {
       const ep = errorPayload as any
-      if (typeof ep.error === 'string') {
+      if (typeof ep.title === 'string') {
+        errorMessage = ep.title
+      } else if (typeof ep.error === 'string') {
         errorMessage = ep.error
       } else if (typeof ep.message === 'string') {
         errorMessage = ep.message
@@ -88,9 +97,18 @@ export async function apiRequest<T>({ method, path, body, signal }: RequestOptio
         errorMessage = ep.Message
       }
       
-      const errorsArr = Array.isArray(ep.Errors) ? ep.Errors : Array.isArray(ep.errors) ? ep.errors : []
-      if (errorsArr.length > 0) {
-        errorMessage = errorMessage ? `${errorMessage}\n${errorsArr.join('\n')}` : errorsArr.join('\n')
+      const rawErrors = ep.errors || ep.Errors
+      if (Array.isArray(rawErrors) && rawErrors.length > 0) {
+        errorMessage = errorMessage ? `${errorMessage}\n${rawErrors.join('\n')}` : rawErrors.join('\n')
+      } else if (rawErrors && typeof rawErrors === 'object') {
+        const fieldErrors = Object.entries(rawErrors).flatMap(([field, msgs]) => {
+          if (Array.isArray(msgs)) return msgs.map((m) => `${field}: ${m}`)
+          if (typeof msgs === 'string') return [`${field}: ${msgs}`]
+          return []
+        })
+        if (fieldErrors.length > 0) {
+          errorMessage = fieldErrors.join('\n')
+        }
       }
     }
 
