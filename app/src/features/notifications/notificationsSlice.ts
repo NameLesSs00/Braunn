@@ -5,7 +5,7 @@ import type { SavedGroupReservationDraft } from '../reservations/groupReservatio
 
 export type Notification = {
   id: string
-  type: 'reservation_draft' | 'group_reservation_draft' | 'shift_start' | 'corporate_reservation_created'
+  type: 'reservation_draft' | 'group_reservation_draft' | 'shift_start' | 'corporate_reservation_created' | 'maintenance_request_created'
   draftId?: string
   firstName?: string
   surName?: string
@@ -13,6 +13,9 @@ export type Notification = {
   contactName?: string
   bookingReference?: string
   guestName?: string
+  itemName?: string
+  message?: string
+  scheduledDate?: string
   status?: string
   currency?: string
   grandTotal?: number
@@ -20,6 +23,7 @@ export type Notification = {
   timestamp: number
   isOptional?: boolean
 }
+
 
 interface NotificationsState {
   items: Notification[]

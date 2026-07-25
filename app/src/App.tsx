@@ -8,6 +8,7 @@ import { RoomPlanPage } from './pages/roomPlan/RoomPlanPage'
 import { GuestsPage } from './pages/guests/GuestsPage'
 import { HousekeepingPage } from './pages/housekeeping/HousekeepingPage'
 import { ServicesRequestsPage } from './pages/servicesRequests/ServicesRequestsPage'
+import { MaintenancePage } from './pages/maintenance/MaintenancePage'
 import { ReportsPage } from './pages/reports/ReportsPage'
 import { InHouseListPage } from './pages/inHouseList/InHouseListPage'
 import { RoomAllocationPage } from './pages/roomAllocation/RoomAllocationPage'
@@ -30,8 +31,19 @@ import { ExtendStayPoliciesPage } from './pages/policies/ExtendStayPoliciesPage'
 import { routes } from './shared/lib/routes'
 import { DashboardLayout } from './widgets/layout/DashboardLayout/DashboardLayout'
 import { LaundryLayout } from './widgets/layout/LaundryLayout/LaundryLayout'
+import { MaintenanceLayout } from './widgets/layout/MaintenanceLayout/MaintenanceLayout'
 import { LoginPage } from './pages/auth/LoginPage'
 import { AuthGuard } from './shared/ui/AuthGuard'
+import { PreventiveMaintenancePageContent } from './pages/maintenance/PreventiveMaintenancePageContent'
+
+import { MaintenanceDashboardPage } from './pages/maintenance/MaintenanceDashboardPage'
+import { NewMaintenanceRequestPage } from './pages/maintenance/NewMaintenanceRequestPage'
+import { WorkOrderDashboardPage } from './pages/maintenance/WorkOrderDashboardPage'
+import { MaintenanceInventoryPage } from './pages/maintenance/MaintenanceInventoryPage'
+import { AssetCategoriesPage } from './pages/maintenance/AssetCategoriesPage'
+import { AssetsEquipmentPage } from './pages/maintenance/AssetsEquipmentPage'
+import MaintenanceRequestDetailsPage from './pages/maintenance/MaintenanceRequestDetailsPage'
+import { NotificationsPage } from './pages/maintenance/NotificationsPage'
 import { LaundryOverviewPage } from './pages/laundry/overview/LaundryOverviewPage'
 import { RoomRequestsPage } from './pages/laundry/roomRequests/RoomRequestsPage'
 import { InventoryLaundryPage } from './pages/laundry/inventory/InventoryLaundryPage'
@@ -64,7 +76,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path={routes.login} element={<LoginPage />} />
-        
+
         <Route element={<AuthGuard />}>
           <Route path="/" element={<Navigate to={routes.dashboard} replace />} />
 
@@ -92,13 +104,27 @@ export default function App() {
             <Route path={routes.salesRevenue.groupContracts} element={<GroupContractsPage />} />
             <Route path={routes.salesRevenue.productionReport} element={<ProductionReportPage />} />
             <Route path={routes.salesRevenue.discounts} element={<DiscountsPage />} />
-            
+
             {/* Policies Module */}
             <Route path={routes.policies.corporateCancellation} element={<CorporateCancellationPoliciesPage />} />
             <Route path={routes.policies.earlyCheckout} element={<EarlyCheckoutPoliciesPage />} />
             <Route path={routes.policies.roomChange} element={<RoomChangePoliciesPage />} />
             <Route path={routes.policies.lateCheckout} element={<LateCheckoutPoliciesPage />} />
             <Route path={routes.policies.extendStay} element={<ExtendStayPoliciesPage />} />
+          </Route>
+
+          <Route element={<MaintenanceLayout />}>
+            <Route path="/maintenance" element={<Navigate to={routes.maintenance.dashboard} replace />} />
+            <Route path={routes.maintenance.dashboard} element={<MaintenanceDashboardPage />} />
+            <Route path={routes.maintenance.requests} element={<MaintenancePage />} />
+            <Route path={`${routes.maintenance.requests}/:id`} element={<MaintenanceRequestDetailsPage />} />
+            <Route path={routes.maintenance.preventive} element={<PreventiveMaintenancePageContent />} />
+            <Route path={routes.maintenance.newRequest} element={<NewMaintenanceRequestPage />} />
+            <Route path={routes.maintenance.workOrders} element={<WorkOrderDashboardPage />} />
+            <Route path={routes.maintenance.inventory} element={<MaintenanceInventoryPage />} />
+            <Route path={routes.maintenance.categories} element={<AssetCategoriesPage />} />
+            <Route path={routes.maintenance.assets} element={<AssetsEquipmentPage />} />
+            <Route path={routes.maintenance.notifications} element={<NotificationsPage />} />
           </Route>
 
           <Route element={<LaundryLayout />}>

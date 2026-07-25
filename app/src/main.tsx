@@ -4,12 +4,15 @@ import './index.css'
 import App from './App'
 import { store } from './store/store'
 import { AppAlertProvider } from './shared/ui/AppAlert'
-
+import { NotificationProvider } from './context/NotificationContext'
 
 createRoot(document.getElementById('root')!).render(
   <Provider store={store}>
-    <AppAlertProvider>
-      <App />
-    </AppAlertProvider>
+    <NotificationProvider>
+      <AppAlertProvider>
+        <App />
+      </AppAlertProvider>
+    </NotificationProvider>
   </Provider>,
 )
+

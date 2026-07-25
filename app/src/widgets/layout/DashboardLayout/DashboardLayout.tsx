@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import { routes } from '../../../shared/lib/routes'
 import { Header } from '../Header/Header'
-import { Sidebar } from '../Sidebar/Sidebar'
+import { Sidebar } from '../MaintenanceSidebar/MaintenanceSidebar'
 import { NewReservationModal } from '../../reservations/NewReservationModal/NewReservationModal'
 import { NewReservationModalProvider, type OpenNewReservationOptions } from './NewReservationModalContext'
 import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks'
@@ -33,6 +33,8 @@ const titleByPath: Record<string, string> = {
   [routes.complaints]: 'Complaints',
   [routes.housekeeping]: 'Housekeeping',
   [routes.servicesRequests]: 'Services & Requests',
+  [routes.maintenance.requests]: 'Maintenance',
+  [routes.maintenance.requestList]: 'Maintenance',
   [routes.inHouseList]: 'In House list',
   [routes.roomAllocation]: 'Room Allocation',
   [routes.roomAllocationGroup]: 'Room Allocation',
