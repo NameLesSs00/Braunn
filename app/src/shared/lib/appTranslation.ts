@@ -233,6 +233,8 @@ function translateDynamic(value: string) {
 }
 
 export function translateAppText(value: string) {
+  if (DEFAULT_LOCALE !== 'de') return value
+
   const leading = value.match(/^\s*/)?.[0] ?? ''
   const trailing = value.match(/\s*$/)?.[0] ?? ''
   const trimmed = value.trim()
