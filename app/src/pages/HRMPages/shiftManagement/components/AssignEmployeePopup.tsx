@@ -36,6 +36,13 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
     }
   }, [open, dispatch]);
 
+  // Auto-select the first shift if there's only one shift available
+  useEffect(() => {
+    if (open && shifts.length === 1 && !shiftId) {
+      setShiftId(shifts[0].id);
+    }
+  }, [open, shifts, shiftId]);
+
   // Sync employees when prop changes (step transition)
   useEffect(() => {
     if (open && selectedEmployees.length > 0) {
@@ -127,6 +134,7 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
                 onChange={(e) => setShiftId(e.target.value)}
                 className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-[14px] text-slate-700 outline-none focus:border-[#0B4EA2]"
               >
+                <option value="" disabled>Select a shift</option>
                 {shifts.map((s: ShiftReadDto) => <option key={s.id} value={s.id}>{s.name} ({s.startTime} - {s.endTime})</option>)}
               </select>
               <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

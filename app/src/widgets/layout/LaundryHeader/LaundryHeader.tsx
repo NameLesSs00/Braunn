@@ -53,7 +53,8 @@ export function LaundryHeader() {
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated')
     localStorage.removeItem('user')
-    navigate(routes.login)
+    localStorage.removeItem('access_token')
+    navigate(routes.root)
   }
 
   return (
@@ -151,6 +152,17 @@ export function LaundryHeader() {
                 <div className="py-2">
                   <button type="button" className="w-full px-5 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-50">
                     My profile
+                  </button>
+                  <div className="mx-4 my-1 h-px bg-slate-100" />
+                  <button
+                    type="button"
+                    className="w-full px-5 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      setProfileOpen(false)
+                      navigate(routes.systems)
+                    }}
+                  >
+                    Switch system
                   </button>
                   <div className="mx-4 my-1 h-px bg-slate-100" />
                   <button

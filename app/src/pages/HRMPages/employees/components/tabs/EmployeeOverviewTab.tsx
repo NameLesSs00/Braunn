@@ -194,6 +194,7 @@ export function EmployeeOverviewTab({ employee }: Props) {
       <NewLeaveRequestPopup
         open={isLeaveModalOpen}
         onClose={() => setIsLeaveModalOpen(false)}
+        preselectedEmployeeId={employee.id}
       />
 
       <SelectEmployeePopup

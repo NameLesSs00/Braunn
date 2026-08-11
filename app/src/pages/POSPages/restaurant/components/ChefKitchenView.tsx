@@ -1,7 +1,9 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { Bell, CheckCircle2, ChefHat, Clock, Flame, User } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Bell, CheckCircle2, ChefHat, Clock, Flame, LayoutDashboard, User } from 'lucide-react'
 import type { KitchenOrder, KitchenOrderStatus } from '../data/restaurantPOSData'
 import { initialKitchenOrders } from '../data/restaurantPOSData'
+import { routes } from '../../../../shared/lib/routes'
 
 const columnConfig: Record<
   KitchenOrderStatus,
@@ -119,6 +121,7 @@ function KitchenOrderCard({
 }
 
 export function ChefKitchenView() {
+  const navigate = useNavigate()
   const [orders, setOrders] = useState<KitchenOrder[]>(initialKitchenOrders)
 
   const counts = useMemo(() => {
@@ -164,6 +167,14 @@ export function ChefKitchenView() {
           <h1 className="text-2xl font-semibold">Kitchen Screen</h1>
         </div>
         <div className="flex items-center gap-5 sm:gap-8">
+          <button
+            type="button"
+            className="flex h-10 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white transition-colors hover:bg-white/15"
+            onClick={() => navigate(routes.systems)}
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Switch system
+          </button>
           <Bell className="h-7 w-7 text-white" />
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-full bg-[#DCEBFF]">

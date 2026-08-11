@@ -259,15 +259,15 @@ export function AddEmployeeForm({ onCancel }: Props) {
             </div>
 
             {/* Nationality */}
-            <div className="relative">
+            <div>
               <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">Nationality <span className="text-red-500">*</span></label>
-              <select className={selectClass} value={form.nationality} onChange={set('nationality')}>
-                <option value="">Select Nationality</option>
-                {NATIONALITIES.map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-3 bottom-3 text-[10px] text-slate-400">▼</span>
+              <input
+                type="text"
+                className={inputClass}
+                placeholder="e.g. American, Egyptian, Saudi"
+                value={form.nationality}
+                onChange={set('nationality')}
+              />
             </div>
           </div>
         </section>

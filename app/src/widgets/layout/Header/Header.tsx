@@ -105,7 +105,8 @@ export function Header({ title, onAddReservationClick, onOpenGroupReservationDra
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated')
     localStorage.removeItem('user')
-    navigate(routes.login)
+    localStorage.removeItem('access_token')
+    navigate(routes.root)
   }
 
   return (
@@ -277,6 +278,19 @@ export function Header({ title, onAddReservationClick, onOpenGroupReservationDra
 
                   <button type="button" className="w-full px-5 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-50" role="menuitem">
                     setting
+                  </button>
+                  <div className="mx-4 my-2 h-px bg-slate-200" />
+
+                  <button
+                    type="button"
+                    className="w-full px-5 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-50"
+                    role="menuitem"
+                    onClick={() => {
+                      setProfileOpen(false)
+                      navigate(routes.systems)
+                    }}
+                  >
+                    Switch system
                   </button>
                   <div className="mx-4 my-2 h-px bg-slate-200" />
 

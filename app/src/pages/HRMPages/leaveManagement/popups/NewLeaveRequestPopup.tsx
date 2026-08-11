@@ -12,6 +12,7 @@ const LEAVE_TYPES: LeaveType[] = ['Annual', 'Sick', 'Emergency', 'Unpaid'];
 type NewLeaveRequestPopupProps = {
   open: boolean;
   onClose: () => void;
+  preselectedEmployeeId?: string;
 };
 
 const emptyForm = {
@@ -22,7 +23,7 @@ const emptyForm = {
   reason: '',
 };
 
-export function NewLeaveRequestPopup({ open, onClose }: NewLeaveRequestPopupProps) {
+export function NewLeaveRequestPopup({ open, onClose, preselectedEmployeeId }: NewLeaveRequestPopupProps) {
   const dispatch = useAppDispatch();
   const { employees } = useAppSelector((s) => s.hrEmployees);
   const { status } = useAppSelector((s) => s.hrLeaves);
@@ -36,6 +37,13 @@ export function NewLeaveRequestPopup({ open, onClose }: NewLeaveRequestPopupProp
       dispatch(fetchHrEmployees({ PageNumber: 1, PageSize: 100 }));
     }
   }, [open, dispatch]);
+
+  // Pre-select employee if provided
+  useEffect(() => {
+    if (open && preselectedEmployeeId) {
+      setForm((prev) => ({ ...prev, employeeId: preselectedEmployeeId }));
+    }
+  }, [open, preselectedEmployeeId]);
 
   const handleClose = () => {
     setForm(emptyForm);

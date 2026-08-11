@@ -14,6 +14,7 @@ import {
   DollarSign,
   Filter,
   Hotel,
+  LayoutDashboard,
   MoreVertical,
   Minus,
   Pause,
@@ -1316,6 +1317,14 @@ export function CashierPOSView({ section }: { section: PosSection }) {
               <h1 className="text-[26px] font-semibold text-slate-800">{pageTitle}</h1>
             </div>
             <div className="flex items-center justify-end gap-8">
+              <button
+                type="button"
+                className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+                onClick={() => navigate(routes.systems)}
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Switch system
+              </button>
               <button
                 type="button"
                 className="flex h-10 items-center gap-1 rounded-2xl bg-[#0B4EA2] px-2.5 pr-4 text-[21px] font-semibold text-white"

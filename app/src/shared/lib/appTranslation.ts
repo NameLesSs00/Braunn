@@ -95,6 +95,30 @@ function translateDynamic(value: string) {
   const page = value.match(/^Page (\d+) of (\d+)$/)
   if (page) return `Seite ${page[1]} von ${page[2]}`
 
+  const charactersMin = value.match(/^(\d+) characters \(min\. (\d+)\)$/)
+  if (charactersMin) return `${charactersMin[1]} Zeichen (min. ${charactersMin[2]})`
+
+  const photosSelected = value.match(/^(\d+) \/ (\d+) photos selected$/)
+  if (photosSelected) return `${photosSelected[1]} / ${photosSelected[2]} Fotos ausgewaehlt`
+
+  const availableNow = value.match(/^(\d+) available now$/)
+  if (availableNow) return `${availableNow[1]} derzeit verfÃ¼gbar`
+
+  const activeJobs = value.match(/^(\d+) active jobs$/)
+  if (activeJobs) return `${activeJobs[1]} aktive Aufgaben`
+
+  const workOrdersProgress = value.match(/^(\d+) work orders [Â·*] (\d+) in progress$/)
+  if (workOrdersProgress) return `${workOrdersProgress[1]} ArbeitsauftrÃ¤ge - ${workOrdersProgress[2]} in Bearbeitung`
+
+  const purchaseRequestLine = value.match(/^Request ID: (.+) [â€¢•] Requested by (.+)$/)
+  if (purchaseRequestLine) return `Anfrage-ID: ${purchaseRequestLine[1]} - Angefragt von ${purchaseRequestLine[2]}`
+
+  const unitsCount = value.match(/^(.+) \((\d+) units\)$/)
+  if (unitsCount) return `${unitsCount[1]} (${unitsCount[2]} Einheiten)`
+
+  const currentStockPieces = value.match(/^Current Stock: (.+) pcs$/)
+  if (currentStockPieces) return `Aktueller Bestand: ${currentStockPieces[1]} Stk.`
+
   const employeesShown = value.match(/^(\d+) employees shown$/)
   if (employeesShown) return `${employeesShown[1]} Mitarbeiter angezeigt`
 

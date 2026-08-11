@@ -72,6 +72,7 @@ import { NotificationsTab } from './pages/HRMPages/setting/tabs/NotificationsTab
 import { PositionsTab } from './pages/HRMPages/setting/tabs/PositionsTab'
 import { RestaurantPOSPage } from './pages/POSPages/restaurant/RestaurantPOSPage'
 import { CashierPOSView } from './pages/POSPages/restaurant/components/CashierPOSView'
+import { SystemSelectionPage } from './pages/systems/SystemSelectionPage'
 
 export default function App() {
   const posAliases = [
@@ -153,12 +154,26 @@ export default function App() {
     { from: alternateRoutes.hk.settings, to: routes.hk.settings },
   ]
 
+  const maintenanceAliases = [
+    { from: alternateRoutes.maintenance.root, to: routes.maintenance.dashboard },
+    { from: alternateRoutes.maintenance.dashboard, to: routes.maintenance.dashboard },
+    { from: alternateRoutes.maintenance.requests, to: routes.maintenance.requests },
+    { from: alternateRoutes.maintenance.preventive, to: routes.maintenance.preventive },
+    { from: alternateRoutes.maintenance.newRequest, to: routes.maintenance.newRequest },
+    { from: alternateRoutes.maintenance.workOrders, to: routes.maintenance.workOrders },
+    { from: alternateRoutes.maintenance.inventory, to: routes.maintenance.inventory },
+    { from: alternateRoutes.maintenance.categories, to: routes.maintenance.categories },
+    { from: alternateRoutes.maintenance.assets, to: routes.maintenance.assets },
+    { from: alternateRoutes.maintenance.notifications, to: routes.maintenance.notifications },
+  ]
+
   return (
     <BrowserRouter>
       <Routes>
+        <Route path={routes.root} element={<LoginPage />} />
         <Route path={routes.login} element={<LoginPage />} />
         <Route element={<AuthGuard />}>
-          <Route path="/" element={<Navigate to={routes.dashboard} replace />} />
+          <Route path={routes.systems} element={<SystemSelectionPage />} />
 
           {posAliases.map(({ from, to }) => (
             from === to ? null : <Route key={from} path={from} element={<Navigate to={to} replace />} />
@@ -221,7 +236,13 @@ export default function App() {
           </Route>
 
           <Route element={<MaintenanceLayout />}>
-            <Route path="/maintenance" element={<Navigate to={routes.maintenance.dashboard} replace />} />
+            <Route path={routes.maintenance.root} element={<Navigate to={routes.maintenance.dashboard} replace />} />
+            {maintenanceAliases.map(({ from, to }) => (
+              from === to ? null : <Route key={from} path={from} element={<Navigate to={to} replace />} />
+            ))}
+            {alternateRoutes.maintenance.requests === routes.maintenance.requests ? null : (
+              <Route path={`${alternateRoutes.maintenance.requests}/:id`} element={<MaintenanceRequestDetailsPage />} />
+            )}
             <Route path={routes.maintenance.dashboard} element={<MaintenanceDashboardPage />} />
             <Route path={routes.maintenance.requests} element={<MaintenancePage />} />
             <Route path={`${routes.maintenance.requests}/:id`} element={<MaintenanceRequestDetailsPage />} />

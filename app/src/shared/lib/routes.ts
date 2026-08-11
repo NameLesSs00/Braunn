@@ -1,6 +1,8 @@
 import { APP_LANGUAGE } from '../../config/appConfig'
 
 const sharedRoutes = {
+  root: '/',
+  systems: '/systems',
   dashboard: '/dashboard',
   reservations: '/reservations',
   groupReservations: '/group-reservations',
@@ -11,18 +13,6 @@ const sharedRoutes = {
   complaints: '/complaints',
   housekeeping: '/housekeeping',
   servicesRequests: '/services-requests',
-  maintenance: {
-    dashboard: '/maintenance/dashboard',
-    requests: '/maintenance/requests',
-    workOrders: '/maintenance/work-orders',
-    newRequest: '/maintenance/new-request',
-    inventory: '/maintenance/inventory',
-    categories: '/maintenance/categories',
-        preventive: '/maintenance/preventive',
-
-    assets: '/maintenance/assets',
-    notifications: '/maintenance/notifications',
-  },
   inHouseList: '/in-house-list',
   roomAllocation: '/room-allocation',
   roomAllocationGroup: '/room-allocation/group',
@@ -51,6 +41,18 @@ const sharedRoutes = {
 
 export const englishRoutes = {
   ...sharedRoutes,
+  maintenance: {
+    root: '/maintenance',
+    dashboard: '/maintenance/dashboard',
+    requests: '/maintenance/requests',
+    workOrders: '/maintenance/work-orders',
+    newRequest: '/maintenance/new-request',
+    inventory: '/maintenance/inventory',
+    categories: '/maintenance/categories',
+    preventive: '/maintenance/preventive',
+    assets: '/maintenance/assets',
+    notifications: '/maintenance/notifications',
+  },
   laundry: {
     root: '/laundry',
     overview: '/laundry/overview',
@@ -115,6 +117,18 @@ export const germanRoutes = {
   complaints: '/beschwerden',
   housekeeping: '/housekeeping',
   servicesRequests: '/service-anfragen',
+  maintenance: {
+    root: '/wartung',
+    dashboard: '/wartung/uebersicht',
+    requests: '/wartung/anfragen',
+    workOrders: '/wartung/arbeitsauftraege',
+    newRequest: '/wartung/neue-anfrage',
+    inventory: '/wartung/inventar',
+    categories: '/wartung/kategorien',
+    preventive: '/wartung/vorbeugend',
+    assets: '/wartung/anlagen',
+    notifications: '/wartung/benachrichtigungen',
+  },
   inHouseList: '/im-haus-liste',
   roomAllocation: '/zimmerzuweisung',
   roomAllocationGroup: '/zimmerzuweisung/gruppe',

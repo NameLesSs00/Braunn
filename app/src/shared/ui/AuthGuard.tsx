@@ -5,7 +5,7 @@ export function AuthGuard() {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
 
   if (!isAuthenticated) {
-    return <Navigate to={routes.login} replace />
+    return <Navigate to={routes.root} replace />
   }
 
   return <Outlet />

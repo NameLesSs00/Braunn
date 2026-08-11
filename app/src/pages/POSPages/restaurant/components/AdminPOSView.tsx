@@ -1043,6 +1043,14 @@ function AdminHeader({ title }: { title: string }) {
       <div className="flex items-center gap-5">
         <button
           type="button"
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+          onClick={() => navigate(routes.systems)}
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          Switch system
+        </button>
+        <button
+          type="button"
           className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#0B4EA2] px-9 text-[20px] font-semibold text-white shadow-sm hover:bg-[#093f82]"
           onClick={() => navigate(`${routes.pos.menu}?role=cashier`)}
         >

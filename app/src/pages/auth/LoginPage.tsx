@@ -15,7 +15,7 @@ export function LoginPage() {
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
     if (isAuthenticated) {
-      navigate(routes.dashboard)
+      navigate(routes.systems)
     }
     return () => {
       dispatch(clearAuthError())
@@ -31,7 +31,7 @@ export function LoginPage() {
     }))
 
     if (adminLogin.fulfilled.match(result)) {
-      navigate(routes.dashboard)
+      navigate(routes.systems)
     }
   }
 
