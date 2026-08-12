@@ -1,3 +1,3 @@
 export type AppLanguage = 'de' | 'en'
 
-export const APP_LANGUAGE: AppLanguage = 'en'
+export const APP_LANGUAGE: AppLanguage = 'de'
