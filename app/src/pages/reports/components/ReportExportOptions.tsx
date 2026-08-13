@@ -1,4 +1,4 @@
-import React from 'react'
+
 import { recentReservations } from '../dummyData'
 import {
   MdGridOn,
