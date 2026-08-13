@@ -28,6 +28,31 @@ function translateExact(value: string) {
 
 function translateDateParts(value: string) {
   return value
+    .replace(/\bMonday\b/g, 'Montag')
+    .replace(/\bTuesday\b/g, 'Dienstag')
+    .replace(/\bWednesday\b/g, 'Mittwoch')
+    .replace(/\bThursday\b/g, 'Donnerstag')
+    .replace(/\bFriday\b/g, 'Freitag')
+    .replace(/\bSaturday\b/g, 'Samstag')
+    .replace(/\bSunday\b/g, 'Sonntag')
+    .replace(/\bMon\b/g, 'Mo.')
+    .replace(/\bTue\b/g, 'Di.')
+    .replace(/\bWed\b/g, 'Mi.')
+    .replace(/\bThu\b/g, 'Do.')
+    .replace(/\bFri\b/g, 'Fr.')
+    .replace(/\bSat\b/g, 'Sa.')
+    .replace(/\bSun\b/g, 'So.')
+    .replace(/\bJanuary\b/g, 'Januar')
+    .replace(/\bFebruary\b/g, 'Februar')
+    .replace(/\bMarch\b/g, 'März')
+    .replace(/\bApril\b/g, 'April')
+    .replace(/\bJune\b/g, 'Juni')
+    .replace(/\bJuly\b/g, 'Juli')
+    .replace(/\bAugust\b/g, 'August')
+    .replace(/\bSeptember\b/g, 'September')
+    .replace(/\bOctober\b/g, 'Oktober')
+    .replace(/\bNovember\b/g, 'November')
+    .replace(/\bDecember\b/g, 'Dezember')
     .replace(/\bJan\b/g, 'Jan.')
     .replace(/\bFeb\b/g, 'Feb.')
     .replace(/\bMar\b/g, 'März')
@@ -49,6 +74,48 @@ function translateDateParts(value: string) {
 function translateKnownObject(value: string) {
   const translated = translateExact(value)
   return translated && translated !== value ? translated : undefined
+}
+
+function translateEntity(value: string) {
+  const normalized = value.trim()
+  const exact = translateKnownObject(normalized)
+  if (exact) return exact
+
+  const entities: Record<string, string> = {
+    account: 'Konto',
+    accounts: 'Konten',
+    availability: 'Verfügbarkeit',
+    bonuses: 'Boni',
+    category: 'Kategorie',
+    categories: 'Kategorien',
+    complaint: 'Beschwerde',
+    complaints: 'Beschwerden',
+    contract: 'Vertrag',
+    contracts: 'Verträge',
+    data: 'Daten',
+    departments: 'Abteilungen',
+    deductions: 'Abzüge',
+    employees: 'Mitarbeiter',
+    guests: 'Gäste',
+    inventory: 'Inventar',
+    items: 'Artikel',
+    leaves: 'Abwesenheiten',
+    notifications: 'Benachrichtigungen',
+    packages: 'Pakete',
+    plans: 'Pläne',
+    policies: 'Richtlinien',
+    records: 'Datensätze',
+    request: 'Anfrage',
+    requests: 'Anfragen',
+    reservation: 'Reservierung',
+    reservations: 'Reservierungen',
+    rooms: 'Zimmer',
+    shifts: 'Schichten',
+    types: 'Typen',
+    units: 'Einheiten',
+  }
+
+  return entities[normalized.toLowerCase()]
 }
 
 function translateDynamic(value: string) {
@@ -74,7 +141,7 @@ function translateDynamic(value: string) {
                       : showing[4] === 'rooms'
                         ? 'Zimmern'
                         : showing[4] === 'services'
-                          ? 'Services'
+                          ? 'Dienstleistungen'
                   : 'Einträge'
     return `Zeige ${showing[1]} bis ${showing[2]} von ${showing[3]} ${unit}`
   }
@@ -95,6 +162,42 @@ function translateDynamic(value: string) {
   const page = value.match(/^Page (\d+) of (\d+)$/)
   if (page) return `Seite ${page[1]} von ${page[2]}`
 
+  const requestFailed = value.match(/^Request failed \((\d+)\)$/)
+  if (requestFailed) return `Anfrage fehlgeschlagen (${requestFailed[1]})`
+
+  const dataNotFound = value.match(/^Data not found\.?$/i)
+  if (dataNotFound) return 'Keine Daten gefunden'
+
+  const noMatchesCurrentFilters = value.match(/^No (.+) match(?:es)? the current filters\.?$/)
+  if (noMatchesCurrentFilters) {
+    const entity = translateEntity(noMatchesCurrentFilters[1]) ?? noMatchesCurrentFilters[1]
+    return `Keine ${entity} entsprechen den aktuellen Filtern`
+  }
+
+  const noFound = value.match(/^No (.+) found\.?$/)
+  if (noFound) {
+    const entity = translateEntity(noFound[1]) ?? noFound[1]
+    return `Keine ${entity} gefunden`
+  }
+
+  const notFound = value.match(/^(.+) not found\.?$/)
+  if (notFound) {
+    const entity = translateEntity(notFound[1]) ?? notFound[1]
+    return `${entity} nicht gefunden`
+  }
+
+  const failedToLoad = value.match(/^Failed to load (.+)\.?$/)
+  if (failedToLoad) {
+    const entity = translateEntity(failedToLoad[1]) ?? failedToLoad[1]
+    return `${entity} konnten nicht geladen werden`
+  }
+
+  const couldNotLoad = value.match(/^Could not load (.+)\.?$/)
+  if (couldNotLoad) {
+    const entity = translateEntity(couldNotLoad[1]) ?? couldNotLoad[1]
+    return `${entity} konnten nicht geladen werden`
+  }
+
   const charactersMin = value.match(/^(\d+) characters \(min\. (\d+)\)$/)
   if (charactersMin) return `${charactersMin[1]} Zeichen (min. ${charactersMin[2]})`
 
@@ -102,15 +205,15 @@ function translateDynamic(value: string) {
   if (photosSelected) return `${photosSelected[1]} / ${photosSelected[2]} Fotos ausgewaehlt`
 
   const availableNow = value.match(/^(\d+) available now$/)
-  if (availableNow) return `${availableNow[1]} derzeit verfÃ¼gbar`
+  if (availableNow) return `${availableNow[1]} derzeit verfügbar`
 
   const activeJobs = value.match(/^(\d+) active jobs$/)
   if (activeJobs) return `${activeJobs[1]} aktive Aufgaben`
 
-  const workOrdersProgress = value.match(/^(\d+) work orders [Â·*] (\d+) in progress$/)
-  if (workOrdersProgress) return `${workOrdersProgress[1]} ArbeitsauftrÃ¤ge - ${workOrdersProgress[2]} in Bearbeitung`
+  const workOrdersProgress = value.match(/^(\d+) work orders [·*] (\d+) in progress$/)
+  if (workOrdersProgress) return `${workOrdersProgress[1]} Arbeitsaufträge - ${workOrdersProgress[2]} in Bearbeitung`
 
-  const purchaseRequestLine = value.match(/^Request ID: (.+) [â€¢•] Requested by (.+)$/)
+  const purchaseRequestLine = value.match(/^Request ID: (.+) [•] Requested by (.+)$/)
   if (purchaseRequestLine) return `Anfrage-ID: ${purchaseRequestLine[1]} - Angefragt von ${purchaseRequestLine[2]}`
 
   const unitsCount = value.match(/^(.+) \((\d+) units\)$/)
@@ -187,7 +290,7 @@ function translateDynamic(value: string) {
   const deleteTitle = value.match(/^Delete "(.+)"\?$/)
   if (deleteTitle) return `"${deleteTitle[1]}" löschen?`
 
-  if (/\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|AM|PM|am|pm)\b/.test(value)) return translateDateParts(value)
+  if (/\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun|January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec|AM|PM|am|pm)\b/.test(value)) return translateDateParts(value)
 
   // "Guest {name} has been successfully checked out." / "checked out early."
   const guestCheckedOut = value.match(/^Guest (.+) has been successfully checked out\.$/)

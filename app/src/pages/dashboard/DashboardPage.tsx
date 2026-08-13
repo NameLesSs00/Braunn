@@ -13,6 +13,7 @@ import { CgLogOut } from "react-icons/cg";
 import { GoSearch } from "react-icons/go";
 import { useAppDispatch, useAppSelector } from '../../shared/apis/hooks'
 import { fetchDailyDashboard } from '../../features/dashboard/dashboardSlice'
+import { formatAppDate } from '../../shared/lib/dateLocalization'
 
 function localIsoDate(date: Date) {
   const year = date.getFullYear()
@@ -22,7 +23,7 @@ function localIsoDate(date: Date) {
 }
 
 function formatAmount(amount: number) {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('de-DE', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(amount)
@@ -128,7 +129,7 @@ export function DashboardPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <IconImage src={FaRegCalendar} alt="Calendar" className="h-4 w-4" />
-              {now.toLocaleDateString('en-US', {
+              {formatAppDate(now, {
                 weekday: 'long',
                 month: 'long',
                 day: 'numeric',
@@ -137,12 +138,16 @@ export function DashboardPage() {
             </div>
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
               <IconImage src={FaRegClock} alt="Clock" className="h-4 w-4" />
-              {now.toLocaleTimeString('en-US')}
+              {formatAppDate(now, {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })}
             </div>
           </div>
 
           <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-            Morning shift (6:00AM-2:00PM)
+            Morning shift (6:00 AM-2:00 PM)
           </div>
         </div>
       </div>

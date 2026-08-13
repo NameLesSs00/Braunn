@@ -9,6 +9,8 @@ import { EditRatePopup } from './popups/RateCalendarPage/EditRatePopup'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { fetchRoomTypes } from '../../features/roomTypes/roomTypesSlice'
 import { getLocalARIRates } from '../../shared/apis/LocalAri'
+import { formatAppMonthYear, formatAppShortMonthDay, formatAppShortWeekday } from '../../shared/lib/dateLocalization'
+import type { LocalARIRate } from '../../models/LocalAri'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, addMonths, subMonths } from 'date-fns'
 
 function cellKey(roomIdx: number, dateIdx: number) {
@@ -86,8 +88,8 @@ export function RateCalendarPage() {
     return eachDayOfInterval({ start, end }).map(date => ({
       date,
       day: date.getDate(),
-      name: format(date, 'EEE'),
-      dateStr: format(date, 'MMM d'),
+      name: formatAppShortWeekday(date),
+      dateStr: formatAppShortMonthDay(date),
       isWeekend: isWeekend(date),
       formattedDate: format(date, 'yyyy-MM-dd')
     }))
@@ -230,7 +232,7 @@ export function RateCalendarPage() {
             <button onClick={handlePrevMonth} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-500">
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <h2 className="text-2xl font-bold text-slate-800">{format(currentDate, 'MMMM yyyy')}</h2>
+            <h2 className="text-2xl font-bold text-slate-800">{formatAppMonthYear(currentDate)}</h2>
             <button onClick={handleNextMonth} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-500">
               <ChevronRight className="w-5 h-5" />
             </button>

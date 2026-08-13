@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "npx vite build",
     "lint": "eslint .",
+    "audit:translations": "node scripts/audit-translations.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

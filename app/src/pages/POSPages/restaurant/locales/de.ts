@@ -1,7 +1,7 @@
 export const restaurantPosDe = {
   text: {
-    'Dashboard': 'Dashboard',
-    'Restaurant Dashboard': 'Restaurant-Dashboard',
+    'Dashboard': 'Übersicht',
+    'Restaurant Dashboard': 'Restaurant-Übersicht',
     'Restaurant Management': 'Restaurantverwaltung',
     'Live Orders': 'Live-Bestellungen',
     'Reservations Meals': 'Reservierungen & Mahlzeiten',
@@ -30,7 +30,7 @@ export const restaurantPosDe = {
     'Admin': 'Admin',
     'Order entry view': 'Bestellerfassung',
     'Kitchen board view': 'Küchenübersicht',
-    'Admin dashboard': 'Admin-Dashboard',
+    'Admin dashboard': 'Admin-Übersicht',
     'Admin preview': 'Admin-Vorschau',
     'Open role switcher': 'Rollenauswahl öffnen',
     'Close role switcher': 'Rollenauswahl schließen',

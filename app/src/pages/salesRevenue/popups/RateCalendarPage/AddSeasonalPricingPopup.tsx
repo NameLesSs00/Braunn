@@ -283,7 +283,7 @@ export function AddSeasonalPricingPopup({ isOpen, onClose }: AddSeasonalPricingP
                       onChange={(e) => setApplyWeekdays(e.target.checked)}
                     />
                     <span className="text-slate-600 font-medium group-hover:text-slate-800 transition-colors">
-                      Weekdays (Saturday - sunday)
+                      Weekdays (Monday - Friday)
                     </span>
                   </label>
                   
@@ -300,7 +300,7 @@ export function AddSeasonalPricingPopup({ isOpen, onClose }: AddSeasonalPricingP
                       onChange={(e) => setApplyWeekends(e.target.checked)}
                     />
                     <span className="text-slate-600 font-medium group-hover:text-slate-800 transition-colors">
-                      Weekends (Friday - Sunday)
+                      Weekends (Saturday - Sunday)
                     </span>
                   </label>
                 </div>

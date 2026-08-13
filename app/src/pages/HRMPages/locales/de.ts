@@ -2,7 +2,7 @@ export const hrmDe = {
   text: {
     'HRM Department': 'Personalabteilung',
     'Overview': 'Übersicht',
-    'Dashboard': 'Dashboard',
+    'Dashboard': 'Übersicht',
     'Employees': 'Mitarbeiter',
     'Employee': 'Mitarbeiter',
     'employee': 'Mitarbeiter',
@@ -201,7 +201,7 @@ export const hrmDe = {
 
     'Payroll Management': 'Lohnabrechnungsverwaltung',
     'Manage employee salaries and payments': 'Mitarbeitergehälter und Zahlungen verwalten',
-    'Dashboard': 'Dashboard',
+    'Dashboard': 'Übersicht',
     'Review Payroll': 'Lohnabrechnung prüfen',
     'Run Payroll': 'Lohnabrechnung ausführen',
     'Payroll History': 'Lohnabrechnungsverlauf',
@@ -341,8 +341,8 @@ export const hrmDe = {
     'F&B': 'F&B',
     'Front Office': 'Rezeption',
     'Front Desk': 'Rezeption',
-    'Housekeeping': 'Housekeeping',
-    'housekeeping': 'Housekeeping',
+    'Housekeeping': 'Hauswirtschaft',
+    'housekeeping': 'Hauswirtschaft',
     'Kitchen': 'Küche',
     'kitchen': 'Küche',
     'Maintenance': 'Wartung',

@@ -124,7 +124,15 @@ export function LoginPage() {
         </div>
 
         <p className="mt-8 text-center text-slate-400 text-xs uppercase tracking-widest font-medium">
-          Powered by Braun Management System
+          Powered by{' '}
+          <a
+            href="https://tech-gear.net/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-slate-500 hover:text-[#0B4EA2] hover:underline"
+          >
+            Tech Gear Solutions
+          </a>
         </p>
       </div>
     </div>

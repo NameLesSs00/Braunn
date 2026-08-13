@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { DEFAULT_LOCALE } from '../../../../i18n'
 import { restaurantPosDe } from '../locales/de'
 
@@ -17,6 +18,31 @@ function translateExact(value: string) {
 
 function translateDateParts(value: string) {
   return value
+    .replace(/\bMonday\b/g, 'Montag')
+    .replace(/\bTuesday\b/g, 'Dienstag')
+    .replace(/\bWednesday\b/g, 'Mittwoch')
+    .replace(/\bThursday\b/g, 'Donnerstag')
+    .replace(/\bFriday\b/g, 'Freitag')
+    .replace(/\bSaturday\b/g, 'Samstag')
+    .replace(/\bSunday\b/g, 'Sonntag')
+    .replace(/\bMon\b/g, 'Mo.')
+    .replace(/\bTue\b/g, 'Di.')
+    .replace(/\bWed\b/g, 'Mi.')
+    .replace(/\bThu\b/g, 'Do.')
+    .replace(/\bFri\b/g, 'Fr.')
+    .replace(/\bSat\b/g, 'Sa.')
+    .replace(/\bSun\b/g, 'So.')
+    .replace(/\bJanuary\b/g, 'Januar')
+    .replace(/\bFebruary\b/g, 'Februar')
+    .replace(/\bMarch\b/g, 'März')
+    .replace(/\bApril\b/g, 'April')
+    .replace(/\bJune\b/g, 'Juni')
+    .replace(/\bJuly\b/g, 'Juli')
+    .replace(/\bAugust\b/g, 'August')
+    .replace(/\bSeptember\b/g, 'September')
+    .replace(/\bOctober\b/g, 'Oktober')
+    .replace(/\bNovember\b/g, 'November')
+    .replace(/\bDecember\b/g, 'Dezember')
     .replace(/\bJan\b/g, 'Jan.')
     .replace(/\bFeb\b/g, 'Feb.')
     .replace(/\bMar\b/g, 'März')
@@ -89,7 +115,7 @@ function translateDynamic(value: string) {
   if (checkout) return `Check-out: ${translateDateParts(checkout[1])}`
 
   if (value.startsWith('Today, ')) return translateDateParts(value.replace('Today, ', 'Heute, '))
-  if (/\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|AM|PM)\b/.test(value)) return translateDateParts(value)
+  if (/\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun|January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec|AM|PM)\b/.test(value)) return translateDateParts(value)
 
   return undefined
 }
@@ -145,6 +171,7 @@ function translateTree(root: HTMLElement) {
 
 export function PosTranslationBoundary({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const location = useLocation()
 
   useEffect(() => {
     if (DEFAULT_LOCALE !== 'de' || !rootRef.current) return
@@ -162,7 +189,7 @@ export function PosTranslationBoundary({ children }: { children: ReactNode }) {
     })
 
     return () => observer.disconnect()
-  }, [])
+  }, [location.pathname, location.search])
 
   return <div ref={rootRef}>{children}</div>
 }

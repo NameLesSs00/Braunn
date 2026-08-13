@@ -36,7 +36,7 @@ export function MaintenanceTranslationBoundary({ children }: { children: ReactNo
       if (frameId) window.cancelAnimationFrame(frameId)
       observer.disconnect()
     }
-  }, [location.pathname])
+  }, [location.pathname, location.search])
 
   return <div ref={rootRef} className="contents">{children}</div>
 }
