@@ -88,13 +88,18 @@ function translateEntity(value: string) {
     bonuses: 'Boni',
     category: 'Kategorie',
     categories: 'Kategorien',
+    companion: 'Begleitperson',
+    companions: 'Begleitpersonen',
     complaint: 'Beschwerde',
     complaints: 'Beschwerden',
     contract: 'Vertrag',
     contracts: 'Verträge',
     data: 'Daten',
+    'departure date': 'Abreisedatum',
     departments: 'Abteilungen',
+    'deposit required': 'Erforderliche Anzahlung',
     deductions: 'Abzüge',
+    'discount amount': 'Rabattbetrag',
     employees: 'Mitarbeiter',
     guests: 'Gäste',
     inventory: 'Inventar',
@@ -104,12 +109,19 @@ function translateEntity(value: string) {
     packages: 'Pakete',
     plans: 'Pläne',
     policies: 'Richtlinien',
+    policy: 'Richtlinie',
     records: 'Datensätze',
+    'meal plans': 'Verpflegungspläne',
+    'number of rooms': 'Anzahl Zimmer',
     request: 'Anfrage',
     requests: 'Anfragen',
     reservation: 'Reservierung',
     reservations: 'Reservierungen',
+    'room nights': 'Zimmernächte',
+    'room rates': 'Zimmerraten',
+    'room type': 'Zimmertyp',
     rooms: 'Zimmer',
+    services: 'Dienstleistungen',
     shifts: 'Schichten',
     types: 'Typen',
     units: 'Einheiten',
@@ -119,6 +131,43 @@ function translateEntity(value: string) {
 }
 
 function translateDynamic(value: string) {
+  const policyValueTranslations: Record<string, string> = {
+    Allowed: 'Erlaubt',
+    'Not allowed': 'Nicht erlaubt',
+    ChargeRateDifference: 'Ratendifferenz berechnen',
+    NoCharge: 'Keine Gebühr',
+    NoRefund: 'Keine Erstattung',
+    RefundDifference: 'Differenz erstatten',
+  }
+
+  const cancellationPolicySummary = value.match(/^([0-9.]+) hrs free, ([0-9.]+)% penalty(, approval required)?$/)
+  if (cancellationPolicySummary) {
+    return `${cancellationPolicySummary[1]} Std. kostenlos, ${cancellationPolicySummary[2]} % Strafgebühr${cancellationPolicySummary[3] ? ', Genehmigung erforderlich' : ''}`
+  }
+
+  const earlyCheckoutPolicySummary = value.match(/^([0-9.]+)% credit(, approval required)?$/)
+  if (earlyCheckoutPolicySummary) {
+    return `${earlyCheckoutPolicySummary[1]} % Gutschrift${earlyCheckoutPolicySummary[2] ? ', Genehmigung erforderlich' : ''}`
+  }
+
+  const lateCheckoutPolicySummary = value.match(/^Free until (.+), half ([0-9.]+)%, full ([0-9.]+)%$/)
+  if (lateCheckoutPolicySummary) {
+    return `Kostenlos bis ${lateCheckoutPolicySummary[1]}, halb ${lateCheckoutPolicySummary[2]} %, voll ${lateCheckoutPolicySummary[3]} %`
+  }
+
+  const extendStayPolicySummary = value.match(/^(Allowed|Not allowed)(, availability required)?(, approval required)?$/)
+  if (extendStayPolicySummary) {
+    return `${policyValueTranslations[extendStayPolicySummary[1]]}${extendStayPolicySummary[2] ? ', Verfügbarkeit erforderlich' : ''}${extendStayPolicySummary[3] ? ', Genehmigung erforderlich' : ''}`
+  }
+
+  const roomChangePolicySummary = value.match(/^(Move allowed|Move blocked), upgrade: (.+), downgrade: (.+)$/)
+  if (roomChangePolicySummary) {
+    const move = roomChangePolicySummary[1] === 'Move allowed' ? 'Wechsel erlaubt' : 'Wechsel blockiert'
+    const upgrade = policyValueTranslations[roomChangePolicySummary[2]] ?? translateExact(roomChangePolicySummary[2]) ?? roomChangePolicySummary[2]
+    const downgrade = policyValueTranslations[roomChangePolicySummary[3]] ?? translateExact(roomChangePolicySummary[3]) ?? roomChangePolicySummary[3]
+    return `${move}, Upgrade: ${upgrade}, Downgrade: ${downgrade}`
+  }
+
   const showing = value.match(/^Showing (\d+) to (\d+) of (\d+) (requests|items|orders|entries|employees|payroll records|records|reservations|guests|rooms|services)$/)
   if (showing) {
     const unit =
@@ -165,6 +214,12 @@ function translateDynamic(value: string) {
   const requestFailed = value.match(/^Request failed \((\d+)\)$/)
   if (requestFailed) return `Anfrage fehlgeschlagen (${requestFailed[1]})`
 
+  const totalLabel = value.match(/^Total (.+)$/)
+  if (totalLabel) {
+    const entity = translateEntity(totalLabel[1]) ?? translateExact(totalLabel[1]) ?? totalLabel[1]
+    return `${entity} gesamt`
+  }
+
   const dataNotFound = value.match(/^Data not found\.?$/i)
   if (dataNotFound) return 'Keine Daten gefunden'
 
@@ -178,6 +233,12 @@ function translateDynamic(value: string) {
   if (noFound) {
     const entity = translateEntity(noFound[1]) ?? noFound[1]
     return `Keine ${entity} gefunden`
+  }
+
+  const noAdded = value.match(/^No (.+) added\.?$/)
+  if (noAdded) {
+    const entity = translateEntity(noAdded[1]) ?? noAdded[1]
+    return `Keine ${entity} hinzugefügt`
   }
 
   const notFound = value.match(/^(.+) not found\.?$/)
@@ -196,6 +257,36 @@ function translateDynamic(value: string) {
   if (couldNotLoad) {
     const entity = translateEntity(couldNotLoad[1]) ?? couldNotLoad[1]
     return `${entity} konnten nicht geladen werden`
+  }
+
+  const loading = value.match(/^Loading (.+)\.\.\.$/)
+  if (loading) {
+    const entity = translateEntity(loading[1]) ?? loading[1]
+    return `${entity} werden geladen...`
+  }
+
+  const isRequired = value.match(/^(.+) is required\.$/)
+  if (isRequired) {
+    const entity = translateEntity(isRequired[1]) ?? translateExact(isRequired[1]) ?? isRequired[1]
+    return `${entity} ist erforderlich.`
+  }
+
+  const mustBeValidNumber = value.match(/^(.+) must be a valid number\.$/)
+  if (mustBeValidNumber) {
+    const entity = translateEntity(mustBeValidNumber[1]) ?? translateExact(mustBeValidNumber[1]) ?? mustBeValidNumber[1]
+    return `${entity} muss eine gültige Zahl sein.`
+  }
+
+  const cannotBeNegative = value.match(/^(.+) cannot be negative\.$/)
+  if (cannotBeNegative) {
+    const entity = translateEntity(cannotBeNegative[1]) ?? translateExact(cannotBeNegative[1]) ?? cannotBeNegative[1]
+    return `${entity} darf nicht negativ sein.`
+  }
+
+  const mustBeGreaterThanZero = value.match(/^(.+) must be greater than 0\.$/)
+  if (mustBeGreaterThanZero) {
+    const entity = translateEntity(mustBeGreaterThanZero[1]) ?? translateExact(mustBeGreaterThanZero[1]) ?? mustBeGreaterThanZero[1]
+    return `${entity} muss größer als 0 sein.`
   }
 
   const charactersMin = value.match(/^(\d+) characters \(min\. (\d+)\)$/)
