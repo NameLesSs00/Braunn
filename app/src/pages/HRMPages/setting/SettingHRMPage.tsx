@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Building2, Clock, Bell, Briefcase, Plus, ChevronRight, Home } from 'lucide-react';
+import { Building2, Clock, Briefcase, Plus, ChevronRight, Home } from 'lucide-react';
 import { routes } from '../../../shared/lib/routes';
 import { SettingsContext } from './SettingsContext';
 
@@ -31,12 +31,6 @@ export function SettingHRMPage() {
       path: routes.hrm.setting.positions,
       icon: Briefcase,
       addLabel: 'Add Position',
-    },
-    {
-      label: 'Notifications',
-      path: routes.hrm.setting.notifications,
-      icon: Bell,
-      addLabel: null,
     },
   ];
 

@@ -4,26 +4,6 @@ import type { LeaveReadDto, LeaveStatus } from '../../../../models/HRMmodels/Lea
 import { FiTrash2 } from 'react-icons/fi';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-
-function getInitials(name: string) {
-  return name
-    .split(' ')
-    .map((w) => w[0] ?? '')
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-const AVATAR_PALETTE = [
-  'bg-blue-500', 'bg-purple-500', 'bg-pink-500',
-  'bg-indigo-500', 'bg-teal-600', 'bg-emerald-600', 'bg-orange-500',
-];
-
-function avatarColor(id: string) {
-  const sum = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return AVATAR_PALETTE[sum % AVATAR_PALETTE.length];
-}
-
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;

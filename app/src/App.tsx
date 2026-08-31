@@ -68,7 +68,6 @@ import { PayrollHRMPage } from './pages/HRMPages/payroll/PayrollHRMPage'
 import { SettingHRMPage } from './pages/HRMPages/setting/SettingHRMPage'
 import { DepartmentsTab } from './pages/HRMPages/setting/tabs/DepartmentsTab'
 import { ShiftsTab } from './pages/HRMPages/setting/tabs/ShiftsTab'
-import { NotificationsTab } from './pages/HRMPages/setting/tabs/NotificationsTab'
 import { PositionsTab } from './pages/HRMPages/setting/tabs/PositionsTab'
 import { RestaurantPOSPage } from './pages/POSPages/restaurant/RestaurantPOSPage'
 import { CashierPOSView } from './pages/POSPages/restaurant/components/CashierPOSView'
@@ -139,7 +138,6 @@ export default function App() {
     { from: alternateRoutes.hrm.setting.root, to: routes.hrm.setting.departments },
     { from: alternateRoutes.hrm.setting.departments, to: routes.hrm.setting.departments },
     { from: alternateRoutes.hrm.setting.shifts, to: routes.hrm.setting.shifts },
-    { from: alternateRoutes.hrm.setting.notifications, to: routes.hrm.setting.notifications },
     { from: alternateRoutes.hrm.setting.positions, to: routes.hrm.setting.positions },
   ]
 
@@ -297,7 +295,6 @@ export default function App() {
               <Route index element={<Navigate to={routes.hrm.setting.departments} replace />} />
               <Route path={routes.hrm.setting.departments} element={<DepartmentsTab />} />
               <Route path={routes.hrm.setting.shifts} element={<ShiftsTab />} />
-              <Route path={routes.hrm.setting.notifications} element={<NotificationsTab />} />
               <Route path={routes.hrm.setting.positions} element={<PositionsTab />} />
             </Route>
           </Route>

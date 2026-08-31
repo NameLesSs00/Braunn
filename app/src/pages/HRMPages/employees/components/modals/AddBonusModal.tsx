@@ -1,33 +1,60 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '../../../../../shared/ui/Modal';
 import { IoClose } from 'react-icons/io5';
 import { Employee } from '../EmployeesTable';
 import type { BonusDeductionCreateDto } from '../../../../../models/HRMmodels/BonusesAndDeductions';
+import { useAppSelector } from '../../../../../shared/apis/hooks';
+import type { HREmployeeReadDto } from '../../../../../models/HRMmodels/HREmployee';
+import { SearchableEmployeeSelect } from './SearchableEmployeeSelect';
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  employee: Employee | null;
+  employee?: Employee | null;
   onSubmit: (data: BonusDeductionCreateDto) => void;
 };
 
 export function AddBonusModal({ open, onClose, employee, onSubmit }: Props) {
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [amount, setAmount] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [reason, setReason] = useState('');
 
-  if (!employee) return null;
+  const { employees } = useAppSelector((s: any) => s.hrEmployees);
+
+  // Sync internal selected employee ID with prop if it exists
+  useEffect(() => {
+    if (employee) {
+      setSelectedEmployeeId(employee.id);
+    } else {
+      setSelectedEmployeeId('');
+    }
+  }, [employee, open]);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!open) {
+      setAmount('');
+      setEffectiveDate('');
+      setReason('');
+      if (!employee) setSelectedEmployeeId('');
+    }
+  }, [open, employee]);
 
   const handleSubmit = () => {
-    if (!amount || !effectiveDate) return;
+    if (!amount || !effectiveDate || !selectedEmployeeId) return;
     
     onSubmit({
-      employeeId: employee.id,
+      employeeId: selectedEmployeeId,
       amount: Number(amount),
       effectiveDate: new Date(effectiveDate).toISOString(),
       reason: reason || 'Bonus'
     });
   };
+
+  const sortedEmployees = [...(employees as HREmployeeReadDto[] || [])].sort((a, b) => 
+    a.fullName.localeCompare(b.fullName)
+  );
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -45,12 +72,20 @@ export function AddBonusModal({ open, onClose, employee, onSubmit }: Props) {
           <div className="space-y-6">
             <div>
               <label className="block text-[14px] font-semibold text-slate-700 mb-2">Employee</label>
-              <input 
-                type="text" 
-                value={employee.fullName} 
-                disabled 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] text-slate-500 cursor-not-allowed"
-              />
+              {employee ? (
+                <input 
+                  type="text" 
+                  value={employee.fullName} 
+                  disabled 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] text-slate-500 cursor-not-allowed"
+                />
+              ) : (
+                <SearchableEmployeeSelect
+                  employees={sortedEmployees}
+                  value={selectedEmployeeId}
+                  onChange={setSelectedEmployeeId}
+                />
+              )}
             </div>
             
             <div>
@@ -97,7 +132,7 @@ export function AddBonusModal({ open, onClose, employee, onSubmit }: Props) {
           </button>
           <button 
             onClick={handleSubmit}
-            disabled={!amount || !effectiveDate}
+            disabled={!amount || !effectiveDate || !selectedEmployeeId}
             className="py-3.5 rounded-xl bg-[#0B4EA2] text-white font-semibold text-[15px] hover:bg-[#0a428a] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save Bonus

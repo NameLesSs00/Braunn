@@ -6,15 +6,6 @@ import { useAppDispatch } from '../../../../store/hooks';
 import { createBonus } from '../../../../features/HRMfeatures/bonuses/bonusesSlice';
 import { createDeduction } from '../../../../features/HRMfeatures/deductions/deductionsSlice';
 
-// Dummy employee to satisfy modal requirement when triggered from Payroll page
-const PAYROLL_CONTEXT_EMPLOYEE = {
-  id: 'payroll-context',
-  name: 'All Employees',
-  position: 'N/A',
-  department: 'All Departments',
-  status: 'Active' as const,
-  email: '',
-};
 
 const ACTIONS = [
   {
@@ -92,7 +83,7 @@ export function PayrollQuickActions() {
       <AddBonusModal
         open={isBonusOpen}
         onClose={() => setIsBonusOpen(false)}
-        employee={PAYROLL_CONTEXT_EMPLOYEE as any}
+        employee={undefined}
         onSubmit={(data) => {
           dispatch(createBonus(data));
           setIsBonusOpen(false);
@@ -101,7 +92,7 @@ export function PayrollQuickActions() {
       <AddDeductionModal
         open={isDeductionOpen}
         onClose={() => setIsDeductionOpen(false)}
-        employee={PAYROLL_CONTEXT_EMPLOYEE as any}
+        employee={undefined}
         onSubmit={(data) => {
           dispatch(createDeduction(data));
           setIsDeductionOpen(false);
