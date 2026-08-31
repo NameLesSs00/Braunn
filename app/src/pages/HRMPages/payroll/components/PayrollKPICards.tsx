@@ -5,7 +5,7 @@ export function PayrollKPICards() {
     <div className="grid grid-cols-3 gap-6 mb-6">
       {/* Total Payroll */}
       <div className="rounded-[20px] border border-slate-200 bg-white p-7">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-[#0B4EA2]">
             <DollarSign className="h-6 w-6" />
           </div>
@@ -22,7 +22,7 @@ export function PayrollKPICards() {
 
       {/* Paid */}
       <div className="rounded-[20px] bg-[#0B4EA2] p-7 text-white">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
             <UserCheck className="h-6 w-6 text-white" />
           </div>
@@ -36,7 +36,7 @@ export function PayrollKPICards() {
 
       {/* Pending */}
       <div className="rounded-[20px] border border-slate-200 bg-white p-7">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F8FAFC] text-slate-400">
             <CalendarDays className="h-6 w-6" />
           </div>

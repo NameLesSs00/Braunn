@@ -5,6 +5,7 @@ import type {
   LeaveUpdateStatusDto,
   LeavesQueryParams,
   PaginatedLeaves,
+  PaginatedLeaveBalances
 } from '../../../models/HRMmodels/Leave'
 
 const basePath = 'hr/HRManagement/leaves'
@@ -50,5 +51,20 @@ export function updateLeaveStatus(id: string, payload: LeaveUpdateStatusDto, sig
 export function deleteLeave(id: string, signal?: AbortSignal) {
   return apiRequest<unknown>({ method: 'DELETE', path: `${basePath}/${id}`, signal }).then((r) =>
     unwrapApiResponse<void>(r)
+  )
+}
+
+export function getLeaveBalances(params?: { pageNumber?: number; pageSize?: number }, signal?: AbortSignal) {
+  let query = ''
+  if (params) {
+    const searchParams = new URLSearchParams()
+    if (params.pageNumber !== undefined) searchParams.append('pageNumber', params.pageNumber.toString())
+    if (params.pageSize !== undefined) searchParams.append('PageSize', params.pageSize.toString())
+    const qStr = searchParams.toString()
+    if (qStr) query = `?${qStr}`
+  }
+
+  return apiRequest<unknown>({ method: 'GET', path: `hr/HRManagement/leaves-balance${query}`, signal }).then((r) =>
+    unwrapApiResponse<PaginatedLeaveBalances>(r)
   )
 }

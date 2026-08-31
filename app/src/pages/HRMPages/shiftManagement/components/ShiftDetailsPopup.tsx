@@ -1,8 +1,9 @@
-import { X } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import { Modal } from '../../../../shared/ui/Modal';
 import { Shift } from '../types';
 import { getDeptColor } from '../deptColors';
-import { useAppSelector } from '../../../../store/hooks';
+import { useAppSelector, useAppDispatch } from '../../../../store/hooks';
+import { deleteShiftAssignment } from '../../../../features/HRMfeatures/shiftAssignments/shiftAssignmentsSlice';
 import { resolveMediaUrl } from '../../../../shared/utils/resolveMediaUrl';
 import type { HREmployeeReadDto } from '../../../../models/HRMmodels/HREmployee';
 
@@ -14,6 +15,13 @@ type Props = {
 
 export function ShiftDetailsPopup({ open, onClose, shift }: Props) {
   const { employees } = useAppSelector((state: any) => state.hrEmployees);
+  const dispatch = useAppDispatch();
+
+  const handleDeleteAssignment = (assignmentId: string) => {
+    if (assignmentId) {
+      dispatch(deleteShiftAssignment(assignmentId));
+    }
+  };
   
   // Build a fast lookup map: employeeId -> HREmployeeReadDto
   const empMap = new Map<string, HREmployeeReadDto>(
@@ -101,6 +109,11 @@ export function ShiftDetailsPopup({ open, onClose, shift }: Props) {
                       {position && (
                         <div className="text-[12px] text-slate-500 truncate">{position}</div>
                       )}
+                      {emp.reason && (
+                        <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+                          Reason: {emp.reason}
+                        </div>
+                      )}
                     </div>
 
                     {/* Department pill */}
@@ -110,6 +123,16 @@ export function ShiftDetailsPopup({ open, onClose, shift }: Props) {
                     >
                       {department}
                     </div>
+
+                    {/* Delete button */}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAssignment(emp.assignmentId)}
+                      className="ml-1 grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-red-200 text-red-400 transition-colors hover:bg-red-50"
+                      title="Remove from shift"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 );
               })

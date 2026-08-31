@@ -65,11 +65,11 @@ export function SelectEmployeePopup({ open, onClose, onNext, onTransferClick }: 
     setSelectedIds([]);
   };
 
-  const formatTime = (dateStr: string) => {
+  const formatDate = (dateStr: string) => {
     if (!dateStr) return '-- --';
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return '-- --';
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const getAvatarContent = (emp: HREmployeeReadDto) => {
@@ -158,8 +158,8 @@ export function SelectEmployeePopup({ open, onClose, onNext, onTransferClick }: 
                 <col style={{ width: '120px' }} />
                 <col style={{ width: '110px' }} />
                 <col style={{ width: '110px' }} />
-                <col style={{ width: '100px' }} />
-                <col style={{ width: '100px' }} />
+                <col style={{ width: '130px' }} />
+                <col style={{ width: '130px' }} />
                 <col style={{ width: '64px' }} />
               </colgroup>
               <thead className="sticky top-0 bg-white z-10">
@@ -172,7 +172,7 @@ export function SelectEmployeePopup({ open, onClose, onNext, onTransferClick }: 
                       className="h-4 w-4 rounded border-slate-300 accent-[#0B4EA2]"
                     />
                   </th>
-                  {['Employee', 'Position', 'Status', 'Shift', 'Check In', 'Check Out', 'Actions'].map((h) => (
+                  {['Employee', 'Position', 'Status', 'Shift', 'Start Date', 'End Date', 'Actions'].map((h) => (
                     <th key={h} className="px-4 py-4 text-left text-[12px] font-bold text-slate-500">
                       {h}
                     </th>
@@ -221,13 +221,13 @@ export function SelectEmployeePopup({ open, onClose, onNext, onTransferClick }: 
                         {assignment ? assignment.shiftName : '--'}
                       </td>
                       <td className="px-4 py-4">
-                        <span className={`text-[13px] font-semibold ${assignment ? 'text-emerald-500' : 'text-slate-400'}`}>
-                          {assignment ? `• ${formatTime(assignment.from)}` : '-- --'}
+                        <span className={`whitespace-nowrap text-[13px] font-semibold ${assignment ? 'text-emerald-500' : 'text-slate-400'}`}>
+                          {assignment ? `• ${formatDate(assignment.from)}` : '-- --'}
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <span className={`text-[13px] font-semibold ${assignment ? 'text-emerald-500' : 'text-slate-400'}`}>
-                          {assignment ? `• ${formatTime(assignment.to)}` : '-- --'}
+                        <span className={`whitespace-nowrap text-[13px] font-semibold ${assignment ? 'text-emerald-500' : 'text-slate-400'}`}>
+                          {assignment ? `• ${formatDate(assignment.to)}` : '-- --'}
                         </span>
                       </td>
                       <td className="px-4 py-4">

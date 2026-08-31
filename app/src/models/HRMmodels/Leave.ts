@@ -44,3 +44,19 @@ export interface PaginatedLeaves {
   items: LeaveReadDto[]
   totalCount: number
 }
+
+export interface LeaveBalanceReadDto {
+  id: string
+  fullName: string
+  departmentName: string
+  availible: number
+  used: number
+  total: number
+}
+
+export interface PaginatedLeaveBalances {
+  pageNumber: number
+  pageSize: number
+  items: LeaveBalanceReadDto[]
+  totalCount: number
+}

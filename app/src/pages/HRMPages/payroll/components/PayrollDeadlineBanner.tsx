@@ -4,8 +4,8 @@ export function PayrollDeadlineBanner() {
   return (
     <div className="relative mb-6 overflow-hidden rounded-[20px] bg-[#0B4EA2] p-8 text-white shadow-md">
       {/* Background Watermark */}
-      <div className="absolute right-0 top-0 -translate-y-1/4 translate-x-1/4 opacity-10 pointer-events-none">
-        <DollarSign className="h-64 w-64" />
+      <div className="absolute right-8 top-1/2 -translate-y-1/2 text-[280px] leading-none font-serif text-white opacity-[0.04] pointer-events-none select-none">
+        $
       </div>
 
       <div className="relative z-10 flex items-center justify-between">

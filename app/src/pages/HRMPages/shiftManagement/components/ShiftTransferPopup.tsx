@@ -1,51 +1,89 @@
-import { useState, useEffect } from 'react';
-import { X, ChevronDown, Sun, Sunrise, Moon } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, ChevronDown, Calendar } from 'lucide-react';
 import { Modal } from '../../../../shared/ui/Modal';
 import type { HREmployeeReadDto } from '../../../../models/HRMmodels/HREmployee';
-import { useAppSelector } from '../../../../store/hooks';
+import type { ShiftReadDto } from '../../../../models/HRMmodels/Shift';
+import { useAppSelector, useAppDispatch } from '../../../../store/hooks';
+import { updateShiftAssignment, fetchShiftAssignments } from '../../../../features/HRMfeatures/shiftAssignments/shiftAssignmentsSlice';
+import { fetchHrShifts } from '../../../../features/HRMfeatures/shifts/hrShiftsSlice';
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  // If provided, it's an employee-specific transfer (hides date/dept)
   employee: HREmployeeReadDto | null;
 };
-
-const DEPARTMENTS = [
-  'Housekeeping', 'Front Desk', 'Food & Beverage',
-  'Maintenance', 'Security', 'Kitchen', 'Spa & Wellness',
-  'Events', 'Management', 'Finance',
-];
 
 const REASONS = ['Rotation', 'Coverage', 'Employee Request', 'Manager Override'];
 
 export function ShiftTransferPopup({ open, onClose, employee }: Props) {
-  const { employees: allEmployees } = useAppSelector((state: any) => state.hrEmployees);
-  const [date, setDate] = useState('2024-05-25');
-  const [department, setDepartment] = useState(DEPARTMENTS[0]);
-  const [selectedEmpId, setSelectedEmpId] = useState<string>('');
-  const [transferTo, setTransferTo] = useState<string>('Morning');
-  const [reason, setReason] = useState<string>('Rotation');
+  const dispatch = useAppDispatch();
+  const { shifts = [], status: shiftStatus } = useAppSelector((state: any) => state.hrShifts);
+  const { items: assignments } = useAppSelector((state: any) => state.shiftAssignments);
 
-  // Initialize selected employee if passed via prop
+  const [shiftId, setShiftId] = useState<string>('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [reason, setReason] = useState<string>('');
+
+  const dateFromRef = useRef<HTMLInputElement>(null);
+  const dateToRef = useRef<HTMLInputElement>(null);
+
+  // Initialize and reset when opened
   useEffect(() => {
     if (open) {
-      if (employee) {
-        setSelectedEmpId(employee.id);
-      } else {
-        setSelectedEmpId('');
+      if (shiftStatus === 'idle') {
+        dispatch(fetchHrShifts({ PageNumber: 1, PageSize: 100 }));
       }
-      // Reset defaults
-      setTransferTo('Morning');
-      setReason('Rotation');
+      if (employee) {
+        const currentAssignment = assignments.find((a: any) => a.employeeId === employee.id);
+        if (currentAssignment) {
+          setShiftId(currentAssignment.shiftId || '');
+          // Extract just the YYYY-MM-DD part for the date inputs
+          setDateFrom(currentAssignment.from ? currentAssignment.from.substring(0, 10) : '');
+          setDateTo(currentAssignment.to ? currentAssignment.to.substring(0, 10) : '');
+        } else {
+          setShiftId('');
+          setDateFrom('');
+          setDateTo('');
+        }
+      } else {
+        setShiftId('');
+        setDateFrom('');
+        setDateTo('');
+      }
+      setReason('');
     }
-  }, [open, employee]);
+  }, [open, dispatch, shiftStatus, employee, assignments]);
 
   const handleClose = () => {
     onClose();
   };
 
-  const selectedEmployeeObj = (allEmployees as HREmployeeReadDto[] || []).find((e) => e.id === selectedEmpId);
+  const handleConfirm = () => {
+    if (!employee || !shiftId || !dateFrom || !dateTo || !reason) return;
+    
+    // Find the employee's current assignment to update
+    const currentAssignment = assignments.find((a: any) => a.employeeId === employee.id);
+    if (!currentAssignment) {
+      console.warn("No existing assignment found to transfer.");
+      return;
+    }
+
+    dispatch(updateShiftAssignment({
+      id: currentAssignment.id,
+      payload: {
+        shiftId,
+        from: new Date(dateFrom).toISOString(),
+        to: new Date(dateTo).toISOString(),
+        reason
+      }
+    })).unwrap().then(() => {
+      dispatch(fetchShiftAssignments({ PageNumber: 1, PageSize: 100 }));
+      handleClose();
+    });
+  };
+
+  if (!employee) return null;
 
   return (
     <Modal open={open} onClose={handleClose} lockScroll>
@@ -65,128 +103,103 @@ export function ShiftTransferPopup({ open, onClose, employee }: Props) {
         {/* Body */}
         <div className="overflow-y-auto px-8 py-7 space-y-6" style={{ maxHeight: '75vh' }}>
           
-          {/* General Transfer Fields (Hidden if employee-specific transfer) */}
-          {!employee && (
-            <div className="grid grid-cols-2 gap-5">
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-[13px] font-bold text-slate-600">
-                  <span className="text-slate-400">📅</span> Date
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-[14px] text-slate-700 outline-none focus:border-[#0B4EA2] [&::-webkit-calendar-picker-indicator]:hidden"
-                  />
-                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          {/* Employee Card */}
+          <div>
+            <div className="flex items-center justify-between rounded-2xl bg-[#F8FAFC] p-4 border border-slate-200">
+              <div className="flex items-center gap-4">
+                <div
+                  className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-[14px] font-bold text-white bg-[#0B4EA2]"
+                >
+                  {employee.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                </div>
+                <div>
+                  <div className="text-[15px] font-bold text-slate-900">{employee.fullName}</div>
+                  <div className="text-[13px] text-slate-500">
+                    {employee.departmentName} · {employee.positionName}
+                  </div>
                 </div>
               </div>
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-[13px] font-bold text-slate-600">
-                  <span className="text-slate-400">🏢</span> Department
-                </label>
-                <div className="relative">
-                  <select
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-[14px] text-slate-700 outline-none focus:border-[#0B4EA2]"
-                  >
-                    {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                </div>
+              <div className="rounded-full bg-blue-100 px-4 py-1.5 text-[12px] font-bold text-blue-600">
+                {employee.status}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Employee Selection */}
+          {/* Transfer To (Shift Selection) */}
           <div>
-            <label className="mb-2 block text-[15px] font-bold text-slate-700">Employee</label>
+            <label className="mb-2 flex items-center gap-2 text-[13px] font-bold text-slate-600">
+              <span className="text-slate-400">⏰</span> Transfer To Shift
+            </label>
             <div className="relative">
               <select
-                value={selectedEmpId}
-                onChange={(e) => setSelectedEmpId(e.target.value)}
+                value={shiftId}
+                onChange={(e) => setShiftId(e.target.value)}
                 className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-[14px] text-slate-700 outline-none focus:border-[#0B4EA2]"
               >
-                <option value="" disabled>Select employee</option>
-                 {(allEmployees as HREmployeeReadDto[] || []).map((e) => (
-                  <option key={e.id} value={e.id}>{e.fullName}</option>
-                ))}
+                <option value="" disabled>Select a shift</option>
+                {shifts.map((s: ShiftReadDto) => <option key={s.id} value={s.id}>{s.name} ({s.startTime} - {s.endTime})</option>)}
               </select>
               <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             </div>
-
-            {selectedEmployeeObj && (
-              <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#F8FAFC] p-4">
-                <div className="flex items-center gap-4">
-                  <div
-                    className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-[14px] font-bold text-white bg-[#0B4EA2]"
-                  >
-                    {selectedEmployeeObj.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                  </div>
-                  <div>
-                    <div className="text-[15px] font-bold text-slate-900">{selectedEmployeeObj.fullName}</div>
-                    <div className="text-[13px] text-slate-500">
-                      {selectedEmployeeObj.departmentName} · {selectedEmployeeObj.positionName}
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-full bg-blue-100 px-4 py-1.5 text-[12px] font-bold text-blue-600">
-                  {selectedEmployeeObj.status}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Transfer To */}
-          <div>
-            <label className="mb-3 block text-[15px] font-bold text-slate-700">Transfer To</label>
-            <div className="grid grid-cols-3 gap-4">
-              <button
-                type="button"
-                onClick={() => setTransferTo('Morning')}
-                className={`flex flex-col rounded-2xl border-2 p-5 text-left transition-colors ${
-                  transferTo === 'Morning' ? 'border-[#0B4EA2] bg-blue-50/30' : 'border-slate-200 hover:border-[#0B4EA2]'
-                }`}
-              >
-                <Sun className="h-6 w-6 text-yellow-500 mb-2" />
-                <span className="text-[14px] font-bold text-slate-800">Morning</span>
-                <span className="text-[12px] text-slate-400 mt-1">A</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTransferTo('Evening')}
-                className={`flex flex-col rounded-2xl border-2 p-5 text-left transition-colors ${
-                  transferTo === 'Evening' ? 'border-[#0B4EA2] bg-blue-50/30' : 'border-slate-200 hover:border-[#0B4EA2]'
-                }`}
-              >
-                <Sunrise className="h-6 w-6 text-orange-500 mb-2" />
-                <span className="text-[14px] font-bold text-slate-800">Evening</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTransferTo('Night')}
-                className={`flex flex-col rounded-2xl border-2 p-5 text-left transition-colors ${
-                  transferTo === 'Night' ? 'border-[#0B4EA2] bg-blue-50/30' : 'border-slate-200 hover:border-[#0B4EA2]'
-                }`}
-              >
-                <Moon className="h-6 w-6 text-indigo-500 mb-2" />
-                <span className="text-[14px] font-bold text-slate-800">Night</span>
-              </button>
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-5">
+            <div>
+              <label className="mb-2 flex items-center gap-2 text-[13px] font-bold text-slate-600">
+                <Calendar className="h-3.5 w-3.5 text-slate-400" /> Date from
+              </label>
+              <div className="relative">
+                <input
+                  ref={dateFromRef}
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 pr-12 text-[14px] text-slate-700 outline-none focus:border-[#0B4EA2] transition-colors [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => dateFromRef.current?.showPicker()}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-[#0B4EA2] transition-colors"
+                >
+                  <Calendar className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 flex items-center gap-2 text-[13px] font-bold text-slate-600">
+                <Calendar className="h-3.5 w-3.5 text-slate-400" /> Date to
+              </label>
+              <div className="relative">
+                <input
+                  ref={dateToRef}
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  min={dateFrom}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 pr-12 text-[14px] text-slate-700 outline-none focus:border-[#0B4EA2] transition-colors [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => dateToRef.current?.showPicker()}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 grid h-7 w-7 place-items-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-[#0B4EA2] transition-colors"
+                >
+                  <Calendar className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Reason */}
           <div>
-            <label className="mb-3 block text-[15px] font-bold text-slate-700">Reason</label>
-            <div className="grid grid-cols-2 gap-3">
+            <label className="mb-3 block text-[13px] font-bold text-slate-600">Reason</label>
+            <div className="grid grid-cols-2 gap-3 mb-3">
               {REASONS.map((r) => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => setReason(r)}
-                  className={`rounded-xl border-2 py-3 text-[14px] font-semibold transition-colors ${
+                  className={`rounded-xl border py-2 text-[13px] font-semibold transition-colors ${
                     reason === r
                       ? 'border-[#0B4EA2] bg-blue-50/50 text-[#0B4EA2]'
                       : 'border-slate-200 text-slate-600 hover:border-[#0B4EA2]'
@@ -196,6 +209,13 @@ export function ShiftTransferPopup({ open, onClose, employee }: Props) {
                 </button>
               ))}
             </div>
+            <input
+              type="text"
+              placeholder="Or type a custom reason..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-[14px] text-slate-700 outline-none focus:border-[#0B4EA2]"
+            />
           </div>
 
         </div>
@@ -207,16 +227,16 @@ export function ShiftTransferPopup({ open, onClose, employee }: Props) {
             onClick={handleClose}
             className="h-12 w-40 rounded-xl border border-slate-300 text-[14px] font-semibold text-slate-600 transition-colors hover:bg-slate-50"
           >
-            cancel
+            Cancel
           </button>
           <button
             type="button"
-            onClick={handleClose}
-            disabled={!selectedEmpId}
+            onClick={handleConfirm}
+            disabled={!shiftId || !dateFrom || !dateTo || !reason}
             className={`h-12 w-48 rounded-xl text-[14px] font-bold transition-all ${
-              selectedEmpId
-                ? 'bg-[#0B4EA2] text-white hover:bg-[#093d82]'
-                : 'bg-slate-300 text-white cursor-not-allowed'
+              (!shiftId || !dateFrom || !dateTo || !reason)
+                ? 'bg-slate-300 text-white cursor-not-allowed'
+                : 'bg-[#0B4EA2] text-white hover:bg-[#093d82]'
             }`}
           >
             Confirm Transfer

@@ -4,7 +4,7 @@ import { Modal } from '../../../../shared/ui/Modal';
 import { useAppSelector, useAppDispatch } from '../../../../store/hooks';
 import type { HREmployeeReadDto } from '../../../../models/HRMmodels/HREmployee';
 import type { ShiftReadDto } from '../../../../models/HRMmodels/Shift';
-import { assignShift } from '../../../../features/HRMfeatures/shiftAssignments/shiftAssignmentsSlice';
+import { assignShift, fetchShiftAssignments } from '../../../../features/HRMfeatures/shiftAssignments/shiftAssignmentsSlice';
 import { fetchHrShifts } from '../../../../features/HRMfeatures/shifts/hrShiftsSlice';
 import { fetchDepartments } from '../../../../features/HRMfeatures/departments/departmentsSlice';
 import { resolveMediaUrl } from '../../../../shared/utils/resolveMediaUrl';
@@ -22,7 +22,6 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
   const { departments } = useAppSelector(state => state.departments);
   const [employees, setEmployees] = useState<HREmployeeReadDto[]>(selectedEmployees);
   const [shiftId, setShiftId] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const dateFromRef = useRef<HTMLInputElement>(null);
@@ -57,20 +56,20 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
   const handleClose = () => {
     setEmployees([]);
     setShiftId('');
-    setDepartmentId('');
     onClose();
   };
 
   const handleAssign = () => {
     if (!shiftId || employees.length === 0 || !dateFrom || !dateTo) return;
-    const selectedDept = departments.find(d => d.id === departmentId);
+    const deptName = employees[0].departmentName || 'employee';
     dispatch(assignShift({
       employeeIds: employees.map(e => e.id),
       shiftId,
       from: new Date(dateFrom).toISOString(),
       to: new Date(dateTo).toISOString(),
-      reason: selectedDept ? `Assigned to ${selectedDept.name}` : 'Assigned via UI'
-    })).then(() => {
+      reason: `Assigned to ${deptName}`
+    })).unwrap().then(() => {
+      dispatch(fetchShiftAssignments({ PageNumber: 1, PageSize: 100 }));
       handleClose();
     });
   };
@@ -84,7 +83,7 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
   const selectedShift = shifts.find((s: ShiftReadDto) => s.id === shiftId);
   const shiftName = selectedShift?.name || 'Unknown Shift';
   const shiftTimeLabel = selectedShift ? `${selectedShift.startTime} - ${selectedShift.endTime}` : '--';
-  const selectedDept = departments.find(d => d.id === departmentId);
+  const selectedDeptName = employees.length > 0 ? employees[0].departmentName : 'N/A';
 
   const getAvatarContent = (emp: HREmployeeReadDto) => {
     const initial = emp.fullName?.charAt(0)?.toUpperCase() ?? '?';
@@ -141,25 +140,7 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
             </div>
           </div>
 
-          {/* Department */}
-          <div>
-            <label className="mb-2 flex items-center gap-2 text-[13px] font-bold text-slate-600">
-              <span className="text-slate-400">🏢</span> Department
-            </label>
-            <div className="relative">
-              <select
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-[14px] text-slate-700 outline-none focus:border-[#0B4EA2]"
-              >
-                <option value="">No specific department</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            </div>
-          </div>
+
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-5">
@@ -260,7 +241,7 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
             <div className="grid grid-cols-4 border-t border-slate-200 bg-[#F8FAFC] px-6 py-4">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Department</div>
-                <div className="mt-1 text-[13px] font-bold text-slate-800">{selectedDept?.name || 'N/A'}</div>
+                <div className="mt-1 text-[13px] font-bold text-slate-800">{selectedDeptName || 'N/A'}</div>
               </div>
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Shift</div>

@@ -71,7 +71,7 @@ export function SalaryIncrementsTable({ records, onView, onHistory, onApprove }:
               </td>
               <td className="px-6 py-4 text-sm text-slate-600">{record.effectiveDate}</td>
               <td className="px-6 py-4 text-sm">
-                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusStyle(record.status)}`}>
+                <span className={`whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium ${getStatusStyle(record.status)}`}>
                   {record.status}
                 </span>
               </td>

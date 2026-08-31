@@ -64,7 +64,7 @@ export function PayrollQuickActions() {
 
   return (
     <>
-      <div className="rounded-[20px] border border-slate-200 bg-white p-7">
+      <div>
         <h2 className="mb-6 text-[16px] font-bold text-slate-900">Quick Actions</h2>
         <div className="space-y-3">
           {ACTIONS.map(({ id, icon: Icon, label, sub, iconBg, iconColor, highlight }) => (

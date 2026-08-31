@@ -12,8 +12,10 @@ export interface Shift {
   dateStr: string; // YYYY-MM-DD
   assignedEmployees?: {
     id: string;
+    assignmentId: string;
     name: string;
     initials: string;
+    reason?: string;
   }[];
 }
 

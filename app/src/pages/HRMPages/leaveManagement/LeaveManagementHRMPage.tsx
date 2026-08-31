@@ -3,7 +3,7 @@ import { useAppDispatch, useAppSelector } from '../../../shared/apis/hooks';
 import { Home, ChevronRight, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { routes } from '../../../shared/lib/routes';
-import { fetchHrLeaves } from '../../../features/HRMfeatures/leaves/hrLeavesSlice';
+import { fetchHrLeaves, fetchHrLeaveBalances } from '../../../features/HRMfeatures/leaves/hrLeavesSlice';
 import { LeaveManagementStatsCards } from './components/LeaveManagmentStatsCards';
 import { LeaveManagementTabs } from './components/LeaveManagementTabs';
 import { LeaveManagementFilters } from './components/LeaveManagementFilters';
@@ -30,6 +30,12 @@ export function LeaveManagementHRMPage() {
       DateTo: dateTo ? new Date(dateTo).toISOString() : undefined,
     }));
   }, [dispatch, searchTerm, dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (activeTab === 'balance') {
+      dispatch(fetchHrLeaveBalances({ pageNumber: 1, pageSize: 100 }));
+    }
+  }, [dispatch, activeTab]);
 
   return (
     <div className="max-w-[1600px] mx-auto flex flex-col gap-4">

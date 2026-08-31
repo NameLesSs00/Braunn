@@ -42,7 +42,7 @@ export function PayrollHRMPage() {
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
-            className={`rounded-xl px-5 py-2.5 text-[14px] font-semibold transition-all ${
+            className={`rounded-full px-6 py-2.5 text-[14px] font-semibold transition-all ${
               activeTab === tab
                 ? 'bg-[#0B4EA2] text-white shadow-sm'
                 : 'bg-white border border-slate-200 text-slate-600 hover:border-[#0B4EA2] hover:text-[#0B4EA2]'

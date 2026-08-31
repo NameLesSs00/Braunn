@@ -97,7 +97,7 @@ function ActionButtons({
 
 export function LeaveManagementTable() {
   const dispatch = useAppDispatch();
-  const { leaves, status } = useAppSelector((s) => s.hrLeaves);
+  const { leaves, status } = useAppSelector((s: any) => s.hrLeaves);
 
   const handleStatusChange = (id: string, newStatus: LeaveStatus) => {
     dispatch(updateHrLeaveStatus({ id, payload: { status: newStatus } }));
@@ -140,16 +140,11 @@ export function LeaveManagementTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {leaves.map((leave) => (
+            {leaves.map((leave: LeaveReadDto) => (
               <tr key={leave.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-medium flex-shrink-0 text-white ${avatarColor(leave.employeeId)}`}
-                    >
-                      {getInitials(leave.employeeName)}
-                    </div>
-                    <div className="text-[14px] font-medium text-slate-900">{leave.employeeName}</div>
+                  <div className="text-[14px] font-medium text-slate-900">
+                    {leave.employeeName}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-[14px] text-slate-600">{leave.type}</td>

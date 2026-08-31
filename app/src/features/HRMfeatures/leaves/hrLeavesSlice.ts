@@ -5,6 +5,8 @@ import type {
   LeaveUpdateStatusDto,
   LeavesQueryParams,
   PaginatedLeaves,
+  PaginatedLeaveBalances,
+  LeaveBalanceReadDto
 } from '../../../models/HRMmodels/Leave'
 import * as api from '../../../shared/HRMshared/api/leavesApi'
 
@@ -18,6 +20,8 @@ type HrLeavesState = {
   selectedLeave: LeaveReadDto | null
   status: AsyncStatus
   error?: string
+  balances: LeaveBalanceReadDto[]
+  balancesStatus: AsyncStatus
 }
 
 const initialState: HrLeavesState = {
@@ -28,6 +32,8 @@ const initialState: HrLeavesState = {
   selectedLeave: null,
   status: 'idle',
   error: undefined,
+  balances: [],
+  balancesStatus: 'idle',
 }
 
 export const fetchHrLeaves = createAsyncThunk(
@@ -37,6 +43,18 @@ export const fetchHrLeaves = createAsyncThunk(
       return await api.getLeaves(params, thunkApi.signal)
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load leaves'
+      return thunkApi.rejectWithValue(message)
+    }
+  }
+)
+
+export const fetchHrLeaveBalances = createAsyncThunk(
+  'hrLeaves/fetchBalances',
+  async (params: { pageNumber?: number; pageSize?: number } | undefined, thunkApi) => {
+    try {
+      return await api.getLeaveBalances(params, thunkApi.signal)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to load leave balances'
       return thunkApi.rejectWithValue(message)
     }
   }
@@ -107,6 +125,19 @@ const hrLeavesSlice = createSlice({
       })
       .addCase(fetchHrLeaves.rejected, (state, action) => {
         state.status = 'failed'
+        state.error = (action.payload as string | undefined) ?? action.error.message
+      })
+
+      // fetchBalances
+      .addCase(fetchHrLeaveBalances.pending, (state) => {
+        state.balancesStatus = 'loading'
+      })
+      .addCase(fetchHrLeaveBalances.fulfilled, (state, action: PayloadAction<PaginatedLeaveBalances>) => {
+        state.balancesStatus = 'succeeded'
+        state.balances = action.payload.items
+      })
+      .addCase(fetchHrLeaveBalances.rejected, (state, action) => {
+        state.balancesStatus = 'failed'
         state.error = (action.payload as string | undefined) ?? action.error.message
       })
 

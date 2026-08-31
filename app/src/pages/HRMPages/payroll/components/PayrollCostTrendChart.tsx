@@ -15,8 +15,8 @@ export function PayrollCostTrendChart() {
         </div>
       </div>
 
-      <div className="relative h-[300px] w-full">
-        <svg viewBox="0 0 800 300" className="h-full w-full overflow-visible" preserveAspectRatio="none">
+      <div className="relative w-full mt-4">
+        <svg viewBox="0 0 800 300" className="w-full h-auto overflow-visible">
           <defs>
             <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#0B4EA2" stopOpacity="0.15" />

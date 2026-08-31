@@ -59,7 +59,7 @@ export function SalaryIncrementsHRMPage() {
   });
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-8">
+    <div className="max-w-[1600px] mx-auto space-y-8 h-full flex flex-col">
       {/* Modals */}
       <ViewIncrementModal 
         open={viewModalOpen} 
@@ -91,7 +91,7 @@ export function SalaryIncrementsHRMPage() {
       </div>
 
       {/* Main Card */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
         <SalaryIncrementsFilters 
           activeFilter={activeFilter} 
           setActiveFilter={setActiveFilter} 

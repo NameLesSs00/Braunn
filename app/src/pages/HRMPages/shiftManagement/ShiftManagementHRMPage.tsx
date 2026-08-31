@@ -12,6 +12,15 @@ import { ShiftDetailsPopup } from './components/ShiftDetailsPopup';
 import { ShiftTransferPopup } from './components/ShiftTransferPopup';
 import { Shift } from './types';
 
+const getMonday = (d: Date) => {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+  date.setDate(diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
 export function ShiftManagementHRMPage() {
   const dispatch = useAppDispatch();
   const { items: assignments } = useAppSelector((state: any) => state.shiftAssignments);
@@ -23,12 +32,10 @@ export function ShiftManagementHRMPage() {
 
   // New states for the latest popups
   const [selectedShiftForDetails, setSelectedShiftForDetails] = useState<Shift | null>(null);
-  const [isGeneralTransferOpen, setIsGeneralTransferOpen] = useState(false);
   const [employeeForTransfer, setEmployeeForTransfer] = useState<HREmployeeReadDto | null>(null);
 
-  // Use 2026-06-01 as Monday of the starting week matching the mock data visually (Jun 2 was Tuesday)
-  // Let's set it to 2026-06-08 (Monday of next week, wait, 2026-06-01 is Monday).
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(new Date('2026-06-01T00:00:00'));
+  // Initialize to the Monday of the current week
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getMonday(new Date()));
 
   useEffect(() => {
     // Fetch with large page size to get all assignments and employees
@@ -95,7 +102,7 @@ export function ShiftManagementHRMPage() {
         
         // Find department from first employee
         let department = 'Unknown';
-        const assignedEmps: { id: string; name: string; initials: string }[] = [];
+        const assignedEmps: { id: string; assignmentId: string; name: string; initials: string; reason?: string }[] = [];
         
         for (const a of group.employees) {
           const emp = empMap.get(a.employeeId) as any;
@@ -106,8 +113,10 @@ export function ShiftManagementHRMPage() {
           const initials = names.length > 1 ? names[0][0] + names[names.length - 1][0] : (names[0][0] || '?');
           assignedEmps.push({
             id: a.employeeId,
+            assignmentId: a.id,
             name: a.employeeName,
-            initials: initials.toUpperCase()
+            initials: initials.toUpperCase(),
+            reason: a.reason
           });
         }
 
@@ -173,16 +182,11 @@ export function ShiftManagementHRMPage() {
     setIsAssignOpen(false);
     setSelectedEmployees([]);
     setSelectedShiftForDetails(null);
-    setIsGeneralTransferOpen(false);
     setEmployeeForTransfer(null);
   };
 
   const handleShiftClick = (shift: Shift) => {
     setSelectedShiftForDetails(shift);
-  };
-
-  const handleGeneralTransferClick = () => {
-    setIsGeneralTransferOpen(true);
   };
 
   const handleEmployeeTransferClick = (emp: HREmployeeReadDto) => {
@@ -206,7 +210,6 @@ export function ShiftManagementHRMPage() {
       {/* Toolbar */}
       <ShiftToolbar 
         onAssignClick={handleAssignClick} 
-        onTransferClick={handleGeneralTransferClick} 
       />
 
       {/* Main Calendar Area */}
@@ -241,14 +244,13 @@ export function ShiftManagementHRMPage() {
       <ShiftDetailsPopup
         open={!!selectedShiftForDetails}
         onClose={() => setSelectedShiftForDetails(null)}
-        shift={selectedShiftForDetails}
+        shift={shifts.find(s => s.id === selectedShiftForDetails?.id) || null}
       />
 
-      {/* Shift Transfer Popup (Handles both General and Employee-specific) */}
+      {/* Shift Transfer Popup */}
       <ShiftTransferPopup
-        open={isGeneralTransferOpen || !!employeeForTransfer}
+        open={!!employeeForTransfer}
         onClose={() => {
-          setIsGeneralTransferOpen(false);
           setEmployeeForTransfer(null);
         }}
         employee={employeeForTransfer}

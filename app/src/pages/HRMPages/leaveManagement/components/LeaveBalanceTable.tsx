@@ -1,85 +1,25 @@
-interface LeaveBalanceRow {
-  id: string;
-  initials: string;
-  name: string;
-  empId: string;
-  department: string;
-  availableBalance: string;
-  used: string;
-  total: string;
-  avatarBg: string;
-}
-
-const tableData: LeaveBalanceRow[] = [
-  {
-    id: '1',
-    initials: 'AH',
-    name: 'Ahmed Hassan',
-    empId: 'E001',
-    department: 'Engineering',
-    availableBalance: '15 days',
-    used: '15 days',
-    total: '30 days',
-    avatarBg: 'bg-emerald-800',
-  },
-  {
-    id: '2',
-    initials: 'FZ',
-    name: 'Fatima Al-Zahrani',
-    empId: 'E002',
-    department: 'HR',
-    availableBalance: '20 days',
-    used: '10 days',
-    total: '30 days',
-    avatarBg: 'bg-yellow-700',
-  },
-  {
-    id: '3',
-    initials: 'MA',
-    name: 'Mohammed Ali',
-    empId: 'E003',
-    department: 'Sales',
-    availableBalance: '12 days',
-    used: '18 days',
-    total: '30 days',
-    avatarBg: 'bg-indigo-900',
-  },
-  {
-    id: '4',
-    initials: 'SA',
-    name: 'Sarah Abdullah',
-    empId: 'E004',
-    department: 'Engineering',
-    availableBalance: '18 days',
-    used: '12 days',
-    total: '30 days',
-    avatarBg: 'bg-slate-800',
-  },
-  {
-    id: '5',
-    initials: 'KI',
-    name: 'Khalid Ibrahim',
-    empId: 'E005',
-    department: 'Finance',
-    availableBalance: '8 days',
-    used: '22 days',
-    total: '30 days',
-    avatarBg: 'bg-teal-900',
-  },
-  {
-    id: '6',
-    initials: 'KI',
-    name: 'Khalid Ibrahim',
-    empId: 'E005',
-    department: 'Finance',
-    availableBalance: '8 days',
-    used: '22 days',
-    total: '30 days',
-    avatarBg: 'bg-teal-900',
-  },
-];
+import { useAppSelector } from '../../../../shared/apis/hooks';
+import type { LeaveBalanceReadDto } from '../../../../models/HRMmodels/Leave';
 
 export function LeaveBalanceTable() {
+  const { balances, balancesStatus } = useAppSelector((s: any) => s.hrLeaves);
+
+  if (balancesStatus === 'loading') {
+    return (
+      <div className="shadow-sm rounded-2xl border border-slate-200 bg-white py-16 flex items-center justify-center text-slate-400 text-[14px]">
+        Loading leave balances...
+      </div>
+    );
+  }
+
+  if (balances.length === 0) {
+    return (
+      <div className="shadow-sm rounded-2xl border border-slate-200 bg-white py-16 flex items-center justify-center text-slate-400 text-[14px]">
+        No balances found.
+      </div>
+    );
+  }
+
   return (
     <div className="shadow-sm rounded-2xl border border-slate-200 bg-white">
       {/* Header */}
@@ -100,23 +40,15 @@ export function LeaveBalanceTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {tableData.map((row, index) => (
-              <tr key={`${row.id}-${index}`} className="hover:bg-slate-50 transition-colors">
+            {balances.map((balance: LeaveBalanceReadDto) => (
+              <tr key={balance.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-medium flex-shrink-0 text-white ${row.avatarBg}`}>
-                      {row.initials}
-                    </div>
-                    <div>
-                      <div className="text-[14px] font-bold text-slate-900">{row.name}</div>
-                      <div className="text-[12px] text-slate-400">{row.empId}</div>
-                    </div>
-                  </div>
+                  <div className="text-[14px] font-bold text-slate-900">{balance.fullName}</div>
                 </td>
-                <td className="px-6 py-4 text-[14px] text-slate-600">{row.department}</td>
-                <td className="px-6 py-4 text-[14px] font-bold text-emerald-600">{row.availableBalance}</td>
-                <td className="px-6 py-4 text-[14px] text-slate-600">{row.used}</td>
-                <td className="px-6 py-4 text-[14px] font-bold text-slate-900">{row.total}</td>
+                <td className="px-6 py-4 text-[14px] text-slate-600">{balance.departmentName || '—'}</td>
+                <td className="px-6 py-4 text-[14px] font-bold text-emerald-600">{balance.availible} days</td>
+                <td className="px-6 py-4 text-[14px] text-slate-600">{balance.used} days</td>
+                <td className="px-6 py-4 text-[14px] font-bold text-slate-900">{balance.total} days</td>
               </tr>
             ))}
           </tbody>

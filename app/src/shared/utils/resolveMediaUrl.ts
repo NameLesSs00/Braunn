@@ -30,7 +30,7 @@ function getBackendOrigin(): string {
 
   // Last resort: in dev the Vite proxy target is the real backend
   // Return the backend base so relative paths resolve correctly
-  return import.meta.env.DEV ? 'https://pmss.runasp.net' : '';
+  return import.meta.env.DEV ? 'http://gear-pms-api.runasp.net' : '';
 }
 
 const BACKEND_ORIGIN = getBackendOrigin();
