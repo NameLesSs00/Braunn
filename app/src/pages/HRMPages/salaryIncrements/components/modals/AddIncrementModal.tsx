@@ -1,6 +1,8 @@
 import { Modal } from '../../../../../shared/ui/Modal';
 import { IoClose } from 'react-icons/io5';
 import { SalaryRecord } from '../../types';
+import { useState, useEffect } from 'react';
+import { resolveImageUrl } from '../../../../../shared/HRMshared/utils/imageUrl';
 
 type Props = {
   open: boolean;
@@ -10,6 +12,18 @@ type Props = {
 };
 
 export function AddIncrementModal({ open, onClose, record, onSubmit }: Props) {
+  const [newSalary, setNewSalary] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState('');
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setNewSalary('');
+      setEffectiveDate(new Date().toISOString().split('T')[0]);
+      setReason('');
+    }
+  }, [open]);
+
   if (!record) return null;
 
   return (
@@ -27,8 +41,12 @@ export function AddIncrementModal({ open, onClose, record, onSubmit }: Props) {
           {/* Profile Section */}
           <div className="bg-slate-50/50 rounded-2xl p-4 flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-[#0B4EA2] rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                {record.employee.split(' ').map((n: string) => n[0]).join('')}
+              <div className="w-12 h-12 bg-[#0B4EA2] rounded-full flex items-center justify-center text-white font-semibold text-lg overflow-hidden shrink-0">
+                {record.imageUrl ? (
+                  <img src={resolveImageUrl(record.imageUrl) || undefined} alt={record.employee} className="w-full h-full object-cover" />
+                ) : (
+                  record.employee.split(' ').map((n: string) => n[0]).join('')
+                )}
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 text-[15px]">{record.employee}</h3>
@@ -58,24 +76,18 @@ export function AddIncrementModal({ open, onClose, record, onSubmit }: Props) {
               <input 
                 type="text" 
                 placeholder="e.g. 75000" 
+                value={newSalary}
+                onChange={(e) => setNewSalary(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[14px] text-slate-800 focus:outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2] transition-colors placeholder:text-slate-400"
               />
             </div>
 
-            <div>
+            <div className="col-span-2">
               <label className="block text-[14px] font-semibold text-slate-700 mb-2">Effective Date *</label>
               <input 
                 type="date" 
-                defaultValue="2026-06-01"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] text-slate-700 focus:outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2] transition-colors"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-[14px] font-semibold text-slate-700 mb-2">Next Review Date</label>
-              <input 
-                type="date" 
-                defaultValue="2026-06-01"
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] text-slate-700 focus:outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2] transition-colors"
               />
             </div>
@@ -85,6 +97,8 @@ export function AddIncrementModal({ open, onClose, record, onSubmit }: Props) {
               <textarea 
                 placeholder="Annual review, promotion, retention offer, market adjustment..." 
                 rows={3}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[14px] text-slate-800 focus:outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2] transition-colors placeholder:text-slate-400 resize-none"
               />
             </div>
@@ -100,8 +114,9 @@ export function AddIncrementModal({ open, onClose, record, onSubmit }: Props) {
             Cancel
           </button>
           <button 
-            onClick={() => onSubmit({})}
-            className="py-3.5 rounded-xl bg-[#0B4EA2] text-white font-semibold text-[15px] hover:bg-[#0a428a] transition-colors shadow-sm"
+            onClick={() => onSubmit({ newSalary, effectiveDate, reason })}
+            disabled={!newSalary || !effectiveDate || !reason}
+            className="py-3.5 rounded-xl bg-[#0B4EA2] text-white font-semibold text-[15px] hover:bg-[#0a428a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             Submit for Approval
           </button>

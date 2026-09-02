@@ -4,19 +4,22 @@ import { Modal } from '../../../../shared/ui/Modal';
 
 type Props = {
   open: boolean;
+  departments: { id: string; name: string }[];
   onClose: () => void;
-  onSubmit: (data: { name: string; description: string }) => void;
+  onSubmit: (data: { name: string; description: string; departmentId: string }) => void;
   mode?: 'add' | 'edit';
   initialData?: {
     name: string;
     description: string;
+    departmentId?: string;
   };
 };
 
-export function AddPositionPopup({ open, onClose, onSubmit, mode = 'add', initialData }: Props) {
+export function AddPositionPopup({ open, departments, onClose, onSubmit, mode = 'add', initialData }: Props) {
   const [form, setForm] = useState({
     name: '',
     description: '',
+    departmentId: '',
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +28,7 @@ export function AddPositionPopup({ open, onClose, onSubmit, mode = 'add', initia
       setForm({
         name: initialData?.name ?? '',
         description: initialData?.description ?? '',
+        departmentId: initialData?.departmentId ?? '',
       });
     }
   }, [open, initialData]);
@@ -35,6 +39,7 @@ export function AddPositionPopup({ open, onClose, onSubmit, mode = 'add', initia
 
   const handleSubmit = () => {
     setError(null)
+    if (!form.departmentId) { setError('Department is required.'); return }
     if (!form.name.trim()) { setError('Position Name is required.'); return }
     if (!form.description.trim()) { setError('Description is required.'); return }
     onSubmit(form);
@@ -64,6 +69,25 @@ export function AddPositionPopup({ open, onClose, onSubmit, mode = 'add', initia
               {error}
             </div>
           )}
+          {/* Department Selection */}
+          <div>
+            <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">
+              Department <span className="text-red-500">*</span>
+            </label>
+            <select
+              className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 text-[14px] text-slate-700 outline-none transition-colors focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10"
+              value={form.departmentId}
+              onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+            >
+              <option value="" disabled>Select a department</option>
+              {departments.map((dep) => (
+                <option key={dep.id} value={dep.id}>
+                  {dep.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Position Name */}
           <div>
             <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">

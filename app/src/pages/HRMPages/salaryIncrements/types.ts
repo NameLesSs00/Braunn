@@ -15,4 +15,5 @@ export type SalaryRecord = {
   reason: string;
   approvedBy: string;
   status: 'Pending' | 'HR Approved' | 'Active';
+  imageUrl?: string | null;
 };

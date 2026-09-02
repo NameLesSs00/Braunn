@@ -18,6 +18,7 @@ export const positionsApi = {
     SortBy?: string;
     SortDirection?: string;
     IsActive?: boolean;
+    DepartmentId?: string;
   }) => {
     const query = new URLSearchParams();
     if (params?.PageNumber !== undefined) query.append('PageNumber', String(params.PageNumber));
@@ -26,6 +27,7 @@ export const positionsApi = {
     if (params?.SortBy) query.append('SortBy', params.SortBy);
     if (params?.SortDirection) query.append('SortDirection', params.SortDirection);
     if (params?.IsActive !== undefined) query.append('IsActive', String(params.IsActive));
+    if (params?.DepartmentId) query.append('DepartmentId', params.DepartmentId);
 
     const qs = query.toString();
     const fullPath = qs ? `${BASE_PATH}?${qs}` : BASE_PATH;

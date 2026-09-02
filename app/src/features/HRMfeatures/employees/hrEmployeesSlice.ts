@@ -12,8 +12,7 @@ import type {
 export interface SalaryHistoryEntry {
   id: string;
   employeeId: string;
-  previousSalary: number;
-  newSalary: number;
+  salary: number;
   reason: string;
   effectiveDate: string;
   createdAt: string;

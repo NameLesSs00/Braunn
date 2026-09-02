@@ -7,18 +7,7 @@ import { createHrEmployee, uploadHrEmployeeImage } from '../../../../features/HR
 import { appAlert } from '../../../../shared/ui/AppAlert';
 import type { EmployeeGender, EmployeeRole } from '../../../../models/HRMmodels/HREmployee';
 
-const NATIONALITIES = [
-  'American',
-  'British',
-  'Canadian',
-  'Egyptian',
-  'Saudi',
-  'Emirati',
-  'French',
-  'German',
-  'Indian',
-  'Other'
-];
+
 
 type Props = {
   onCancel: () => void;
@@ -89,8 +78,15 @@ export function AddEmployeeForm({ onCancel }: Props) {
     dispatch(fetchPositions({ PageNumber: 1, PageSize: 100 }));
   }, [dispatch]);
 
-  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }));
+  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (key === 'departmentId') {
+      setForm((f) => ({ ...f, departmentId: e.target.value, positionId: '' }));
+    } else {
+      setForm((f) => ({ ...f, [key]: e.target.value }));
+    }
+  };
+
+  const filteredPositions = positions.filter((p) => p.departmentId === form.departmentId);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -147,8 +143,6 @@ export function AddEmployeeForm({ onCancel }: Props) {
       }
 
       appAlert.fire({
-        toast: true,
-        position: 'top-end',
         showConfirmButton: false,
         timer: 3000,
         icon: 'success',
@@ -157,8 +151,6 @@ export function AddEmployeeForm({ onCancel }: Props) {
       onCancel();
     } catch (error: any) {
       appAlert.fire({
-        toast: true,
-        position: 'top-end',
         showConfirmButton: false,
         timer: 3000,
         icon: 'error',
@@ -294,7 +286,7 @@ export function AddEmployeeForm({ onCancel }: Props) {
               <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">Position <span className="text-red-500">*</span></label>
               <select className={selectClass} value={form.positionId} onChange={set('positionId')}>
                 <option value="">Select Position</option>
-                {positions.map((p) => (
+                {filteredPositions.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>

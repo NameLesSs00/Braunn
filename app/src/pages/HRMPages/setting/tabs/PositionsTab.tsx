@@ -12,31 +12,32 @@ import {
   deletePosition,
   clearPositionsError,
 } from '../../../../features/HRMfeatures/positions/positionsSlice';
+import { fetchDepartments } from '../../../../features/HRMfeatures/departments/departmentsSlice';
 import type { PositionReadDto } from '../../../../models/HRMmodels/Position';
 
 export function PositionsTab() {
   const dispatch = useAppDispatch();
   const { positions, status, error } = useAppSelector((state) => state.positions);
+  const { departments } = useAppSelector((state) => state.departments);
   const { addTrigger } = useSettingsContext();
 
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<PositionReadDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PositionReadDto | null>(null);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
 
   // Fetch positions on mount
   useEffect(() => {
-    dispatch(fetchPositions());
+    dispatch(fetchPositions({ PageNumber: 1, PageSize: 100 }));
+    dispatch(fetchDepartments({ PageNumber: 1, PageSize: 100 }));
   }, [dispatch]);
 
   // Error Toast Notification
   useEffect(() => {
     if (status === 'failed' && error) {
       appAlert.fire({
-        toast: true,
-        position: 'top-end',
         showConfirmButton: false,
         timer: 4000,
-        timerProgressBar: true,
         icon: 'error',
         title: error,
       });
@@ -54,18 +55,38 @@ export function PositionsTab() {
     prevTrigger.current = addTrigger;
   }, [addTrigger]);
 
+  const filteredPositions = positions.filter(
+    (p) => !selectedDepartmentId || p.departmentId === selectedDepartmentId
+  );
+
   return (
     <div className="p-8">
       {/* Tab Header */}
-      <h2 className="mb-6 text-[16px] font-bold text-slate-800">Job Positions</h2>
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-[16px] font-bold text-slate-800">Job Positions</h2>
+        
+        {/* Department Filter */}
+        <select
+          className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-[14px] text-slate-700 outline-none transition-colors focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10"
+          value={selectedDepartmentId}
+          onChange={(e) => setSelectedDepartmentId(e.target.value)}
+        >
+          <option value="">All Departments</option>
+          {departments.map((dep) => (
+            <option key={dep.id} value={dep.id}>
+              {dep.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* Positions List */}
       <div className="space-y-3">
         {status === 'loading' && <p className="text-sm text-slate-500">Loading positions...</p>}
-        {status === 'succeeded' && positions.length === 0 && (
+        {status === 'succeeded' && filteredPositions.length === 0 && (
           <p className="text-sm text-slate-500">No positions found.</p>
         )}
-        {positions.map((position) => (
+        {filteredPositions.map((position) => (
           <div
             key={position.id}
             className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:bg-slate-50"
@@ -77,6 +98,11 @@ export function PositionsTab() {
               <div>
                 <h3 className="text-[15px] font-semibold text-slate-800">{position.name}</h3>
                 <p className="text-[13px] text-slate-500">{position.description}</p>
+                {position.departmentName && (
+                  <span className="mt-1 inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-[12px] font-medium text-slate-600">
+                    {position.departmentName}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -102,14 +128,14 @@ export function PositionsTab() {
       {/* Add Position Popup */}
       <AddPositionPopup
         open={addOpen}
+        departments={departments}
+        initialData={selectedDepartmentId ? { name: '', description: '', departmentId: selectedDepartmentId } : undefined}
         onClose={() => setAddOpen(false)}
         mode="add"
         onSubmit={async (data) => {
           const result = await dispatch(createPosition(data));
           if (createPosition.fulfilled.match(result)) {
             appAlert.fire({
-              toast: true,
-              position: 'top-end',
               showConfirmButton: false,
               timer: 3000,
               icon: 'success',
@@ -124,11 +150,13 @@ export function PositionsTab() {
       {editTarget && (
         <AddPositionPopup
           open={!!editTarget}
+          departments={departments}
           onClose={() => setEditTarget(null)}
           mode="edit"
           initialData={{
             name: editTarget.name,
             description: editTarget.description,
+            departmentId: editTarget.departmentId,
           }}
           onSubmit={async (data) => {
             const result = await dispatch(
@@ -139,8 +167,6 @@ export function PositionsTab() {
             );
             if (updatePosition.fulfilled.match(result)) {
               appAlert.fire({
-                toast: true,
-                position: 'top-end',
                 showConfirmButton: false,
                 timer: 3000,
                 icon: 'success',
@@ -163,8 +189,6 @@ export function PositionsTab() {
               .unwrap()
               .then(() => {
                 appAlert.fire({
-                  toast: true,
-                  position: 'top-end',
                   showConfirmButton: false,
                   timer: 3000,
                   icon: 'success',

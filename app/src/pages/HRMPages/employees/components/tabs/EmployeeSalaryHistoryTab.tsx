@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '../../../../../shared/apis/hooks
 import {
   fetchHrEmployeeSalaryHistory,
   updateHrEmployeeSalary,
+  fetchHrEmployeeById,
   type SalaryHistoryEntry,
 } from '../../../../../features/HRMfeatures/employees/hrEmployeesSlice';
 import { useState } from 'react';
@@ -26,19 +27,28 @@ export function EmployeeSalaryHistoryTab({ employee }: Props) {
   }, [employee?.id, dispatch]);
 
   // Compute KPI values from real data
-  const currentSalary = employee.basicSalary ?? 0;
+  // The current salary should be the latest from history, or fallback to the employee's basic salary
+  const currentSalary = salaryHistory.length > 0 ? salaryHistory[0].salary : (employee.basicSalary ?? 0);
 
   const latestEntry: SalaryHistoryEntry | undefined = salaryHistory[0];
   const oldestEntry: SalaryHistoryEntry | undefined = salaryHistory[salaryHistory.length - 1];
 
-  const totalGrowth =
-    salaryHistory.length > 0
-      ? currentSalary - (oldestEntry?.previousSalary ?? currentSalary)
-      : 0;
+  // If there's only 1 record and no "Initial Salary" record, 
+  // we might not know the true starting salary from history alone.
+  // If the user expects growth to be calculated against 0, it would be +1100.
+  // If we calculate growth between current and oldest in history, we get 0 if there's only 1 record.
+  // Let's use oldestEntry.salary. If they only have 1 record, growth is 0 unless there's a previous record.
+  // Wait, if the user saw -100, it was because employee.basicSalary was stale (1000) and oldest was 1100.
+  // Now currentSalary is 1100, oldest is 1100, growth is 0. 
+  // If they want to see the original base salary, it should be in the history!
+  const startingSalary = oldestEntry?.salary ?? currentSalary;
+  const totalGrowth = currentSalary - startingSalary;
 
+  const previousSalaryOfLatest = salaryHistory.length > 1 ? salaryHistory[1].salary : startingSalary;
+  
   const lastIncrementPercent =
-    latestEntry && latestEntry.previousSalary > 0
-      ? (((latestEntry.newSalary - latestEntry.previousSalary) / latestEntry.previousSalary) * 100).toFixed(2)
+    latestEntry && previousSalaryOfLatest > 0
+      ? (((latestEntry.salary - previousSalaryOfLatest) / previousSalaryOfLatest) * 100).toFixed(2)
       : null;
 
   const formatDate = (d: string) =>
@@ -122,7 +132,7 @@ export function EmployeeSalaryHistoryTab({ employee }: Props) {
             <div className="text-right">
               <div className="text-[13px] font-bold text-slate-700">Amount</div>
               <div className="text-[14px] font-bold text-[#16A34A]">
-                +${((latestEntry.newSalary ?? 0) - (latestEntry.previousSalary ?? 0)).toLocaleString()}
+                +${((latestEntry.salary ?? 0) - previousSalaryOfLatest).toLocaleString()}
                 {lastIncrementPercent ? ` (+${lastIncrementPercent}%)` : ''}
               </div>
             </div>
@@ -146,8 +156,8 @@ export function EmployeeSalaryHistoryTab({ employee }: Props) {
 
         <div className="space-y-3">
           {salaryHistory.map((row, idx) => {
-            const prevSal = row.previousSalary ?? 0;
-            const newSal = row.newSalary ?? 0;
+            const newSal = row.salary ?? 0;
+            const prevSal = salaryHistory[idx + 1]?.salary ?? 0;
             const diff = newSal - prevSal;
             const percent = prevSal > 0
               ? ((diff / prevSal) * 100).toFixed(2)
@@ -173,19 +183,30 @@ export function EmployeeSalaryHistoryTab({ employee }: Props) {
 
                 {/* Salary Flow */}
                 <div className="flex items-center gap-3 flex-shrink-0 w-52">
-                  <div>
-                    <div className="text-[11px] font-medium text-slate-400 mb-0.5">Previous</div>
-                    <div className="text-[15px] font-bold text-slate-600">
-                      ${prevSal.toLocaleString()}
+                  {idx === salaryHistory.length - 1 ? (
+                    <div>
+                      <div className="text-[11px] font-medium text-slate-400 mb-0.5">Starting Salary</div>
+                      <div className="text-[15px] font-bold text-slate-900">
+                        ${newSal.toLocaleString()}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-slate-300 text-lg">→</div>
-                  <div>
-                    <div className="text-[11px] font-medium text-slate-400 mb-0.5">New Salary</div>
-                    <div className="text-[15px] font-bold text-slate-900">
-                      ${newSal.toLocaleString()}
-                    </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div>
+                        <div className="text-[11px] font-medium text-slate-400 mb-0.5">Previous</div>
+                        <div className="text-[15px] font-bold text-slate-600">
+                          ${prevSal.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="text-slate-300 text-lg">→</div>
+                      <div>
+                        <div className="text-[11px] font-medium text-slate-400 mb-0.5">New Salary</div>
+                        <div className="text-[15px] font-bold text-slate-900">
+                          ${newSal.toLocaleString()}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Reason */}
@@ -197,8 +218,10 @@ export function EmployeeSalaryHistoryTab({ employee }: Props) {
                 </div>
 
                 {/* Change Amount */}
-                <div className="flex-shrink-0 text-right">
-                  {diff !== 0 ? (
+                <div className="flex-shrink-0 text-right w-24">
+                  {idx === salaryHistory.length - 1 ? (
+                    <div className="text-[13px] font-bold text-[#16A34A] py-1 px-3 bg-green-50 rounded-full inline-block">Initial</div>
+                  ) : diff !== 0 ? (
                     <>
                       <div className="flex items-center justify-end gap-1 text-[14px] font-bold text-[#0B4EA2]">
                         <TrendingUp className="w-3.5 h-3.5" />
@@ -240,6 +263,7 @@ export function EmployeeSalaryHistoryTab({ employee }: Props) {
                 reason: '',
                 approvedBy: '',
                 status: 'Active' as const,
+                imageUrl: employee.imageUrl,
               }
             : null
         }
@@ -254,6 +278,7 @@ export function EmployeeSalaryHistoryTab({ employee }: Props) {
           }));
           setIsModalOpen(false);
           dispatch(fetchHrEmployeeSalaryHistory(employee.id));
+          dispatch(fetchHrEmployeeById(employee.id));
         }}
       />
     </div>

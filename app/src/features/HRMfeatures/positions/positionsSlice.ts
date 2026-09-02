@@ -26,6 +26,7 @@ export const fetchPositions = createAsyncThunk(
       SortBy?: string;
       SortDirection?: string;
       IsActive?: boolean;
+      DepartmentId?: string;
     } = {},
     { rejectWithValue }
   ) => {
