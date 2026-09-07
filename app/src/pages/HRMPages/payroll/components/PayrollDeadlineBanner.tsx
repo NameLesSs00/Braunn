@@ -1,6 +1,18 @@
-import { Bell, ArrowRight, DollarSign } from 'lucide-react';
+import { ArrowRight, Bell } from 'lucide-react';
+import { useAppSelector } from '../../../../store/hooks';
+import { formatPeriod } from '../payrollUtils';
 
-export function PayrollDeadlineBanner() {
+type Props = {
+  month: number;
+  year: number;
+  onReview: () => void;
+};
+
+export function PayrollDeadlineBanner({ month, year, onReview }: Props) {
+  const pendingCount = useAppSelector((state) =>
+    state.hrPayroll.payrolls.filter((payroll) => payroll.status === 'Pending' || payroll.status === 'Draft').length
+  );
+
   return (
     <div className="relative mb-6 overflow-hidden rounded-[20px] bg-[#0B4EA2] p-8 text-white shadow-md">
       {/* Background Watermark */}
@@ -15,12 +27,16 @@ export function PayrollDeadlineBanner() {
             Payroll Deadline Reminder
           </h2>
           <p className="text-[14px] text-blue-100 font-medium">
-            Salary payout is scheduled for 30 Oct 2026<br />
-            You still have 12 employees pending review.
+            Current pay period is {formatPeriod(month, year)}<br />
+            You still have {pendingCount} employees pending review.
           </p>
         </div>
 
-        <button className="flex items-center gap-2 rounded-full bg-[#FBBF24] px-6 py-3 text-[14px] font-bold text-slate-900 transition-transform hover:-translate-y-0.5 hover:shadow-lg">
+        <button
+          type="button"
+          onClick={onReview}
+          className="flex items-center gap-2 rounded-full bg-[#FBBF24] px-6 py-3 text-[14px] font-bold text-slate-900 transition-transform hover:-translate-y-0.5 hover:shadow-lg"
+        >
           Review Payroll
           <ArrowRight className="h-4 w-4" />
         </button>

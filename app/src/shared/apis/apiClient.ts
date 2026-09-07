@@ -56,6 +56,14 @@ export async function apiRequest<T>({ method, path, body, signal }: RequestOptio
   const url = joinUrl(API_BASE_URL, path)
   const token = localStorage.getItem('access_token')
 
+  const publicPaths = ['/authenticate', '/auth/admin-login', '/rt/auth', '/login']
+  const isPublic = publicPaths.some((p) => path.includes(p))
+
+  if (!token && !isPublic) {
+    window.location.href = '/login'
+    throw new Error('No access token found. Redirecting to login...')
+  }
+
   console.log(`[API] ${method} ${url}`, body ?? '')
 
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData

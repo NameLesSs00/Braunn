@@ -1,13 +1,20 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { payrollApi } from '../../../shared/HRMshared/api/payrollApi';
+import { payrollProcessingApi } from '../../../shared/HRMshared/api/payrollProcessingApi';
 import type {
   HRPayrollReadDto,
   HRPayrollSnapshotReadDto,
+  PaginatedPayroll,
+  PaginatedPayrollProcessing,
+  PaginatedPayrollSnapshots,
   PayrollGenerateDto,
+  PayrollProcessRequestDto,
+  PayrollProcessResponseDto,
+  PayrollProcessingBatchReadDto,
+  PayrollProcessingQueryParams,
+  PayrollProcessingReadDto,
   PayrollQueryParams,
   PayrollSnapshotQueryParams,
-  PaginatedPayroll,
-  PaginatedPayrollSnapshots,
 } from '../../../models/HRMmodels/Payroll';
 
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
@@ -24,8 +31,18 @@ interface HrPayrollState {
   snapshotsPageSize: number;
 
   selectedSnapshot: HRPayrollSnapshotReadDto | null;
-  
+  processingRecords: PayrollProcessingReadDto[];
+  totalProcessingCount: number;
+  processingPageNumber: number;
+  processingPageSize: number;
+  selectedProcessingRecord: PayrollProcessingReadDto | null;
+  selectedProcessingBatch: PayrollProcessingBatchReadDto | null;
+  lastProcessResult: PayrollProcessResponseDto | null;
+
   status: AsyncStatus;
+  processStatus: AsyncStatus;
+  historyStatus: AsyncStatus;
+  processingDetailStatus: AsyncStatus;
   error: string | undefined;
 }
 
@@ -41,12 +58,20 @@ const initialState: HrPayrollState = {
   snapshotsPageSize: 10,
 
   selectedSnapshot: null,
-  
+  processingRecords: [],
+  totalProcessingCount: 0,
+  processingPageNumber: 1,
+  processingPageSize: 10,
+  selectedProcessingRecord: null,
+  selectedProcessingBatch: null,
+  lastProcessResult: null,
+
   status: 'idle',
+  processStatus: 'idle',
+  historyStatus: 'idle',
+  processingDetailStatus: 'idle',
   error: undefined,
 };
-
-// --- Thunks ---
 
 export const generateHrPayroll = createAsyncThunk<void, PayrollGenerateDto>(
   'hrPayroll/generate',
@@ -109,7 +134,65 @@ export const fetchHrPayrollSnapshotById = createAsyncThunk<HRPayrollSnapshotRead
   }
 );
 
-// --- Slice ---
+export const processHrPayrolls = createAsyncThunk<PayrollProcessResponseDto, PayrollProcessRequestDto>(
+  'hrPayroll/process',
+  async (payload, { rejectWithValue, signal }) => {
+    try {
+      return await payrollProcessingApi.processPayrolls(payload, signal);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to process payrolls';
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const fetchPayrollProcessingRecords = createAsyncThunk<PaginatedPayrollProcessing, PayrollProcessingQueryParams | undefined>(
+  'hrPayroll/fetchProcessingRecords',
+  async (params, { rejectWithValue, signal }) => {
+    try {
+      return await payrollProcessingApi.getProcessingRecords(params, signal);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to fetch payroll processing records';
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const fetchPayrollProcessingById = createAsyncThunk<PayrollProcessingReadDto, string>(
+  'hrPayroll/fetchProcessingById',
+  async (id, { rejectWithValue, signal }) => {
+    try {
+      return await payrollProcessingApi.getProcessingById(id, signal);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to fetch payroll processing details';
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const fetchPayrollProcessingByPayrollId = createAsyncThunk<PayrollProcessingReadDto, string>(
+  'hrPayroll/fetchProcessingByPayrollId',
+  async (payrollId, { rejectWithValue, signal }) => {
+    try {
+      return await payrollProcessingApi.getProcessingByPayrollId(payrollId, signal);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to fetch payroll payment details';
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const fetchPayrollProcessingBatch = createAsyncThunk<PayrollProcessingBatchReadDto, string>(
+  'hrPayroll/fetchProcessingBatch',
+  async (processingBatchId, { rejectWithValue, signal }) => {
+    try {
+      return await payrollProcessingApi.getProcessingBatch(processingBatchId, signal);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to fetch payroll batch details';
+      return rejectWithValue(message);
+    }
+  }
+);
 
 const hrPayrollSlice = createSlice({
   name: 'hrPayroll',
@@ -121,10 +204,17 @@ const hrPayrollSlice = createSlice({
     clearSelectedPayrollSnapshot: (state) => {
       state.selectedSnapshot = null;
     },
+    clearSelectedPayrollProcessing: (state) => {
+      state.selectedProcessingRecord = null;
+      state.selectedProcessingBatch = null;
+      state.processingDetailStatus = 'idle';
+    },
+    clearLastPayrollProcessResult: (state) => {
+      state.lastProcessResult = null;
+    },
   },
   extraReducers: (builder) => {
     builder
-      // generate
       .addCase(generateHrPayroll.pending, (state) => {
         state.status = 'loading';
         state.error = undefined;
@@ -137,7 +227,6 @@ const hrPayrollSlice = createSlice({
         state.error = action.payload as string;
       })
 
-      // review
       .addCase(reviewHrPayroll.pending, (state) => {
         state.status = 'loading';
         state.error = undefined;
@@ -154,7 +243,6 @@ const hrPayrollSlice = createSlice({
         state.error = action.payload as string;
       })
 
-      // fetchPayrolls
       .addCase(fetchHrPayrolls.pending, (state) => {
         state.status = 'loading';
         state.error = undefined;
@@ -171,7 +259,6 @@ const hrPayrollSlice = createSlice({
         state.error = action.payload as string;
       })
 
-      // fetchSnapshots
       .addCase(fetchHrPayrollSnapshots.pending, (state) => {
         state.status = 'loading';
         state.error = undefined;
@@ -188,7 +275,6 @@ const hrPayrollSlice = createSlice({
         state.error = action.payload as string;
       })
 
-      // fetchSnapshotById
       .addCase(fetchHrPayrollSnapshotById.pending, (state) => {
         state.status = 'loading';
         state.error = undefined;
@@ -200,10 +286,77 @@ const hrPayrollSlice = createSlice({
       .addCase(fetchHrPayrollSnapshotById.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload as string;
+      })
+
+      .addCase(processHrPayrolls.pending, (state) => {
+        state.processStatus = 'loading';
+        state.error = undefined;
+      })
+      .addCase(processHrPayrolls.fulfilled, (state, action: PayloadAction<PayrollProcessResponseDto>) => {
+        state.processStatus = 'succeeded';
+        state.lastProcessResult = action.payload;
+        const processedIds = new Set(action.payload.payrolls.map((p) => p.payrollId));
+        state.payrolls = state.payrolls.map((payroll) =>
+          processedIds.has(payroll.id) ? { ...payroll, status: 'Processed' } : payroll
+        );
+      })
+      .addCase(processHrPayrolls.rejected, (state, action) => {
+        state.processStatus = 'failed';
+        state.error = action.payload as string;
+      })
+
+      .addCase(fetchPayrollProcessingRecords.pending, (state) => {
+        state.historyStatus = 'loading';
+        state.error = undefined;
+      })
+      .addCase(fetchPayrollProcessingRecords.fulfilled, (state, action: PayloadAction<PaginatedPayrollProcessing>) => {
+        state.historyStatus = 'succeeded';
+        state.processingRecords = action.payload.items;
+        state.totalProcessingCount = action.payload.totalCount;
+        state.processingPageNumber = action.payload.pageNumber;
+        state.processingPageSize = action.payload.pageSize;
+      })
+      .addCase(fetchPayrollProcessingRecords.rejected, (state, action) => {
+        state.historyStatus = 'failed';
+        state.error = action.payload as string;
+      })
+
+      .addCase(fetchPayrollProcessingById.pending, (state) => {
+        state.processingDetailStatus = 'loading';
+        state.error = undefined;
+      })
+      .addCase(fetchPayrollProcessingById.fulfilled, (state, action: PayloadAction<PayrollProcessingReadDto>) => {
+        state.processingDetailStatus = 'succeeded';
+        state.selectedProcessingRecord = action.payload;
+      })
+      .addCase(fetchPayrollProcessingById.rejected, (state, action) => {
+        state.processingDetailStatus = 'failed';
+        state.error = action.payload as string;
+      })
+
+      .addCase(fetchPayrollProcessingByPayrollId.pending, (state) => {
+        state.processingDetailStatus = 'loading';
+        state.error = undefined;
+      })
+      .addCase(fetchPayrollProcessingByPayrollId.fulfilled, (state, action: PayloadAction<PayrollProcessingReadDto>) => {
+        state.processingDetailStatus = 'succeeded';
+        state.selectedProcessingRecord = action.payload;
+      })
+      .addCase(fetchPayrollProcessingByPayrollId.rejected, (state, action) => {
+        state.processingDetailStatus = 'failed';
+        state.error = action.payload as string;
+      })
+      .addCase(fetchPayrollProcessingBatch.fulfilled, (state, action: PayloadAction<PayrollProcessingBatchReadDto>) => {
+        state.selectedProcessingBatch = action.payload;
       });
   },
 });
 
-export const { clearHrPayrollError, clearSelectedPayrollSnapshot } = hrPayrollSlice.actions;
+export const {
+  clearHrPayrollError,
+  clearLastPayrollProcessResult,
+  clearSelectedPayrollProcessing,
+  clearSelectedPayrollSnapshot,
+} = hrPayrollSlice.actions;
 
 export const hrPayrollReducer = hrPayrollSlice.reducer;

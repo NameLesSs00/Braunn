@@ -43,12 +43,18 @@ const ACTIONS = [
   },
 ];
 
-export function PayrollQuickActions() {
+type Props = {
+  onNavigate: (tab: 'Dashboard' | 'Review Payroll' | 'Run Payroll' | 'Payroll History') => void;
+};
+
+export function PayrollQuickActions({ onNavigate }: Props) {
   const dispatch = useAppDispatch();
   const [isBonusOpen, setIsBonusOpen] = useState(false);
   const [isDeductionOpen, setIsDeductionOpen] = useState(false);
 
   const handleClick = (id: string) => {
+    if (id === 'run-payroll') onNavigate('Run Payroll');
+    if (id === 'view-history') onNavigate('Payroll History');
     if (id === 'add-bonus') setIsBonusOpen(true);
     if (id === 'add-deduction') setIsDeductionOpen(true);
   };

@@ -1,6 +1,5 @@
 import { apiRequest, unwrapApiResponse } from '../../../shared/apis/apiClient';
 import type {
-  HRPayrollReadDto,
   HRPayrollSnapshotReadDto,
   PayrollGenerateDto,
   PayrollQueryParams,

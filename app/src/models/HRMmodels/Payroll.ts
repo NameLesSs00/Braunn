@@ -1,4 +1,5 @@
-export type PayrollStatus = 'Pending' | 'Reviewed' | 'Approved' | 'Paid';
+export type PayrollStatus = 'Draft' | 'Pending' | 'Reviewed' | 'Approved' | 'Paid' | 'Processed';
+export type PaymentMethod = 'Cash' | 'BankTransfer';
 
 export interface HRPayrollReadDto {
   id: string;
@@ -82,4 +83,67 @@ export interface PaginatedPayrollSnapshots {
   pageSize: number;
   totalCount: number;
   items: HRPayrollSnapshotReadDto[];
+}
+
+export interface PayrollProcessRequestDto {
+  payrollIds: string[];
+  paymentMethod: PaymentMethod;
+}
+
+export interface PayrollProcessResultDto {
+  payrollId: string;
+  processingId: string;
+  status: string;
+  totalAmount: number;
+}
+
+export interface PayrollProcessResponseDto {
+  processingBatchId: string;
+  processedCount: number;
+  payrolls: PayrollProcessResultDto[];
+}
+
+export interface PayrollProcessingReadDto {
+  id: string;
+  payrollId: string;
+  payrollNumber: string;
+  employeeName: string;
+  processingBatchId: string;
+  paymentMethod: PaymentMethod;
+  bankTransferNo: string | null;
+  amount: number;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface PayrollProcessingBatchReadDto {
+  processingBatchId: string;
+  createdAt: string;
+  createdBy: string;
+  paymentMethod: PaymentMethod;
+  bankTransferNo: string | null;
+  totalPayrolls: number;
+  processedPayrolls: number;
+  payrolls: PayrollProcessingReadDto[];
+}
+
+export interface PayrollProcessingQueryParams {
+  PaymentMethod?: PaymentMethod;
+  PayrollId?: string;
+  ProcessingBatchId?: string;
+  CreatedBy?: string;
+  FromDate?: string;
+  ToDate?: string;
+  SearchTerm?: string;
+  SortBy?: string;
+  SortDirection?: string;
+  PageNumber?: number;
+  PageSize?: number;
+}
+
+export interface PaginatedPayrollProcessing {
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  items: PayrollProcessingReadDto[];
 }

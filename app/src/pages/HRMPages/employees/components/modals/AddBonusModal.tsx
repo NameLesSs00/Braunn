@@ -52,9 +52,9 @@ export function AddBonusModal({ open, onClose, employee, onSubmit }: Props) {
     });
   };
 
-  const sortedEmployees = [...(employees as HREmployeeReadDto[] || [])].sort((a, b) => 
-    a.fullName.localeCompare(b.fullName)
-  );
+  const sortedEmployees = [...(employees as HREmployeeReadDto[] || [])]
+    .filter((emp) => emp.status === 'Active')
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
   return (
     <Modal open={open} onClose={onClose}>

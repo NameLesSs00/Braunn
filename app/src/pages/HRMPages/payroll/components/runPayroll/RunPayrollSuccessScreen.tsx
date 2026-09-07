@@ -1,12 +1,15 @@
 import { CheckCircle2, Users, DollarSign, CalendarDays, Download, ArrowLeft } from 'lucide-react';
+import type { PaymentMethod } from '../../../../../models/HRMmodels/Payroll';
+import { displayPaymentMethod, formatMoney } from '../../payrollUtils';
 
 type Props = {
   employeeCount: number;
   totalAmount: number;
+  paymentMethod?: PaymentMethod;
   onBack: () => void;
 };
 
-export function RunPayrollSuccessScreen({ employeeCount, totalAmount, onBack }: Props) {
+export function RunPayrollSuccessScreen({ employeeCount, totalAmount, paymentMethod, onBack }: Props) {
   const payDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
@@ -19,7 +22,7 @@ export function RunPayrollSuccessScreen({ employeeCount, totalAmount, onBack }: 
       {/* Title */}
       <h2 className="text-[28px] font-bold text-slate-900 mb-3">Payroll Processed!</h2>
       <p className="text-[15px] text-slate-500 text-center mb-10 max-w-sm leading-relaxed">
-        June 2026 payroll has been successfully disbursed<br />to all employees.
+        Payroll has been successfully processed<br />for the selected employees.
       </p>
 
       {/* Stats cards */}
@@ -36,7 +39,7 @@ export function RunPayrollSuccessScreen({ employeeCount, totalAmount, onBack }: 
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50">
             <DollarSign className="h-4 w-4 text-emerald-600" />
           </div>
-          <div className="text-[20px] font-bold text-slate-900">${totalAmount.toLocaleString()}</div>
+          <div className="text-[20px] font-bold text-slate-900">{formatMoney(totalAmount)}</div>
           <div className="text-[12px] font-medium text-slate-500 text-center">Total Amount</div>
         </div>
 
@@ -48,6 +51,11 @@ export function RunPayrollSuccessScreen({ employeeCount, totalAmount, onBack }: 
           <div className="text-[12px] font-medium text-slate-500 text-center">Pay Date</div>
         </div>
       </div>
+      {paymentMethod && (
+        <div className="mb-8 rounded-xl border border-slate-200 bg-white px-5 py-3 text-[14px] font-semibold text-slate-700">
+          Payment method: <span className="text-[#0B4EA2]">{displayPaymentMethod(paymentMethod)}</span>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex items-center gap-4">
