@@ -102,7 +102,7 @@ export default function MaintenanceRequestDetailsPage() {
   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {selected.images && selected.images.length > 0 ? (
       selected.images.map((image) => {
-        const imageUrl = `https://pmss.runasp.net/${image.imageUrl}`;
+        const imageUrl = `https://pms.premiumasp.net/${image.imageUrl}`;
 
         return (
           <a

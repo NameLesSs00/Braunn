@@ -31,7 +31,7 @@ class SignalRService {
     // Try both singular (/notification) and plural (/notifications) to handle any backend ASP.NET Core MapHub configuration
     // Also including MaintenanceRequestCreated as specified by user
   return [
-  `https://pmss.runasp.net/api/hubs/notifications`
+  `https://pms.premiumasp.net/api/hubs/notifications`
 ];
   }
 

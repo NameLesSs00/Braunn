@@ -1,4 +1,4 @@
-const SERVER_BASE = 'http://gear-pms-api.runasp.net/';
+const SERVER_BASE = 'https://pms.premiumasp.net/';
 
 /**
  * Resolves an employee image URL from the backend.

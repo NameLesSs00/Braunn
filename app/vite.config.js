@@ -18,14 +18,14 @@ export default defineConfig(({ mode }) => ({
   server: {
     proxy: {
       '/api': {
-        target: 'http://gear-pms-api.runasp.net',
+        target: 'https://pms.premiumasp.net',
         changeOrigin: true,
         ws: true,
       },
     },
     // proxy: {
     //   '/api': {
-    //     target: 'https://pmss.runasp.net',
+    //     target: 'https://pms.premiumasp.net',
     //     changeOrigin: true,
     //     ws: true,
     //   },
