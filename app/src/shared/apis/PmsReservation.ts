@@ -34,13 +34,15 @@ export interface GetPmsReservationsParams {
 
 export function getPmsReservations(params: GetPmsReservationsParams, signal?: AbortSignal) {
   const query = new URLSearchParams(params as any).toString()
-  return apiRequest<any[]>({
+  return apiRequest<any>({
     method: 'GET',
     path: `local/reservations/by-date?${query}`,
     signal
   }).then((r) => {
-    const data = unwrapApiResponse<any[]>(r)
-    return data.map((item) => ({
+    const response = unwrapApiResponse<any>(r)
+    // Handle paginated response structure
+    const items = response?.items || (Array.isArray(response) ? response : [])
+    return items.map((item: any) => ({
       ...item,
       guestName: item.guest?.fullName || '',
       roomNumber: item.roomNumber || null,
