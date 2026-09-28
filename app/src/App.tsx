@@ -72,6 +72,9 @@ import { PositionsTab } from './pages/HRMPages/setting/tabs/PositionsTab'
 import { RestaurantPOSPage } from './pages/POSPages/restaurant/RestaurantPOSPage'
 import { CashierPOSView } from './pages/POSPages/restaurant/components/CashierPOSView'
 import { SystemSelectionPage } from './pages/systems/SystemSelectionPage'
+import { PurchaseDashboardPage } from './pages/PurchasePages/dashboard/PurchaseDashboardPage'
+import { AccountingDashboardPage } from './pages/AccountingPages/dashboard/AccountingDashboardPage'
+import { SalesAndRevenueDashboardPage } from './pages/SalesAndRevenuePages/dashboard/SalesAndRevenueDashboardPage'
 
 export default function App() {
   const posAliases = [
@@ -172,6 +175,18 @@ export default function App() {
         <Route path={routes.login} element={<LoginPage />} />
         <Route element={<AuthGuard />}>
           <Route path={routes.systems} element={<SystemSelectionPage />} />
+
+          {/* Purchase Module */}
+          <Route path={routes.purchase.root} element={<Navigate to={routes.purchase.dashboard} replace />} />
+          <Route path={routes.purchase.dashboard} element={<PurchaseDashboardPage />} />
+
+          {/* Accounting Module */}
+          <Route path={routes.accounting.root} element={<Navigate to={routes.accounting.dashboard} replace />} />
+          <Route path={routes.accounting.dashboard} element={<AccountingDashboardPage />} />
+
+          {/* Sales & Revenue Module */}
+          <Route path={routes.salesAndRevenue.root} element={<Navigate to={routes.salesAndRevenue.dashboard} replace />} />
+          <Route path={routes.salesAndRevenue.dashboard} element={<SalesAndRevenueDashboardPage />} />
 
           {posAliases.map(({ from, to }) => (
             from === to ? null : <Route key={from} path={from} element={<Navigate to={to} replace />} />

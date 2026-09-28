@@ -1,10 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import {
   BedDouble,
+  Calculator,
   Hotel,
   LayoutDashboard,
   LogOut,
   Shirt,
+  ShoppingCart,
+  TrendingUp,
   UsersRound,
   Utensils,
   Wrench,
@@ -71,6 +74,30 @@ const systems: SystemOption[] = [
     icon: Utensils,
     tone: 'border-rose-100 hover:border-rose-300',
     iconTone: 'bg-rose-50 text-rose-700',
+  },
+  {
+    title: 'Purchase',
+    description: 'Supplier management, purchase orders, receiving, invoicing, and inventory control',
+    route: routes.purchase.dashboard,
+    icon: ShoppingCart,
+    tone: 'border-orange-100 hover:border-orange-300',
+    iconTone: 'bg-orange-50 text-orange-700',
+  },
+  {
+    title: 'Accounting',
+    description: 'General ledger, accounts payable & receivable, financial reports, and audit trails',
+    route: routes.accounting.dashboard,
+    icon: Calculator,
+    tone: 'border-teal-100 hover:border-teal-300',
+    iconTone: 'bg-teal-50 text-teal-700',
+  },
+  {
+    title: 'Sales & Revenue',
+    description: 'Revenue analytics, forecasting, channel performance, and sales reporting',
+    route: routes.salesAndRevenue.dashboard,
+    icon: TrendingUp,
+    tone: 'border-emerald-100 hover:border-emerald-300',
+    iconTone: 'bg-emerald-50 text-emerald-700',
   },
 ]
 

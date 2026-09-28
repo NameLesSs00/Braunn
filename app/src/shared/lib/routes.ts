@@ -102,6 +102,18 @@ export const englishRoutes = {
     settings: '/HK/Settings',
     roomStatus: '/HK/RoomStatus',
   },
+  purchase: {
+    root: '/purchase',
+    dashboard: '/purchase/dashboard',
+  },
+  accounting: {
+    root: '/accounting',
+    dashboard: '/accounting/dashboard',
+  },
+  salesAndRevenue: {
+    root: '/sales-and-revenue',
+    dashboard: '/sales-and-revenue/dashboard',
+  },
 } as const
 
 export const germanRoutes = {
@@ -199,6 +211,18 @@ export const germanRoutes = {
     inventory: '/haushaltsplan/inventar',
     settings: '/haushaltsplan/einstellungen',
     roomStatus: '/haushaltsplan/zimmerstatus',
+  },
+  purchase: {
+    root: '/einkauf',
+    dashboard: '/einkauf/uebersicht',
+  },
+  accounting: {
+    root: '/buchhaltung',
+    dashboard: '/buchhaltung/uebersicht',
+  },
+  salesAndRevenue: {
+    root: '/vertrieb',
+    dashboard: '/vertrieb/uebersicht',
   },
 } as const
 
