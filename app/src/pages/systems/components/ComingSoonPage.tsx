@@ -56,13 +56,9 @@ export function ComingSoonPage({
           <p className="mb-2 text-base font-semibold text-slate-600">
             This module is available on contact.
           </p>
-          <p className="mb-8 max-w-sm text-sm leading-6 text-slate-400">
-            The <span className="font-medium text-slate-600">{moduleName}</span> system is being
-            prepared for your property. Reach out to our team and we'll get you set up right away.
-          </p>
 
           {/* Divider */}
-          <div className="mb-8 h-px w-full bg-slate-100" />
+          <div className="mb-8 h-px w-full " />
 
           {/* Back link */}
           <button
