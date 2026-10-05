@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Sparkles, ClipboardList, Plus, Wrench, Clock, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { fetchAllRooms } from '../../features/housekeeping/housekeepingSlice'
 import { fetchRoomTypes } from '../../features/roomTypes/roomTypesSlice'
 import { fetchLostAndFoundItems } from '../../features/HKfeatures/lostAndFound/lostAndFoundSlice'
 
@@ -46,7 +45,6 @@ export function HousekeepingPage() {
   // Fetch rooms when tab changes
   useEffect(() => {
     if (tab !== 'roomStatus') return
-    void dispatch(fetchAllRooms())
     void dispatch(fetchRoomTypes())
   }, [dispatch, tab])
 
@@ -200,7 +198,11 @@ export function HousekeepingPage() {
         <div className="p-6">
           {/* Room Status Tab */}
           {tab === 'roomStatus' && (
-            <RoomStatusTab rooms={rooms} onStatusChange={handleStatusChange} />
+            <RoomStatusTab 
+              rooms={rooms} 
+              onStatusChange={handleStatusChange} 
+              uniqueRoomTypes={roomTypes.map((rt: any) => rt.name)}
+            />
           )}
 
           {/* Lost Items Tab */}

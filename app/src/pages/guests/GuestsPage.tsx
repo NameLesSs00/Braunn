@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { GuestDetailsPopup } from './popups/GuestDetailsPopup'
 import type { Companion } from './popups/GuestDetailsPopup'
 import {
@@ -194,28 +194,47 @@ function GuestCard({ guest, onClick, onDownload }: { guest: Guest; onClick: () =
   )
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
 
-function parseDate(d: string): number | null {
-  if (!d) return null
-  const t = new Date(d).getTime()
-  return Number.isFinite(t) ? t : null
-}
 
 export function GuestsPage() {
   const dispatch = useAppDispatch()
   const apiGuests = useAppSelector((s) => s.guests.items)
+  const totalPages = useAppSelector((s) => s.guests.totalPages)
+  const totalCount = useAppSelector((s) => s.guests.totalCount)
 
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [guestType, setGuestType] = useState('all')
   const [roomType, setRoomType] = useState('all')
   const [checkInFrom, setCheckInFrom] = useState('')
   const [checkInTo, setCheckInTo] = useState('')
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null)
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 50
+  const topRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    void dispatch(fetchGuests())
-  }, [dispatch])
+    const handler = setTimeout(() => setDebouncedQuery(query), 300)
+    return () => clearTimeout(handler)
+  }, [query])
+
+  useEffect(() => {
+    void dispatch(fetchGuests({
+      pageNumber: currentPage,
+      pageSize: 50,
+      search: debouncedQuery,
+      guestType: guestType === 'all' ? undefined : guestType,
+      roomType: roomType === 'all' ? undefined : roomType,
+      checkInFrom: checkInFrom || undefined,
+      checkInTo: checkInTo || undefined,
+    }))
+  }, [dispatch, currentPage, debouncedQuery, guestType, roomType, checkInFrom, checkInTo])
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedQuery, guestType, roomType, checkInFrom, checkInTo])
 
   const mappedApiGuests = useMemo<Guest[]>(() => {
     const toUiGuest = (g: ApiGuest): Guest => ({
@@ -242,33 +261,7 @@ export function GuestsPage() {
     return apiGuests.map(toUiGuest)
   }, [apiGuests])
 
-  const filtered = useMemo(() => {
-    let result = [...mappedApiGuests]
 
-    const q = query.trim().toLowerCase()
-    if (q) {
-      result = result.filter((g) =>
-        [g.name, g.id, g.room].some((v) => v.toLowerCase().includes(q))
-      )
-    }
-
-    if (guestType !== 'all') result = result.filter((g) => g.guestType === guestType)
-    if (roomType !== 'all') result = result.filter((g) => g.roomType === roomType)
-
-    const fromT = parseDate(checkInFrom)
-    const toT = parseDate(checkInTo)
-    if (fromT != null || toT != null) {
-      result = result.filter((g) => {
-        const t = parseDate(g.checkInDate)
-        if (t == null) return false
-        if (fromT != null && t < fromT) return false
-        if (toT != null && t > toT) return false
-        return true
-      })
-    }
-
-    return result
-  }, [checkInFrom, checkInTo, guestType, mappedApiGuests, query, roomType])
 
   const handleExportPdf = () => {
     const doc = new jsPDF()
@@ -290,7 +283,7 @@ export function GuestsPage() {
       'Passport',
       'Birth Date',
     ]
-    const tableRows = filtered.map((g) => [
+    const tableRows = mappedApiGuests.map((g) => [
       g.id,
       g.name,
       g.email,
@@ -339,7 +332,7 @@ export function GuestsPage() {
         ['ID/Passport', result.idNumber || '-----'],
         ['Nationality', result.nationality || '-----'],
         ['Date of Birth', result.dateOfBirth ? new Date(result.dateOfBirth).toLocaleDateString() : '-----'],
-        ['Gender', result.gender || '-----'],
+        ['Gender', (result as any).gender || '-----'],
       ]
 
       autoTable(doc, {
@@ -347,7 +340,7 @@ export function GuestsPage() {
         body: personalData,
         theme: 'plain',
         styles: { fontSize: 10, cellPadding: 2 },
-        columnStyles: { 0: { fontStyle: 'bold', width: 40 } }
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } }
       })
 
       // Contact Details
@@ -368,7 +361,7 @@ export function GuestsPage() {
         body: contactData,
         theme: 'plain',
         styles: { fontSize: 10, cellPadding: 2 },
-        columnStyles: { 0: { fontStyle: 'bold', width: 40 } }
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } }
       })
 
       // Emergency Contact
@@ -386,7 +379,7 @@ export function GuestsPage() {
           body: emergencyData,
           theme: 'plain',
           styles: { fontSize: 10, cellPadding: 2 },
-          columnStyles: { 0: { fontStyle: 'bold', width: 40 } }
+          columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } }
         })
       }
 
@@ -397,7 +390,7 @@ export function GuestsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div ref={topRef} className="space-y-5">
       {/* ── Filter panel ── */}
       <div className="rounded-2xl bg-white p-6 shadow-sm">
         {/* Search bar */}
@@ -437,7 +430,7 @@ export function GuestsPage() {
 
         {/* Actions */}
         <div className="mt-4 flex items-center justify-end gap-4">
-          <div className="text-sm font-semibold text-slate-600">{filtered.length} results</div>
+          <div className="text-sm font-semibold text-slate-600">{totalCount} results</div>
           <button
             type="button"
             onClick={handleExportPdf}
@@ -450,13 +443,13 @@ export function GuestsPage() {
       </div>
 
       {/* ── Guest cards grid ── */}
-      {filtered.length === 0 ? (
+      {mappedApiGuests.length === 0 ? (
         <div className="rounded-2xl bg-white py-16 text-center text-sm text-slate-500 shadow-sm">
           No guests match the current filters
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((guest) => (
+          {mappedApiGuests.map((guest) => (
             <GuestCard 
               key={guest.id} 
               guest={guest} 
@@ -464,6 +457,37 @@ export function GuestsPage() {
               onDownload={handleDownloadSingleGuest}
             />
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 px-2">
+          <div className="text-sm text-slate-500">
+            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setCurrentPage(p => Math.max(1, p - 1))
+                topRef.current?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => {
+                setCurrentPage(p => Math.min(totalPages, p + 1))
+                topRef.current?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
 

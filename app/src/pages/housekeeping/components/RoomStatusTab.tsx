@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Search, CheckCircle2, AlertCircle, Clock, Wrench, Home, Key } from 'lucide-react'
+import { useAppDispatch, useAppSelector } from '../../../store/hooks'
+import { fetchAllRooms } from '../../../features/housekeeping/housekeepingSlice'
 import type { Room, RoomStatus, StatusFilter } from '../utils/types'
 import { RoomCard } from './RoomCard'
 import { Pill } from './Pill'
@@ -7,29 +9,44 @@ import { Pill } from './Pill'
 interface RoomStatusTabProps {
   rooms: Room[]
   onStatusChange: (id: string, status: RoomStatus) => void
+  uniqueRoomTypes: string[]
 }
 
-export function RoomStatusTab({ rooms, onStatusChange }: RoomStatusTabProps) {
+export function RoomStatusTab({ rooms, onStatusChange, uniqueRoomTypes }: RoomStatusTabProps) {
+  const dispatch = useAppDispatch()
+  const totalPages = useAppSelector((s: any) => s.housekeeping.totalPages)
+  const totalCount = useAppSelector((s: any) => s.housekeeping.totalCount)
   const [roomQuery, setRoomQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All Rooms')
   const [roomTypeFilter, setRoomTypeFilter] = useState<string>('All')
 
-  const uniqueRoomTypes = useMemo(() => {
-    const types = new Set(rooms.map((r) => r.type).filter(Boolean))
-    return Array.from(types).sort()
-  }, [rooms])
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 50
+  const topRef = useRef<HTMLDivElement>(null)
 
-  const filteredRooms = useMemo(() => {
-    let result = [...rooms]
-    const q = roomQuery.trim().toLowerCase()
-    if (q) result = result.filter((r) => r.number.includes(q))
-    if (roomTypeFilter !== 'All') result = result.filter((r) => r.type === roomTypeFilter)
-    if (statusFilter !== 'All Rooms') result = result.filter((r) => r.status === statusFilter)
-    return result
-  }, [rooms, roomQuery, statusFilter, roomTypeFilter])
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedQuery(roomQuery), 300)
+    return () => clearTimeout(handler)
+  }, [roomQuery])
+
+  useEffect(() => {
+    void dispatch(fetchAllRooms({
+      pageNumber: currentPage,
+      pageSize: 50,
+      search: debouncedQuery,
+      status: statusFilter === 'All Rooms' ? undefined : statusFilter,
+      roomType: roomTypeFilter === 'All' ? undefined : roomTypeFilter,
+    }))
+  }, [dispatch, currentPage, debouncedQuery, statusFilter, roomTypeFilter])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedQuery, statusFilter, roomTypeFilter])
 
   return (
-    <div className="space-y-5">
+    <div ref={topRef} className="space-y-5">
       {/* Search + filter pills */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
@@ -87,15 +104,46 @@ export function RoomStatusTab({ rooms, onStatusChange }: RoomStatusTabProps) {
       </div>
 
       {/* Room cards grid */}
-      {filteredRooms.length === 0 ? (
+      {rooms.length === 0 ? (
         <div className="py-12 text-center text-sm text-slate-500">
           No rooms match your search
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredRooms.map((room) => (
+          {rooms.map((room) => (
             <RoomCard key={room.id} room={room} onStatusChange={onStatusChange} />
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 px-2">
+          <div className="text-sm text-slate-500">
+            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setCurrentPage(p => Math.max(1, p - 1))
+                topRef.current?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => {
+                setCurrentPage(p => Math.min(totalPages, p + 1))
+                topRef.current?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -54,7 +54,7 @@ export function ComingSoonPage({
 
           {/* Tagline */}
           <p className="mb-2 text-base font-semibold text-slate-600">
-            This module is available on contact.
+            This module is available on contract.
           </p>
 
           {/* Divider */}

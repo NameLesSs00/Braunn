@@ -90,6 +90,19 @@ export const englishRoutes = {
       menuManagement: '/POS/admin/menu-management',
       inventory: '/POS/admin/inventory',
       reports: '/POS/admin/reports',
+      settings: {
+        root: '/POS/admin/settings',
+        units: '/POS/admin/settings/units',
+        materials: '/POS/admin/settings/materials',
+        meals: '/POS/admin/settings/meals',
+      },
+      products: '/POS/admin/products',
+      warehouse: '/POS/admin/warehouse',
+      coupons: {
+        root: '/POS/admin/coupons',
+        list: '/POS/admin/coupons/list',
+        sales: '/POS/admin/coupons/sales',
+      },
     },
   },
   hk: {
@@ -109,10 +122,20 @@ export const englishRoutes = {
   accounting: {
     root: '/accounting',
     dashboard: '/accounting/dashboard',
+    roomManagement: '/accounting/room-management',
+    owners: '/accounting/owners',
   },
   salesAndRevenue: {
     root: '/sales-and-revenue',
     dashboard: '/sales-and-revenue/dashboard',
+    rateCalendar: '/sales-and-revenue/rate-calendar',
+    roomTypes: '/sales-and-revenue/room-types',
+    pricing: '/sales-and-revenue/pricing',
+    corporateAccount: '/sales-and-revenue/corporate-account',
+    corporateContractDetails: '/sales-and-revenue/corporate-account/contract-details',
+    groupContracts: '/sales-and-revenue/group-contracts',
+    productionReport: '/sales-and-revenue/production-report',
+    discounts: '/sales-and-revenue/discounts',
   },
 } as const
 
@@ -200,6 +223,19 @@ export const germanRoutes = {
       menuManagement: '/restaurant-kasse/admin/speisekartenverwaltung',
       inventory: '/restaurant-kasse/admin/inventar',
       reports: '/restaurant-kasse/admin/berichte',
+      settings: {
+        root: '/restaurant-kasse/admin/einstellungen',
+        units: '/restaurant-kasse/admin/einstellungen/einheiten',
+        materials: '/restaurant-kasse/admin/einstellungen/materialien',
+        meals: '/restaurant-kasse/admin/einstellungen/mahlzeiten',
+      },
+      products: '/restaurant-kasse/admin/produkte',
+      warehouse: '/restaurant-kasse/admin/lager',
+      coupons: {
+        root: '/restaurant-kasse/admin/gutscheine',
+        list: '/restaurant-kasse/admin/gutscheine/liste',
+        sales: '/restaurant-kasse/admin/gutscheine/verkaeufe',
+      },
     },
   },
   hk: {
@@ -219,10 +255,20 @@ export const germanRoutes = {
   accounting: {
     root: '/buchhaltung',
     dashboard: '/buchhaltung/uebersicht',
+    roomManagement: '/buchhaltung/zimmerverwaltung',
+    owners: '/buchhaltung/eigentuemer',
   },
   salesAndRevenue: {
     root: '/vertrieb',
     dashboard: '/vertrieb/uebersicht',
+    rateCalendar: '/vertrieb/ratenkalender',
+    roomTypes: '/vertrieb/zimmertypen',
+    pricing: '/vertrieb/preise',
+    corporateAccount: '/vertrieb/firmenkonten',
+    corporateContractDetails: '/vertrieb/firmenkonten/vertragsdetails',
+    groupContracts: '/vertrieb/gruppenvertraege',
+    productionReport: '/vertrieb/produktionsbericht',
+    discounts: '/vertrieb/rabatte',
   },
 } as const
 

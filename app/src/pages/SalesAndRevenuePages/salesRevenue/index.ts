@@ -1,0 +1,10 @@
+// Re-export from the canonical location — migrated from PMS salesRevenue module
+export { SalesRevenueDashboardPage } from '../../salesRevenue/SalesRevenueDashboardPage'
+export { RateCalendarPage } from '../../salesRevenue/RateCalendarPage'
+export { RoomTypesPage } from '../../salesRevenue/RoomTypesPage'
+export { PricingPage } from '../../salesRevenue/PricingPage'
+export { CorporateAccountPage } from '../../salesRevenue/CorporateAccountPage'
+export { CorporateContractDetailsPage } from '../../salesRevenue/CorporateContractDetailsPage'
+export { GroupContractsPage } from '../../salesRevenue/GroupContractsPage'
+export { ProductionReportPage } from '../../salesRevenue/ProductionReportPage'
+export { DiscountsPage } from '../../salesRevenue/DiscountsPage'

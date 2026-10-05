@@ -74,7 +74,9 @@ import { CashierPOSView } from './pages/POSPages/restaurant/components/CashierPO
 import { SystemSelectionPage } from './pages/systems/SystemSelectionPage'
 import { PurchaseDashboardPage } from './pages/PurchasePages/dashboard/PurchaseDashboardPage'
 import { AccountingDashboardPage } from './pages/AccountingPages/dashboard/AccountingDashboardPage'
+import { RoomManagementPage } from './pages/AccountingPages/roomManagement/RoomManagementPage'
 import { SalesAndRevenueDashboardPage } from './pages/SalesAndRevenuePages/dashboard/SalesAndRevenueDashboardPage'
+import { OwnersPage } from './pages/AccountingPages/owners/OwnersPage'
 
 export default function App() {
   const posAliases = [
@@ -89,6 +91,15 @@ export default function App() {
     { from: alternateRoutes.pos.admin.menuManagement, to: routes.pos.admin.menuManagement },
     { from: alternateRoutes.pos.admin.inventory, to: routes.pos.admin.inventory },
     { from: alternateRoutes.pos.admin.reports, to: routes.pos.admin.reports },
+    { from: alternateRoutes.pos.admin.settings.root, to: routes.pos.admin.settings.root },
+    { from: alternateRoutes.pos.admin.settings.units, to: routes.pos.admin.settings.units },
+    { from: alternateRoutes.pos.admin.settings.materials, to: routes.pos.admin.settings.materials },
+    { from: alternateRoutes.pos.admin.settings.meals, to: routes.pos.admin.settings.meals },
+    { from: alternateRoutes.pos.admin.products, to: routes.pos.admin.products },
+    { from: alternateRoutes.pos.admin.warehouse, to: routes.pos.admin.warehouse },
+    { from: alternateRoutes.pos.admin.coupons.root, to: routes.pos.admin.coupons.root },
+    { from: alternateRoutes.pos.admin.coupons.list, to: routes.pos.admin.coupons.list },
+    { from: alternateRoutes.pos.admin.coupons.sales, to: routes.pos.admin.coupons.sales },
   ]
 
   const pmsAliases = [
@@ -183,10 +194,20 @@ export default function App() {
           {/* Accounting Module */}
           <Route path={routes.accounting.root} element={<Navigate to={routes.accounting.dashboard} replace />} />
           <Route path={routes.accounting.dashboard} element={<AccountingDashboardPage />} />
+          <Route path={routes.accounting.roomManagement} element={<RoomManagementPage />} />
+          <Route path={routes.accounting.owners} element={<OwnersPage />} />
 
           {/* Sales & Revenue Module */}
           <Route path={routes.salesAndRevenue.root} element={<Navigate to={routes.salesAndRevenue.dashboard} replace />} />
           <Route path={routes.salesAndRevenue.dashboard} element={<SalesAndRevenueDashboardPage />} />
+          <Route path={routes.salesAndRevenue.rateCalendar} element={<SalesAndRevenueDashboardPage />} />
+          <Route path={routes.salesAndRevenue.roomTypes} element={<SalesAndRevenueDashboardPage />} />
+          <Route path={routes.salesAndRevenue.pricing} element={<SalesAndRevenueDashboardPage />} />
+          <Route path={routes.salesAndRevenue.discounts} element={<SalesAndRevenueDashboardPage />} />
+          <Route path={routes.salesAndRevenue.corporateAccount} element={<SalesAndRevenueDashboardPage />} />
+          <Route path={routes.salesAndRevenue.corporateContractDetails} element={<SalesAndRevenueDashboardPage />} />
+          <Route path={routes.salesAndRevenue.groupContracts} element={<SalesAndRevenueDashboardPage />} />
+          <Route path={routes.salesAndRevenue.productionReport} element={<SalesAndRevenueDashboardPage />} />
 
           {posAliases.map(({ from, to }) => (
             from === to ? null : <Route key={from} path={from} element={<Navigate to={to} replace />} />
@@ -198,12 +219,21 @@ export default function App() {
             <Route path={routes.pos.orders} element={<CashierPOSView section="Orders" />} />
             <Route path={routes.pos.tableReservation} element={<CashierPOSView section="Table Reservation" />} />
             <Route path={routes.pos.guestMeals} element={<CashierPOSView section="Guest Meals" />} />
-            <Route path={routes.pos.admin.dashboard} element={<Navigate to={routes.pos.menu} replace />} />
-            <Route path={routes.pos.admin.liveOrders} element={<Navigate to={routes.pos.menu} replace />} />
-            <Route path={routes.pos.admin.reservationsMeals} element={<Navigate to={routes.pos.menu} replace />} />
-            <Route path={routes.pos.admin.menuManagement} element={<Navigate to={routes.pos.menu} replace />} />
-            <Route path={routes.pos.admin.inventory} element={<Navigate to={routes.pos.menu} replace />} />
-            <Route path={routes.pos.admin.reports} element={<Navigate to={routes.pos.menu} replace />} />
+            <Route path={routes.pos.admin.dashboard} element={null} />
+            <Route path={routes.pos.admin.liveOrders} element={null} />
+            <Route path={routes.pos.admin.reservationsMeals} element={null} />
+            <Route path={routes.pos.admin.menuManagement} element={null} />
+            <Route path={routes.pos.admin.inventory} element={null} />
+            <Route path={routes.pos.admin.reports} element={null} />
+            <Route path={routes.pos.admin.settings.root} element={null} />
+            <Route path={routes.pos.admin.settings.units} element={null} />
+            <Route path={routes.pos.admin.settings.materials} element={null} />
+            <Route path={routes.pos.admin.settings.meals} element={null} />
+            <Route path={routes.pos.admin.products} element={null} />
+            <Route path={routes.pos.admin.warehouse} element={null} />
+            <Route path={routes.pos.admin.coupons.root} element={null} />
+            <Route path={routes.pos.admin.coupons.list} element={null} />
+            <Route path={routes.pos.admin.coupons.sales} element={null} />
           </Route>
 
           <Route element={<DashboardLayout />}>

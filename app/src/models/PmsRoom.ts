@@ -7,4 +7,9 @@ export interface PmsRoom {
   roomTypeName: string
   floor: number
   status: RoomStatus
+  housekeepingStatus?: string
+  ownershipType?: 'HotelOwned' | 'OwnerOwned'
+  managementType?: 'HotelManaged' | 'OwnerManaged'
+  ownerId?: string | null
+  ownerName?: string | null
 }

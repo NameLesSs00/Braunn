@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
 import { SalesAndRevenueSidebar } from './SalesAndRevenueSidebar'
+import { GenericModuleHeader } from '../components/GenericModuleHeader'
 
 export function SalesAndRevenueLayout({ children }: { children: ReactNode }) {
   return (
@@ -8,9 +9,9 @@ export function SalesAndRevenueLayout({ children }: { children: ReactNode }) {
         <SalesAndRevenueSidebar />
       </div>
       <div className="flex flex-1 flex-col min-w-0">
-        <header className="flex h-16 shrink-0 items-center border-b border-slate-200 bg-white px-8">
-          <h1 className="text-xl font-semibold text-slate-800">Sales & Revenue</h1>
-        </header>
+        <div className="flex-shrink-0">
+          <GenericModuleHeader title="Sales & Revenue" />
+        </div>
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {children}
         </main>

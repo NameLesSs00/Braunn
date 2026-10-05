@@ -1,10 +1,21 @@
-import { apiRequest, unwrapApiResponse } from './apiClient'
+import { apiRequest, unwrapApiResponse, PaginatedResponse } from './apiClient'
 import type { CreateGuestRequest, Guest, UpdateGuestRequest } from '../../models/Guest'
 
 const basePath = 'pms/guests'
 
-export function getGuests(signal?: AbortSignal) {
-  return apiRequest<unknown>({ method: 'GET', path: basePath, signal }).then((r) => unwrapApiResponse<Guest[]>(r))
+export function getGuests(params?: { pageNumber?: number; pageSize?: number; search?: string; status?: string; guestType?: string; roomType?: string; checkInFrom?: string; checkInTo?: string }, signal?: AbortSignal) {
+  const p = params || { pageNumber: 1, pageSize: 50 }
+  const urlParams = new URLSearchParams()
+  urlParams.append('pageNumber', String(p.pageNumber || 1))
+  urlParams.append('pageSize', String(p.pageSize || 50))
+  if (p.search) urlParams.append('search', p.search)
+  if (p.status && p.status !== 'all') urlParams.append('status', p.status)
+  if (p.guestType && p.guestType !== 'all') urlParams.append('guestType', p.guestType)
+  if (p.roomType && p.roomType !== 'all') urlParams.append('roomType', p.roomType)
+  if (p.checkInFrom) urlParams.append('checkInFrom', p.checkInFrom)
+  if (p.checkInTo) urlParams.append('checkInTo', p.checkInTo)
+
+  return apiRequest<unknown>({ method: 'GET', path: `${basePath}?${urlParams.toString()}`, signal }).then((r) => unwrapApiResponse<PaginatedResponse<Guest>>(r))
 }
 
 export function getGuestById(id: string, signal?: AbortSignal) {

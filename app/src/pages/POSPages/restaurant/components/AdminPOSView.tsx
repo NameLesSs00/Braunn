@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { PosHeaderProfile } from './PosHeaderProfile'
+import { SettingsTab, ProductsTab, WarehouseTab, CouponsTab } from './AdminPOSNewTabs'
+import { InventoryManagementTab } from './inventory/InventoryTab'
 import {
   BarChart3,
   Bell,
@@ -7,6 +10,7 @@ import {
   CalendarDays,
   AlertTriangle,
   Box,
+  Building2,
   CheckCircle2,
   ChefHat,
   ChevronDown,
@@ -26,8 +30,10 @@ import {
   ReceiptText,
   RefreshCw,
   Search,
+  Settings,
   ShoppingCart,
   Soup,
+  Ticket,
   Trash2,
   User,
   UserRound,
@@ -35,6 +41,7 @@ import {
   Utensils,
   UploadCloud,
   X,
+  LayoutGrid,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -48,7 +55,7 @@ import {
 } from 'recharts'
 import { routes } from '../../../../shared/lib/routes'
 
-type AdminTabKey = 'dashboard' | 'liveOrders' | 'reservationsMeals' | 'menuManagement' | 'inventory' | 'reports'
+type AdminTabKey = 'dashboard' | 'liveOrders' | 'reservationsMeals' | 'menuManagement' | 'inventory' | 'reports' | 'settings' | 'products' | 'warehouse' | 'coupons'
 type PaymentMethod = 'Cash' | 'Card' | 'Charge to Room'
 
 type AdminNavItem = {
@@ -65,6 +72,10 @@ const adminNavItems: AdminNavItem[] = [
   { key: 'menuManagement', label: 'Menu Management', icon: ReceiptText, to: routes.pos.admin.menuManagement },
   { key: 'inventory', label: 'Inventory', icon: Package, to: routes.pos.admin.inventory },
   { key: 'reports', label: 'Reports', icon: ClipboardList, to: routes.pos.admin.reports },
+  { key: 'settings', label: 'Settings', icon: Settings, to: routes.pos.admin.settings.root },
+  { key: 'products', label: 'Products', icon: Box, to: routes.pos.admin.products },
+  { key: 'warehouse', label: 'Warehouse', icon: Building2, to: routes.pos.admin.warehouse },
+  { key: 'coupons', label: 'Coupons', icon: Ticket, to: routes.pos.admin.coupons.root },
 ]
 
 const revenueData = [
@@ -472,7 +483,7 @@ function ProcessPaymentModal({
         <h2 className="text-base font-normal text-slate-900">Process Payment</h2>
         <div className="mt-5 rounded-lg bg-slate-50 px-4 py-4">
           <div className="flex items-center justify-between text-base text-slate-900">
-            <span>Order ID:</span>
+            <span>Order No.:</span>
             <span>ORD-1781684945310</span>
           </div>
           <div className="mt-2 flex items-center justify-between text-2xl text-slate-900">
@@ -549,7 +560,7 @@ function PaymentSuccessModal({
         </div>
 
         <div className="mt-5 space-y-3 text-sm">
-          <div className="flex justify-between"><span className="text-slate-500">Order ID:</span><span>ORD-1781684945310</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Order No.:</span><span>ORD-1781684945310</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Date:</span><span>6/17/2026, 11:29:05 AM</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Type:</span><span>Dine In</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Table:</span><span>3</span></div>
@@ -1030,6 +1041,21 @@ function AdminSidebar({ activeKey }: { activeKey: AdminTabKey }) {
           )
         })}
       </nav>
+
+      {/* Back to System Selection */}
+      <div className="flex-shrink-0 grid grid-cols-[44px_1fr] border-t border-transparent">
+        <div className="bg-[#0B4EA2]" />
+        <button
+          type="button"
+          onClick={() => {
+            window.location.href = routes.systems
+          }}
+          className="flex items-center gap-2 px-5 py-4 text-[13px] font-semibold text-[#0B4EA2] hover:bg-[#EEF4FF] transition-colors w-full text-left"
+        >
+          <LayoutGrid className="h-4 w-4 shrink-0" />
+          Back to System Selection
+        </button>
+      </div>
     </aside>
   )
 }
@@ -1038,17 +1064,9 @@ function AdminHeader({ title }: { title: string }) {
   const navigate = useNavigate()
 
   return (
-    <header className="flex h-20 flex-shrink-0 items-center justify-between gap-5 border-b border-slate-200 bg-white px-5 shadow-sm">
-      <h1 className="text-[28px] font-semibold text-slate-800">{title}</h1>
+    <header className="flex flex-shrink-0 items-center justify-between gap-5 border-b border-slate-200 bg-white px-5 py-4 shadow-sm">
+      <h1 className="text-[22px] font-semibold text-slate-800">{title}</h1>
       <div className="flex items-center gap-5">
-        <button
-          type="button"
-          className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
-          onClick={() => navigate(routes.systems)}
-        >
-          <LayoutDashboard className="h-4 w-4" />
-          Switch system
-        </button>
         <button
           type="button"
           className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#0B4EA2] px-9 text-[20px] font-semibold text-white shadow-sm hover:bg-[#093f82]"
@@ -1061,15 +1079,7 @@ function AdminHeader({ title }: { title: string }) {
           <Bell className="h-8 w-8 text-slate-700" />
           <span className="absolute right-0 top-1 h-2 w-2 rounded-full bg-rose-500" />
         </div>
-        <div className="flex min-w-[200px] items-center gap-3 rounded-l-[28px] bg-white px-2 py-2 shadow-sm">
-          <div className="grid h-10 w-10 place-items-center rounded-full bg-[#DCEBFF]">
-            <User className="h-6 w-6 fill-slate-950 text-slate-950" />
-          </div>
-          <div>
-            <div className="text-sm font-medium text-slate-900">Name+ Manager</div>
-            <div className="mt-1 text-sm text-slate-500">Morning Shift</div>
-          </div>
-        </div>
+        <PosHeaderProfile name="Name+ Manager" role="Morning Shift" theme="light" />
       </div>
     </header>
   )
@@ -1280,7 +1290,7 @@ function LiveOrdersTab({ onPay }: { onPay: () => void }) {
           <Search className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input
             className="h-10 w-full rounded-lg border border-slate-300 px-4 pr-11 text-base outline-none placeholder:text-slate-400 focus:border-[#0B4EA2]"
-            placeholder="Search by order ID, table number, room..."
+            placeholder="Search by order number, table number, room..."
           />
         </div>
         <button className="ml-auto grid h-10 w-10 place-items-center text-slate-500" type="button" aria-label="Filter orders">
@@ -1314,7 +1324,7 @@ function LiveOrdersTab({ onPay }: { onPay: () => void }) {
         </div>
 
         <div className="grid h-10 grid-cols-[1fr_1.25fr_1.35fr_1fr_0.9fr_0.9fr_0.9fr] items-center bg-slate-50 px-4 text-xs font-bold uppercase text-slate-500">
-          <div>Order ID</div>
+          <div>Order No.</div>
           <div>Date & Time</div>
           <div>Customer</div>
           <div>Type</div>
@@ -1894,7 +1904,7 @@ function MenuManagementTab() {
   )
 }
 
-function InventoryTab() {
+export function InventoryTab() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false)
   const [ingredientModalOpen, setIngredientModalOpen] = useState(false)
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false)
@@ -2074,7 +2084,7 @@ function OrderDetailsDrawer({ open, onClose }: { open: boolean; onClose: () => v
         <section>
           <h3 className="text-sm font-bold uppercase tracking-wide text-slate-900">Order Information</h3>
           <div className="mt-5 space-y-4 text-sm">
-            <div className="flex justify-between"><span className="text-slate-500">Order ID</span><span className="flex items-center gap-2 font-semibold">{orderDetails.id}<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">{orderDetails.status}</span></span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Order No.</span><span className="flex items-center gap-2 font-semibold">{orderDetails.id}<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">{orderDetails.status}</span></span></div>
             <div className="flex justify-between"><span className="text-slate-500">Order Date</span><span className="font-semibold">{orderDetails.date}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Order Type</span><span className="font-semibold">{orderDetails.type}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Payment Method</span><span className="font-semibold">{orderDetails.paymentMethod}</span></div>
@@ -2194,7 +2204,7 @@ function OrdersRevenueModal({
           <div className="mt-5 flex items-end gap-5">
             <div className="relative w-[493px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              <input className="h-12 w-full rounded-lg border border-slate-200 pl-9 pr-3 outline-none placeholder:text-slate-500 focus:border-[#0B4EA2]" placeholder="Search by order ID..." />
+              <input className="h-12 w-full rounded-lg border border-slate-200 pl-9 pr-3 outline-none placeholder:text-slate-500 focus:border-[#0B4EA2]" placeholder="Search by order number..." />
             </div>
             <label className="text-base font-medium text-slate-900">
               Status
@@ -2385,8 +2395,12 @@ function AdminContent({
   if (activeKey === 'liveOrders') return <LiveOrdersTab onPay={onPay} />
   if (activeKey === 'reservationsMeals') return <ReservationsMealsTab />
   if (activeKey === 'menuManagement') return <MenuManagementTab />
-  if (activeKey === 'inventory') return <InventoryTab />
+  if (activeKey === 'inventory') return <InventoryManagementTab />
   if (activeKey === 'reports') return <ReportsTab />
+  if (activeKey === 'settings') return <SettingsTab />
+  if (activeKey === 'products') return <ProductsTab />
+  if (activeKey === 'warehouse') return <WarehouseTab />
+  if (activeKey === 'coupons') return <CouponsTab />
 
   return <DashboardTab onReserveTable={onReserveTable} />
 }

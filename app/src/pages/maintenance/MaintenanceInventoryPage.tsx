@@ -1,19 +1,14 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   AlertTriangle,
   ArrowDownToLine,
-  ChevronLeft,
-  ChevronRight,
   Download,
-  Eye,
   FileSearch,
-  Filter,
   Folder,
   PackagePlus,
   Pencil,
   Search,
   ShoppingCart,
-  Wrench,
   Loader2,
   X,
   Check,
@@ -40,7 +35,7 @@ import {
 } from '../../features/maintenance/maintenancePurchasesSlice'
 import { fetchMaintenanceCategories } from '../../features/maintenance/maintenanceCategoriesSlice'
 import { fetchMaintenanceUnits } from '../../features/maintenance/maintenanceUnitsSlice'
-import { fetchPmsRooms } from '../../features/maintenance/pmsRoomsSlice'
+import { fetchPmsRooms } from '../../features/pmsRooms/pmsRoomsSlice'
 
 import type { PurchaseStatus, PurchaseStatusAction } from '../../models/MaintenancePurchase'
 import { getAvailablePurchaseActions } from '../../models/MaintenancePurchase'
@@ -98,7 +93,7 @@ function useDebouncedFetch<T extends any[]>(
   delay: number = 300
 ) {
   const dispatch = useAppDispatch()
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const promiseRef = useRef<{ abort: () => void } | null>(null)
 
   return (...args: T) => {
@@ -522,7 +517,7 @@ function ItemFormModal({ open, onClose, editingItem }: { open: boolean; onClose:
   const handleSubmit = async () => {
     const payload = {
       name, categoryId, unitId, manufactureName, warranty, code,
-      price, type, minimum, maximum, location, notes
+      price, type, minimum, maximum, location, notes, quantity: editingItem?.quantity || 0
     }
 
     if (editingItem) {

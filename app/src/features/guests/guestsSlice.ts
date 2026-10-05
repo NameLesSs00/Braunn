@@ -8,6 +8,9 @@ type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
 
 type GuestsState = {
   items: Guest[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
   selected?: Guest
   status: AsyncStatus
   error?: string
@@ -15,14 +18,18 @@ type GuestsState = {
 
 const initialState: GuestsState = {
   items: [],
+  totalCount: 0,
+  totalPages: 1,
+  currentPage: 1,
   selected: undefined,
   status: 'idle',
   error: undefined,
 }
 
-export const fetchGuests = createAsyncThunk('guests/fetchAll', async (_, thunkApi) => {
+export const fetchGuests = createAsyncThunk('guests/fetchAll', async (params: { pageNumber?: number; pageSize?: number; search?: string; status?: string; guestType?: string; roomType?: string; checkInFrom?: string; checkInTo?: string } | void, thunkApi) => {
   try {
-    return await api.getGuests(thunkApi.signal)
+    const res = await api.getGuests(params || undefined, thunkApi.signal)
+    return res
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to load guests'
     return thunkApi.rejectWithValue(message)
@@ -98,7 +105,10 @@ const guestsSlice = createSlice({
       })
       .addCase(fetchGuests.fulfilled, (state, action) => {
         state.status = 'succeeded'
-        state.items = action.payload
+        state.items = action.payload.items
+        state.totalCount = action.payload.totalCount
+        state.totalPages = action.payload.totalPages
+        state.currentPage = action.payload.pageNumber
       })
       .addCase(fetchGuests.rejected, (state, action) => {
         state.status = 'failed'

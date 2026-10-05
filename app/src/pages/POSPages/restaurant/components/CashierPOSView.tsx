@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { NavLink, useNavigate, useSearchParams } from 'react-router-dom'
+import { PosHeaderProfile } from './PosHeaderProfile'
 import {
   Bell,
   CalendarDays,
@@ -14,7 +15,6 @@ import {
   DollarSign,
   Filter,
   Hotel,
-  LayoutDashboard,
   MoreVertical,
   Minus,
   Pause,
@@ -30,13 +30,13 @@ import {
   Soup,
   Table2,
   Trash2,
-  User,
   UserRound,
   Users,
   Utensils,
   Pencil,
   Phone,
   X,
+  LayoutGrid,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { routes } from '../../../../shared/lib/routes'
@@ -230,6 +230,7 @@ function formatMoney(value: number) {
 }
 
 function PosSidebar({ search }: { search: string }) {
+  const navigate = useNavigate()
   const pathWithSearch = (path: string) => `${path}${search}`
 
   return (
@@ -295,6 +296,19 @@ function PosSidebar({ search }: { search: string }) {
           )
         })}
       </nav>
+
+      {/* Back to System Selection */}
+      <div className="flex-shrink-0 grid grid-cols-[44px_1fr] border-t border-transparent">
+        <div className="bg-[#0B4EA2]" />
+        <button
+          type="button"
+          onClick={() => navigate(routes.systems)}
+          className="flex items-center gap-2 px-5 py-4 text-[13px] font-semibold text-[#0B4EA2] hover:bg-[#EEF4FF] transition-colors w-full text-left"
+        >
+          <LayoutGrid className="h-4 w-4 shrink-0" />
+          Back to System Selection
+        </button>
+      </div>
     </aside>
   )
 }
@@ -481,7 +495,7 @@ function OrdersView({ onPay }: { onPay: () => void }) {
           <Search className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input
             className="h-10 w-full rounded-lg border border-slate-300 px-4 pr-11 text-base outline-none placeholder:text-slate-400 focus:border-[#0B4EA2]"
-            placeholder="Search by order ID, table number, room..."
+            placeholder="Search by order number, table number, room..."
           />
         </div>
         <Filter className="ml-auto h-5 w-5 text-slate-500" />
@@ -497,7 +511,7 @@ function OrdersView({ onPay }: { onPay: () => void }) {
 
       <div className="mt-12 overflow-hidden rounded-lg border border-slate-100 bg-white shadow-sm">
         <div className="grid h-[52px] grid-cols-[1.1fr_1fr_1.2fr_1fr_1fr_1.2fr_1.1fr_1fr_1fr] items-center bg-slate-50 px-6 text-sm font-semibold text-slate-600">
-          <div>Order ID</div>
+          <div>Order No.</div>
           <div>Type</div>
           <div>Location</div>
           <div>Items</div>
@@ -590,7 +604,7 @@ function ProcessPaymentModal({
         <h2 className="text-base font-normal text-slate-900">Process Payment</h2>
         <div className="mt-5 rounded-lg bg-slate-50 px-4 py-4">
           <div className="flex items-center justify-between text-base text-slate-900">
-            <span>Order ID:</span>
+            <span>Order No.:</span>
             <span>{pendingOrder.id}</span>
           </div>
           <div className="mt-2 flex items-center justify-between text-2xl text-slate-900">
@@ -666,7 +680,7 @@ function PaymentSuccessModal({
         </div>
 
         <div className="mt-5 space-y-3 text-sm">
-          <div className="flex justify-between"><span className="text-slate-500">Order ID:</span><span>{pendingOrder.id}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Order No.:</span><span>{pendingOrder.id}</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Date:</span><span>6/17/2026, 11:29:05 AM</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Type:</span><span>Dine In</span></div>
           <div className="flex justify-between"><span className="text-slate-500">Table:</span><span>3</span></div>
@@ -1212,17 +1226,6 @@ function GuestMealsView() {
   )
 }
 
-function PosPlaceholder({ title }: { title: Exclude<PosSection, 'Menu' | 'Orders'> }) {
-  return (
-    <section className="flex min-h-0 flex-1 items-center justify-center bg-white px-8">
-      <div className="text-center">
-        <div className="text-2xl font-semibold text-slate-800">{title}</div>
-        <div className="mt-2 text-sm text-slate-500">This POS route is ready for its detailed screen.</div>
-      </div>
-    </section>
-  )
-}
-
 export function CashierPOSView({ section }: { section: PosSection }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -1311,20 +1314,12 @@ export function CashierPOSView({ section }: { section: PosSection }) {
         <PosSidebar search={routeSearch} />
 
         <main className="flex min-w-0 flex-col overflow-hidden">
-          <header className="flex h-20 flex-shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-5 shadow-sm xl:px-6">
+          <header className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-5 py-4 shadow-sm xl:px-6">
             <div className="flex items-center gap-4">
               <img src="/assets/Asset 9 1.svg" alt="Braun" className="h-10 w-auto lg:hidden" />
-              <h1 className="text-[26px] font-semibold text-slate-800">{pageTitle}</h1>
+              <h1 className="text-[22px] font-semibold text-slate-800">{pageTitle}</h1>
             </div>
             <div className="flex items-center justify-end gap-8">
-              <button
-                type="button"
-                className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
-                onClick={() => navigate(routes.systems)}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Switch system
-              </button>
               <button
                 type="button"
                 className="flex h-10 items-center gap-1 rounded-2xl bg-[#0B4EA2] px-2.5 pr-4 text-[21px] font-semibold text-white"
@@ -1339,15 +1334,7 @@ export function CashierPOSView({ section }: { section: PosSection }) {
                 <Bell className="h-8 w-8 text-slate-700" />
                 <span className="absolute right-0 top-1 h-1.5 w-1.5 rounded-full bg-rose-500" />
               </div>
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-full bg-[#DCEBFF]">
-                  <User className="h-6 w-6 fill-slate-950 text-slate-950" />
-                </div>
-                <div>
-                  <div className="text-base text-slate-900">cashier name</div>
-                  <div className="text-sm text-slate-500">Morning Shift</div>
-                </div>
-              </div>
+              <PosHeaderProfile name="cashier name" role="Morning Shift" theme="light" />
             </div>
           </header>
 

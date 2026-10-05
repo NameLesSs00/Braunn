@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => ({
     },
     // proxy: {
     //   '/api': {
-    //     target: 'https://pms.premiumasp.net',
+    //     target: 'https://pmss.runasp.net',
     //     changeOrigin: true,
     //     ws: true,
     //   },

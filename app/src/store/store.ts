@@ -13,6 +13,7 @@ import { packagesReducer } from '../features/packages/packagesSlice'
 
 import { authReducer } from '../features/auth/authSlice'
 
+import { pmsRoomsReducer } from '../features/pmsRooms/pmsRoomsSlice'
 import { pmsReducer } from '../features/pms/pmsSlice'
 import { financialSettingsReducer } from '../features/adminFinancialSettings/financialSettingsSlice'
 import { reportsReducer } from '../features/reports/reportsSlice'
@@ -24,6 +25,8 @@ import perPersonPricingReducer from '../features/perPersonPricing/perPersonPrici
 import groupPricingReducer from '../features/groupPricing/groupPricingSlice'
 import { localAriReducer } from '../features/localAri/localAriSlice'
 import { corporateAccountsReducer } from '../features/corporateAccounts/corporateAccountsSlice'
+import { ownersReducer } from '../features/accounting/ownersSlice'
+import { roomManagementContractsReducer } from '../features/accounting/roomManagementContractsSlice'
 import groupContractReducer from '../features/GroupContract/GroupContractSlice'
 import { localReservationsReducer } from '../features/localReservations/localReservationsSlice'
 import { hkmInventoryUnitsReducer } from '../features/HKfeatures/hkmInventoryUnits/hkmInventoryUnitsSlice'
@@ -63,7 +66,15 @@ import { maintenanceCategoriesReducer } from '../features/maintenance/maintenanc
 import { maintenanceUnitsReducer } from '../features/maintenance/maintenanceUnitsSlice'
 import { maintenanceRequestsReducer } from '../features/maintenance/maintenanceRequestsSlice'
 import { preventiveMaintenanceReducer } from '../features/maintenance/preventiveMaintenanceSlice'
-
+import { restaurantUnitsReducer } from '../features/restaurant/restaurantUnitsSlice'
+import { restaurantMaterialsReducer } from '../features/restaurant/restaurantMaterialsSlice'
+import { restaurantProductsReducer } from '../features/restaurant/restaurantProductsSlice'
+import { restaurantMealsReducer } from '../features/restaurant/restaurantMealsSlice'
+import { restaurantCouponsReducer } from '../features/restaurant/restaurantCouponsSlice'
+import { restaurantRestaurantsReducer } from '../features/restaurant/restaurantRestaurantsSlice'
+import { restaurantWarehousesReducer } from '../features/restaurant/restaurantWarehousesSlice'
+import { restaurantInventoryReducer } from '../features/restaurant/restaurantInventorySlice'
+import { restaurantMaterialRequestsReducer } from '../features/restaurant/restaurantMaterialRequestsSlice'
 export const store = configureStore({
   reducer: {
     roomTypes: roomTypesReducer,
@@ -80,6 +91,7 @@ export const store = configureStore({
 
     auth: authReducer,
 
+    pmsRooms: pmsRoomsReducer,
     pms: pmsReducer,
     financialSettings: financialSettingsReducer,
     reports: reportsReducer,
@@ -91,6 +103,8 @@ export const store = configureStore({
     groupPricing: groupPricingReducer,
     localAri: localAriReducer,
     corporateAccounts: corporateAccountsReducer,
+    owners: ownersReducer,
+    roomManagementContracts: roomManagementContractsReducer,
     groupContract: groupContractReducer,
     localReservations: localReservationsReducer,
     hkmInventoryUnits: hkmInventoryUnitsReducer,
@@ -130,6 +144,15 @@ export const store = configureStore({
     maintenanceUnits: maintenanceUnitsReducer,
     maintenanceRequests: maintenanceRequestsReducer,
     preventiveMaintenance: preventiveMaintenanceReducer,
+    restaurantUnits: restaurantUnitsReducer,
+    restaurantMaterials: restaurantMaterialsReducer,
+    restaurantProducts: restaurantProductsReducer,
+    restaurantMeals: restaurantMealsReducer,
+    restaurantCoupons: restaurantCouponsReducer,
+    restaurantRestaurants: restaurantRestaurantsReducer,
+    restaurantWarehouses: restaurantWarehousesReducer,
+    restaurantInventory: restaurantInventoryReducer,
+    restaurantMaterialRequests: restaurantMaterialRequestsReducer,
   },
 })
 

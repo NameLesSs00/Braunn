@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 
 import { routes } from '../../../shared/lib/routes'
 import { translateAppText } from '../../../shared/lib/appTranslation'
@@ -12,7 +12,8 @@ import { LuUserX } from "react-icons/lu";
 import { GiMagicBroom } from "react-icons/gi";
 import { RiServiceBellLine } from "react-icons/ri";
 import { IoMdListBox } from "react-icons/io";
-import { FaBed , FaArrowTrendUp } from "react-icons/fa6";
+import { FaBed } from "react-icons/fa6";
+import { LayoutGrid } from 'lucide-react'
 
 type NavItem = {
   to: string
@@ -34,7 +35,6 @@ const secondaryNavItems: NavItem[] = [
   { to: routes.servicesRequests, label: 'Services & Requests', iconSrc: RiServiceBellLine },
   { to: routes.inHouseList, label: 'In House list', iconSrc: IoMdListBox },
   { to: routes.roomAllocation, label: 'Room Allocation', iconSrc: FaBed },
-  { to: routes.salesRevenue.dashboard, label: 'Sales & Revenue', iconSrc: FaArrowTrendUp },
   { to: routes.policies.corporateCancellation, label: 'Policies', iconSrc: MdOutlinePolicy },
 ]
 
@@ -92,6 +92,8 @@ function SidebarLink({ item }: { item: NavItem }) {
 }
 
 export function Sidebar() {
+  const navigate = useNavigate()
+
   return (
     <aside
       className="h-full w-[260px] shadow-sm flex flex-col"
@@ -118,6 +120,19 @@ export function Sidebar() {
             <SidebarLink key={item.to} item={item} />
           ))}
         </nav>
+      </div>
+
+      {/* Back to System Selection */}
+      <div className="flex-shrink-0 grid grid-cols-[44px_1fr] border-t border-transparent">
+        <div className="bg-[#0B4EA2]" />
+        <button
+          type="button"
+          onClick={() => navigate(routes.systems)}
+          className="flex items-center gap-2 px-5 py-4 text-[13px] font-semibold text-[#0B4EA2] hover:bg-[#EEF4FF] transition-colors w-full text-left"
+        >
+          <LayoutGrid className="h-4 w-4 shrink-0" />
+          Back to System Selection
+        </button>
       </div>
     </aside>
   )

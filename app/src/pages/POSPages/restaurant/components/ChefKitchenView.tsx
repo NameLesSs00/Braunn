@@ -1,9 +1,9 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, CheckCircle2, ChefHat, Clock, Flame, LayoutDashboard, User } from 'lucide-react'
+import { PosHeaderProfile } from './PosHeaderProfile'
+import { Bell, CheckCircle2, ChefHat, Clock, Flame, } from 'lucide-react'
 import type { KitchenOrder, KitchenOrderStatus } from '../data/restaurantPOSData'
 import { initialKitchenOrders } from '../data/restaurantPOSData'
-import { routes } from '../../../../shared/lib/routes'
 
 const columnConfig: Record<
   KitchenOrderStatus,
@@ -121,8 +121,7 @@ function KitchenOrderCard({
 }
 
 export function ChefKitchenView() {
-  const navigate = useNavigate()
-  const [orders, setOrders] = useState<KitchenOrder[]>(initialKitchenOrders)
+    const [orders, setOrders] = useState<KitchenOrder[]>(initialKitchenOrders)
 
   const counts = useMemo(() => {
     return {
@@ -156,35 +155,19 @@ export function ChefKitchenView() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden text-white" style={{ backgroundColor: '#082F68' }}>
       <header
-        className="flex min-h-[88px] flex-wrap items-center justify-between gap-4"
+        className="flex flex-wrap items-center justify-between gap-4"
         style={{
           backgroundColor: '#0A3977',
-          padding: '18px clamp(20px, 5vw, 80px)',
+          padding: '16px clamp(20px, 5vw, 80px)',
         }}
       >
         <div className="flex items-center gap-4 sm:gap-6">
           <img src="/assets/logoCheff.png" alt="Braun" className="h-[62px] w-auto" />
-          <h1 className="text-2xl font-semibold">Kitchen Screen</h1>
+          <h1 className="text-[22px] font-semibold">Kitchen Screen</h1>
         </div>
         <div className="flex items-center gap-5 sm:gap-8">
-          <button
-            type="button"
-            className="flex h-10 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white transition-colors hover:bg-white/15"
-            onClick={() => navigate(routes.systems)}
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            Switch system
-          </button>
           <Bell className="h-7 w-7 text-white" />
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-[#DCEBFF]">
-              <User className="h-6 w-6 fill-white text-white" />
-            </div>
-            <div>
-              <div className="text-base text-white">chef name</div>
-              <div className="text-sm text-white/65">Morning Shift</div>
-            </div>
-          </div>
+          <PosHeaderProfile name="chef name" role="Morning Shift" theme="dark" />
         </div>
       </header>
 

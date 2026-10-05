@@ -48,7 +48,7 @@ export function AddLostFoundModal({ isOpen, onClose }: AddLostFoundModalProps) {
         dispatch(fetchLostFoundCategories());
       }
       dispatch(fetchHrEmployees({ PageSize: 100, PageNumber: 1 }));
-      getRooms().then(data => setRooms(data || [])).catch(e => console.error(e));
+      getRooms({ pageSize: 1000 }).then(data => setRooms(data?.items || [])).catch(e => console.error(e));
     }
   }, [isOpen, catStatus, dispatch]);
 
@@ -60,8 +60,9 @@ export function AddLostFoundModal({ isOpen, onClose }: AddLostFoundModalProps) {
     setSelectedGuest(null);
     try {
       const g = await searchGuests(searchQuery);
-      if (g && Array.isArray(g) && g.length > 0) {
-        setGuestsResult(g);
+      const items = (g as any)?.items || (Array.isArray(g) ? g : []);
+      if (items.length > 0) {
+        setGuestsResult(items);
       } else {
         setGuestSearchError('No guests found');
       }

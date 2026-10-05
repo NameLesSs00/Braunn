@@ -29,11 +29,11 @@ export function QuickWithdrawModal({ isOpen, onClose, initialItem }: QuickWithdr
   // Fetch dirty rooms on mount
   useEffect(() => {
     if (isOpen) {
-      getRooms()
+      getRooms({ pageSize: 1000 })
         .then((data) => {
           // The mock response returns strings for status, though Room type says number.
           // We filter by "Dirty" (case-insensitive).
-          const dirtyRooms = data.filter(
+          const dirtyRooms = data.items.filter(
             (r) => String(r.status).toLowerCase() === 'dirty'
           );
           setRooms(dirtyRooms);

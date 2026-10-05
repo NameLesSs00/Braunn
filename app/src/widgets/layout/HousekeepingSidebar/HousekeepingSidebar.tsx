@@ -1,9 +1,10 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
 import { IoHomeOutline, IoSettingsOutline } from 'react-icons/io5'
 import { MdOutlineCleaningServices } from 'react-icons/md'
 import { FiFileText, FiArchive, FiBox } from 'react-icons/fi'
 import { BsBuilding } from 'react-icons/bs'
+import { LayoutGrid } from 'lucide-react'
 import type { IconType } from 'react-icons'
 
 type NavItem = {
@@ -71,6 +72,8 @@ function HousekeepingSidebarLink({ item }: { item: NavItem }) {
 }
 
 export function HousekeepingSidebar() {
+  const navigate = useNavigate()
+
   return (
     <aside
       className="h-full w-[260px] shadow-sm flex flex-col"
@@ -94,6 +97,19 @@ export function HousekeepingSidebar() {
             <HousekeepingSidebarLink key={item.to} item={item} />
           ))}
         </nav>
+      </div>
+
+      {/* Back to System Selection */}
+      <div className="flex-shrink-0 grid grid-cols-[44px_1fr] border-t border-transparent">
+        <div className="bg-[#0B4EA2]" />
+        <button
+          type="button"
+          onClick={() => navigate(routes.systems)}
+          className="flex items-center gap-2 px-5 py-4 text-[13px] font-semibold text-[#0B4EA2] hover:bg-[#EEF4FF] transition-colors w-full text-left"
+        >
+          <LayoutGrid className="h-4 w-4 shrink-0" />
+          Back to System Selection
+        </button>
       </div>
     </aside>
   )

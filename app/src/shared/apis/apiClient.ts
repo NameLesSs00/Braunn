@@ -14,6 +14,16 @@ export type ApiResponse<T> = {
   errors: unknown
 }
 
+export type PaginatedResponse<T> = {
+  items: T[]
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
   (import.meta.env.DEV ? '/api' : '/api')

@@ -10,6 +10,9 @@ type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
 type HousekeepingState = {
   rooms: HousekeepingRoom[]
   pmsRooms: Room[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
   status: AsyncStatus
   error?: string
 }
@@ -17,6 +20,9 @@ type HousekeepingState = {
 const initialState: HousekeepingState = {
   rooms: [],
   pmsRooms: [],
+  totalCount: 0,
+  totalPages: 1,
+  currentPage: 1,
   status: 'idle',
   error: undefined,
 }
@@ -30,9 +36,10 @@ export const fetchHousekeepingRooms = createAsyncThunk('housekeeping/fetchRooms'
   }
 })
 
-export const fetchAllRooms = createAsyncThunk('housekeeping/fetchAllRooms', async (_, thunkApi) => {
+export const fetchAllRooms = createAsyncThunk('housekeeping/fetchAllRooms', async (params: { pageNumber?: number; pageSize?: number; search?: string; status?: string; roomType?: string } | void, thunkApi) => {
   try {
-    return await roomsApi.getRooms(thunkApi.signal)
+    const res = await roomsApi.getRooms(params || undefined, thunkApi.signal)
+    return res
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to load all rooms'
     return thunkApi.rejectWithValue(message)
@@ -80,7 +87,10 @@ const housekeepingSlice = createSlice({
       })
       .addCase(fetchAllRooms.fulfilled, (state, action) => {
         state.status = 'succeeded'
-        state.pmsRooms = action.payload
+        state.pmsRooms = action.payload.items
+        state.totalCount = action.payload.totalCount
+        state.totalPages = action.payload.totalPages
+        state.currentPage = action.payload.pageNumber
       })
       .addCase(fetchAllRooms.rejected, (state, action) => {
         state.status = 'failed'
