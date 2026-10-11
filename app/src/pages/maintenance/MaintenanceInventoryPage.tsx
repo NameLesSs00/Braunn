@@ -234,13 +234,19 @@ function QuickWithdrawModal({ open, onClose }: { open: boolean; onClose: () => v
   const roomOptions = rooms.map(r => ({ id: r.id, name: r.roomNumber }))
 
   return (
-    <Modal open={open} onClose={onClose} closeOnBackdrop={false} disableEscape>
+    <Modal open={open} onClose={onClose} closeOnBackdrop={true}>
       <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
         <div className="mb-5 flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-slate-800">Quick Withdraw</h3>
           </div>
-          <button type="button" disabled={isLoading} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 disabled:opacity-50 cursor-default">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            aria-label="Close"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -333,16 +339,29 @@ function NewPurchaseRequestModal({ open, onClose, defaultItemId }: { open: boole
   const isLoading = createStatus === 'loading'
   const requestedBy = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.fullName || 'System User' : 'System User'
 
+  useEffect(() => {
+    if (!open) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isLoading) {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open, isLoading, onClose])
+
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between bg-[#004BB5] px-6 py-4 text-white">
           <h2 className="text-lg font-semibold">New Purchase Request</h2>
           <button
-            className="text-white hover:opacity-80 transition-opacity disabled:opacity-50 cursor-default"
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1 text-white hover:bg-white/15 transition disabled:opacity-50 cursor-pointer"
             disabled={isLoading}
             aria-label="Close"
           >
@@ -532,14 +551,20 @@ function ItemFormModal({ open, onClose, editingItem }: { open: boolean; onClose:
   const isLoading = createStatus === 'loading' || updateStatus === 'loading'
 
   return (
-    <Modal open={open} onClose={onClose} closeOnBackdrop={false} disableEscape>
+    <Modal open={open} onClose={onClose} closeOnBackdrop={true}>
       <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="mb-5 flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-slate-800">{editingItem ? 'Edit' : 'Add New'} Spare Part</h3>
             <p className="text-sm text-slate-500">Capture an inventory item to keep the spare-parts list up to date.</p>
           </div>
-          <button type="button" disabled={isLoading} className="rounded-lg border border-slate-200 p-2 text-slate-600 disabled:opacity-50 cursor-default">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            aria-label="Close"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>

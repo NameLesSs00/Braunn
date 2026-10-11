@@ -67,7 +67,6 @@ export const englishRoutes = {
     shiftManagement: '/HRM/ShiftManagement',
     attendance: '/HRM/Attendance',
     leaveManagement: '/HRM/LeaveManagement',
-    departments: '/HRM/Departments',
     salaryIncrements: '/HRM/SalaryIncrements',
     payroll: '/HRM/Payroll',
     setting: {
@@ -118,6 +117,12 @@ export const englishRoutes = {
   purchase: {
     root: '/purchase',
     dashboard: '/purchase/dashboard',
+    suppliers: '/purchase/suppliers',
+    supplierPurchases: '/purchase/supplier-purchases',
+    advances: '/purchase/advances',
+    installments: '/purchase/installments',
+    transactions: '/purchase/transactions',
+    transfers: '/purchase/transfers',
   },
   accounting: {
     root: '/accounting',
@@ -200,7 +205,6 @@ export const germanRoutes = {
     shiftManagement: '/personalwesen/schichtplanung',
     attendance: '/personalwesen/anwesenheit',
     leaveManagement: '/personalwesen/abwesenheiten',
-    departments: '/personalwesen/abteilungen',
     salaryIncrements: '/personalwesen/gehaltserhoehungen',
     payroll: '/personalwesen/lohnabrechnung',
     setting: {
@@ -251,6 +255,12 @@ export const germanRoutes = {
   purchase: {
     root: '/einkauf',
     dashboard: '/einkauf/uebersicht',
+    suppliers: '/purchase/suppliers',
+    supplierPurchases: '/purchase/supplier-purchases',
+    advances: '/purchase/advances',
+    installments: '/purchase/installments',
+    transactions: '/purchase/transactions',
+    transfers: '/purchase/transfers',
   },
   accounting: {
     root: '/buchhaltung',

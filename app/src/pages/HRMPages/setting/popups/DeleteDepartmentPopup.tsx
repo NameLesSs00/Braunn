@@ -6,7 +6,9 @@ import type { AppDispatch } from '../../../../store/store';
 import {
   deleteDepartment,
   fetchDepartments,
+  clearDepartmentsError,
 } from '../../../../features/HRMfeatures/departments/departmentsSlice';
+import { showPromiseToast } from '../../../../shared/ui/toastFeedback';
 
 type Props = {
   open: boolean;
@@ -22,11 +24,19 @@ export function DeleteDepartmentPopup({ open, onClose, departmentId, departmentN
   const handleDelete = async () => {
     setLoading(true);
     try {
-      await dispatch(deleteDepartment(departmentId)).unwrap();
+      await showPromiseToast(
+        dispatch(deleteDepartment(departmentId)).unwrap(),
+        {
+          loading: 'Deleting department...',
+          success: 'Department deleted successfully',
+          error: 'Failed to delete department',
+        },
+      );
       await dispatch(fetchDepartments(undefined));
       onClose();
     } catch {
-      // error stays in redux; keep modal open
+      // The toast already shows the API error; keep the modal open.
+      dispatch(clearDepartmentsError());
     } finally {
       setLoading(false);
     }

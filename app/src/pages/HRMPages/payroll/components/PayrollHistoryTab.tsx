@@ -8,7 +8,7 @@ import {
   fetchPayrollProcessingRecords,
 } from '../../../../features/HRMfeatures/payroll/hrPayrollSlice';
 import { displayPaymentMethod, formatMoney, formatPeriod, formatShortDate, PAYROLL_PAGE_SIZE } from '../payrollUtils';
-import { PayrollPagination } from './PayrollPagination';
+import { HRMPagination } from '../../../../shared/HRMshared/ui/HRMPagination';
 import { PayrollProcessingDetailsModal } from './PayrollProcessingDetailsModal';
 
 type SortKey = keyof Pick<PayrollProcessingReadDto, 'employeeName' | 'payrollNumber' | 'paymentMethod' | 'amount' | 'createdAt'>;
@@ -51,6 +51,7 @@ export function PayrollHistoryTab({ month, year }: Props) {
     selectedProcessingRecord,
   } = useAppSelector((state) => state.hrPayroll);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAYROLL_PAGE_SIZE);
   const [sortKey, setSortKey] = useState<SortKey>('createdAt');
   const [sortAsc, setSortAsc] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,10 +97,8 @@ export function PayrollHistoryTab({ month, year }: Props) {
   }, [month, processingRecords, searchTerm, sortAsc, sortKey, year]);
 
   const totalVisibleCount = visibleRecords.length;
-  const totalPages = Math.max(1, Math.ceil(totalVisibleCount / PAYROLL_PAGE_SIZE));
-  const pageRecords = visibleRecords.slice((page - 1) * PAYROLL_PAGE_SIZE, page * PAYROLL_PAGE_SIZE);
-  const startRecord = totalVisibleCount === 0 ? 0 : (page - 1) * PAYROLL_PAGE_SIZE + 1;
-  const endRecord = Math.min(page * PAYROLL_PAGE_SIZE, totalVisibleCount);
+  const totalPages = Math.max(1, Math.ceil(totalVisibleCount / pageSize));
+  const pageRecords = visibleRecords.slice((page - 1) * pageSize, page * pageSize);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
@@ -243,13 +242,13 @@ export function PayrollHistoryTab({ month, year }: Props) {
           </table>
         </div>
 
-        <PayrollPagination
+        <HRMPagination
           page={page}
           totalPages={totalPages}
           onPageChange={setPage}
-          startRecord={startRecord}
-          endRecord={endRecord}
-          totalRecords={totalVisibleCount}
+          totalCount={totalVisibleCount}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
           label="records"
         />
       </div>

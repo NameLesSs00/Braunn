@@ -8,6 +8,7 @@ import { assignShift, fetchShiftAssignments } from '../../../../features/HRMfeat
 import { fetchHrShifts } from '../../../../features/HRMfeatures/shifts/hrShiftsSlice';
 import { fetchDepartments } from '../../../../features/HRMfeatures/departments/departmentsSlice';
 import { resolveMediaUrl } from '../../../../shared/utils/resolveMediaUrl';
+import { showErrorToast, showPromiseToast } from '../../../../shared/ui/toastFeedback';
 
 type Props = {
   open: boolean;
@@ -19,11 +20,11 @@ type Props = {
 export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }: Props) {
   const dispatch = useAppDispatch();
   const { shifts } = useAppSelector(state => state.hrShifts);
-  const { departments } = useAppSelector(state => state.departments);
   const [employees, setEmployees] = useState<HREmployeeReadDto[]>(selectedEmployees);
   const [shiftId, setShiftId] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const dateFromRef = useRef<HTMLInputElement>(null);
   const dateToRef = useRef<HTMLInputElement>(null);
 
@@ -59,19 +60,37 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
     onClose();
   };
 
-  const handleAssign = () => {
-    if (!shiftId || employees.length === 0 || !dateFrom || !dateTo) return;
+  const handleAssign = async () => {
+    if (!shiftId || employees.length === 0 || !dateFrom || !dateTo) {
+      showErrorToast('Please select employees, shift, and date range.', 'Please select employees, shift, and date range.');
+      return;
+    }
+
     const deptName = employees[0].departmentName || 'employee';
-    dispatch(assignShift({
-      employeeIds: employees.map(e => e.id),
-      shiftId,
-      from: new Date(dateFrom).toISOString(),
-      to: new Date(dateTo).toISOString(),
-      reason: `Assigned to ${deptName}`
-    })).unwrap().then(() => {
+    setSubmitting(true);
+
+    try {
+      await showPromiseToast(
+        dispatch(assignShift({
+          employeeIds: employees.map(e => e.id),
+          shiftId,
+          from: new Date(dateFrom).toISOString(),
+          to: new Date(dateTo).toISOString(),
+          reason: `Assigned to ${deptName}`
+        })).unwrap(),
+        {
+          loading: 'Assigning shift...',
+          success: employees.length === 1 ? 'Employee assigned to shift successfully' : 'Employees assigned to shift successfully',
+          error: 'Failed to assign shift',
+        },
+      );
       dispatch(fetchShiftAssignments({ PageNumber: 1, PageSize: 100 }));
       handleClose();
-    });
+    } catch {
+      // The toast already shows the API error; keep the modal open.
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const formatDate = (iso: string) => {
@@ -264,16 +283,18 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
           <button
             type="button"
             onClick={onBack}
-            className="h-12 w-40 rounded-xl border border-slate-300 text-[14px] font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+            disabled={submitting}
+            className="h-12 w-40 rounded-xl border border-slate-300 text-[14px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
           >
             cancel
           </button>
           <button
             type="button"
             onClick={handleAssign}
-            className="h-12 w-48 rounded-xl bg-[#0B4EA2] text-[14px] font-bold text-white transition-colors hover:bg-[#093d82]"
+            disabled={submitting || !shiftId || employees.length === 0 || !dateFrom || !dateTo}
+            className="h-12 w-48 rounded-xl bg-[#0B4EA2] text-[14px] font-bold text-white transition-colors hover:bg-[#093d82] disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            Assign to Shift
+            {submitting ? 'Assigning...' : 'Assign to Shift'}
           </button>
         </div>
       </div>

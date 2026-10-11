@@ -19,8 +19,9 @@ type Props = {
 
 export function ReviewPayrollTab({ month, year }: Props) {
   const dispatch = useAppDispatch();
-  const { payrolls, totalPayrollsCount, payrollsPageNumber, status, selectedSnapshot } = useAppSelector((state) => state.hrPayroll);
+  const { payrolls, totalPayrollsCount, status, selectedSnapshot } = useAppSelector((state) => state.hrPayroll);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAYROLL_PAGE_SIZE);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailsRecord, setDetailsRecord] = useState<HRPayrollReadDto | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,16 +32,16 @@ export function ReviewPayrollTab({ month, year }: Props) {
       Month: month,
       Year: year,
       PageNumber: page,
-      PageSize: PAYROLL_PAGE_SIZE,
+      PageSize: pageSize,
       SearchTerm: searchTerm || undefined,
       Status: statusFilter || undefined,
     }));
-  }, [dispatch, month, page, searchTerm, statusFilter, year]);
+  }, [dispatch, month, page, pageSize, searchTerm, statusFilter, year]);
 
   useEffect(() => {
     setSelectedIds(new Set());
     setPage(1);
-  }, [month, year]);
+  }, [month, year, pageSize]);
 
   useEffect(() => {
     if (detailsRecord) {
@@ -49,9 +50,7 @@ export function ReviewPayrollTab({ month, year }: Props) {
     }
   }, [detailsRecord, dispatch]);
 
-  const totalPages = Math.max(1, Math.ceil(totalPayrollsCount / PAYROLL_PAGE_SIZE));
-  const startRecord = totalPayrollsCount === 0 ? 0 : (payrollsPageNumber - 1) * PAYROLL_PAGE_SIZE + 1;
-  const endRecord = Math.min(payrollsPageNumber * PAYROLL_PAGE_SIZE, totalPayrollsCount);
+  const totalPages = Math.max(1, Math.ceil(totalPayrollsCount / pageSize));
 
   const selectableRecords = useMemo(
     () => payrolls.filter((record) => record.status !== 'Reviewed' && record.status !== 'Processed' && record.status !== 'Paid'),
@@ -63,7 +62,7 @@ export function ReviewPayrollTab({ month, year }: Props) {
       Month: month,
       Year: year,
       PageNumber: page,
-      PageSize: PAYROLL_PAGE_SIZE,
+      PageSize: pageSize,
       SearchTerm: searchTerm || undefined,
       Status: statusFilter || undefined,
     }));
@@ -117,9 +116,9 @@ export function ReviewPayrollTab({ month, year }: Props) {
         selectedIds={selectedIds}
         page={page}
         totalPages={totalPages}
-        startRecord={startRecord}
-        endRecord={endRecord}
         totalRecords={totalPayrollsCount}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
         searchTerm={searchTerm}
         statusFilter={statusFilter}
         loading={status === 'loading'}

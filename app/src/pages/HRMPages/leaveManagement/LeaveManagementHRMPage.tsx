@@ -83,20 +83,23 @@ export function LeaveManagementHRMPage() {
       {/* Stats cards */}
       <LeaveManagementStatsCards />
 
-      {/* Tabs + date range */}
+      {/* Tabs */}
       <LeaveManagementTabs
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onDateFromChange={setDateFrom}
-        onDateToChange={setDateTo}
       />
 
       {/* Table */}
       {activeTab === 'request' ? (
         <div className="shadow-sm rounded-2xl border border-slate-200">
-          <LeaveManagementFilters searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+          <LeaveManagementFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
+          />
           <LeaveManagementTable />
         </div>
       ) : (

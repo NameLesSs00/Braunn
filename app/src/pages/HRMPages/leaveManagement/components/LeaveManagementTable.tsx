@@ -2,6 +2,7 @@ import { useAppDispatch, useAppSelector } from '../../../../shared/apis/hooks';
 import { updateHrLeaveStatus, deleteHrLeave } from '../../../../features/HRMfeatures/leaves/hrLeavesSlice';
 import type { LeaveReadDto, LeaveStatus } from '../../../../models/HRMmodels/Leave';
 import { FiTrash2 } from 'react-icons/fi';
+import { toast } from 'sonner';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 function formatDate(dateStr: string) {
@@ -80,11 +81,19 @@ export function LeaveManagementTable() {
   const { leaves, status } = useAppSelector((s: any) => s.hrLeaves);
 
   const handleStatusChange = (id: string, newStatus: LeaveStatus) => {
-    dispatch(updateHrLeaveStatus({ id, payload: { status: newStatus } }));
+    toast.promise(dispatch(updateHrLeaveStatus({ id, payload: { status: newStatus } })).unwrap(), {
+      loading: 'Updating status...',
+      success: `Status updated to ${newStatus}`,
+      error: 'Failed to update status',
+    });
   };
 
   const handleDelete = (id: string) => {
-    dispatch(deleteHrLeave(id));
+    toast.promise(dispatch(deleteHrLeave(id)).unwrap(), {
+      loading: 'Deleting leave request...',
+      success: 'Leave request deleted successfully',
+      error: 'Failed to delete leave request',
+    });
   };
 
   if (status === 'loading') {

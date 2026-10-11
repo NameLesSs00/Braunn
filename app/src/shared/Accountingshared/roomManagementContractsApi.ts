@@ -16,7 +16,7 @@ export async function getRoomManagementContractById(id: string, signal?: AbortSi
 export async function getManagementContractsByRoomId(roomId: string, signal?: AbortSignal) {
   return apiRequest<RoomManagementContract[]>({
     method: 'GET',
-    path: `/api/pms/rooms/${roomId}/management-contracts`,
+    path: `/api/rooms/${roomId}/management-contracts`,
     signal,
   })
 }
@@ -24,7 +24,7 @@ export async function getManagementContractsByRoomId(roomId: string, signal?: Ab
 export async function getActiveManagementContractByRoomId(roomId: string, date: string, signal?: AbortSignal) {
   return apiRequest<RoomManagementContract>({
     method: 'GET',
-    path: `/api/pms/rooms/${roomId}/management-contracts/active?date=${date}`,
+    path: `/api/rooms/${roomId}/management-contracts/active?date=${date}`,
     signal,
   })
 }

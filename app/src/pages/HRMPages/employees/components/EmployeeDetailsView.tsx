@@ -9,8 +9,9 @@ import { EmployeeSalaryHistoryTab } from './tabs/EmployeeSalaryHistoryTab';
 import { EmployeeDocumentsTab } from './tabs/EmployeeDocumentsTab';
 import { InitiateTerminationModal } from './modals/InitiateTerminationModal';
 import { useAppDispatch, useAppSelector } from '../../../../shared/apis/hooks';
-import { createHrTermination } from '../../../../features/HRMfeatures/terminations/hrTerminationsSlice';
+import { clearHrTerminationsError, createHrTermination } from '../../../../features/HRMfeatures/terminations/hrTerminationsSlice';
 import { fetchHrEmployees } from '../../../../features/HRMfeatures/employees/hrEmployeesSlice';
+import { showPromiseToast } from '../../../../shared/ui/toastFeedback';
 
 type Props = {
   employee: HREmployeeReadDto;
@@ -223,16 +224,26 @@ export function EmployeeDetailsView({ employee, onBack, onEdit }: Props) {
         open={isTerminateModalOpen}
         onClose={() => setIsTerminateModalOpen(false)}
         employee={employee as any}
+        submitting={terminateStatus === 'loading'}
         onSubmit={async (data) => {
-          const res = await dispatch(createHrTermination({
-            employeeId: employee.id,
-            terminationDate: new Date(data.date).toISOString(),
-            reason: `${data.type} - ${data.reason}`,
-          }));
-          if (createHrTermination.fulfilled.match(res)) {
+          try {
+            await showPromiseToast(
+              dispatch(createHrTermination({
+                employeeId: employee.id,
+                terminationDate: new Date(data.date).toISOString(),
+                reason: `${data.type} - ${data.reason}`,
+              })).unwrap(),
+              {
+                loading: 'Submitting termination...',
+                success: 'Employee termination submitted successfully',
+                error: 'Failed to submit employee termination',
+              },
+            );
             setIsTerminateModalOpen(false);
             onBack();
             dispatch(fetchHrEmployees({ PageNumber: 1, PageSize: 10 }));
+          } catch {
+            dispatch(clearHrTerminationsError());
           }
         }}
       />

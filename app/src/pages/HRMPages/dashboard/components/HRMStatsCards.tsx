@@ -1,4 +1,5 @@
 import { FiUsers, FiUserCheck, FiClock, FiSun } from 'react-icons/fi';
+import { useAppSelector } from '../../../../store/hooks';
 
 interface StatCard {
   label: string;
@@ -7,14 +8,16 @@ interface StatCard {
   highlighted?: boolean;
 }
 
-const stats: StatCard[] = [
-  { label: 'Total Employees', value: '1,248', icon: FiUsers },
-  { label: 'Present Today', value: '1,156', icon: FiUserCheck, highlighted: true },
-  { label: 'Late Arrivals', value: '42', icon: FiClock },
-  { label: 'Employees on Leave', value: '50', icon: FiSun, highlighted: true },
-];
-
 export function HRMStatsCards() {
+  const { hrmOverview } = useAppSelector((state) => state.hrManagement);
+
+  const stats: StatCard[] = [
+    { label: 'Total Employees', value: hrmOverview?.totalEmployees ?? '-', icon: FiUsers },
+    { label: 'Present Today', value: '1,156', icon: FiUserCheck, highlighted: true },
+    { label: 'Late Arrivals', value: '42', icon: FiClock },
+    { label: 'Employees on Leave', value: hrmOverview?.employeesOnLeave ?? '-', icon: FiSun, highlighted: true },
+  ];
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {stats.map((stat) => {

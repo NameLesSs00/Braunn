@@ -1,10 +1,9 @@
-import { useEffect } from 'react';
-import { FiEye, FiEdit2, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiEye, FiEdit2 } from 'react-icons/fi';
 import { IconImage } from '../../../../shared/ui/IconImage';
-import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
-import { fetchHrEmployees } from '../../../../features/HRMfeatures/employees/hrEmployeesSlice';
+import { useAppSelector } from '../../../../store/hooks';
 import type { HREmployeeReadDto } from '../../../../models/HRMmodels/HREmployee';
 import { resolveImageUrl } from '../../../../shared/HRMshared/utils/imageUrl';
+import { HRMPagination } from '../../../../shared/HRMshared/ui/HRMPagination';
 
 // Re-export so child tabs that import { Employee } from '../EmployeesTable' still work
 export type { HREmployeeReadDto as Employee };
@@ -28,23 +27,20 @@ function StatusBadge({ status }: { status: EmployeeStatus }) {
   );
 }
 
-export function EmployeesTable({ onView, onEdit }: { onView?: (employee: HREmployeeReadDto) => void, onEdit?: (employee: HREmployeeReadDto) => void }) {
-  const dispatch = useAppDispatch();
-  const { employees, totalCount, pageNumber, pageSize, status } = useAppSelector((state) => state.hrEmployees);
+type EmployeesTableProps = {
+  onView?: (employee: HREmployeeReadDto) => void;
+  onEdit?: (employee: HREmployeeReadDto) => void;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+};
 
-  useEffect(() => {
-    dispatch(fetchHrEmployees({ PageNumber: 1, PageSize: 10 }));
-  }, [dispatch]);
+export function EmployeesTable({ onView, onEdit, onPageChange, onPageSizeChange }: EmployeesTableProps) {
+  const { employees, totalCount, totalPages, pageNumber, pageSize, status, error } = useAppSelector((state) => state.hrEmployees);
 
-  const handlePageChange = (newPage: number) => {
-    dispatch(fetchHrEmployees({ PageNumber: newPage, PageSize: pageSize }));
-  };
+  const isLoading = status === 'loading';
 
-  const totalPages = Math.ceil(totalCount / pageSize) || 1;
-  const startResult = (pageNumber - 1) * pageSize + 1;
-  const endResult = Math.min(pageNumber * pageSize, totalCount);
-
-  if (status === 'loading') {
+  // Full spinner only on the very first load; afterwards keep rows visible while fetching
+  if (isLoading && employees.length === 0) {
     return (
       <div className="bg-white border border-slate-200 rounded-2xl flex items-center justify-center h-64">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0B4EA2]/20 border-t-[#0B4EA2]"></div>
@@ -53,8 +49,15 @@ export function EmployeesTable({ onView, onEdit }: { onView?: (employee: HREmplo
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="relative bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      {/* Thin top loading bar while changing pages / filters */}
+      {isLoading && (
+        <div className="absolute inset-x-0 top-0 z-10 h-[3px] overflow-hidden bg-[#0B4EA2]/10">
+          <div className="h-full w-1/3 animate-[hrm-loading-bar_1s_ease-in-out_infinite] bg-[#0B4EA2]" />
+          <style>{`@keyframes hrm-loading-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }`}</style>
+        </div>
+      )}
+      <div className={`overflow-x-auto transition-opacity duration-200 ${isLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
@@ -70,7 +73,7 @@ export function EmployeesTable({ onView, onEdit }: { onView?: (employee: HREmplo
             {employees.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                  No employees found.
+                  {status === 'failed' && error ? error : 'No employees found.'}
                 </td>
               </tr>
             ) : (
@@ -134,31 +137,17 @@ export function EmployeesTable({ onView, onEdit }: { onView?: (employee: HREmplo
       </div>
 
       {/* Pagination Footer */}
-      {employees.length > 0 && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-white">
-          <div className="text-[14px] text-slate-500">
-            Showing {startResult} to {endResult} of {totalCount} results
-          </div>
-          <div className="flex items-center">
-            <button 
-              onClick={() => handlePageChange(Math.max(1, pageNumber - 1))}
-              disabled={pageNumber === 1}
-              className="w-8 h-8 flex items-center justify-center border border-slate-200 border-r-0 rounded-l-lg text-slate-400 hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <IconImage src={FiChevronLeft} alt="Previous" className="w-4 h-4" />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center border border-[#0B4EA2] bg-[#0B4EA2] text-white text-[13px] font-medium">
-              {pageNumber}
-            </button>
-            <button 
-              onClick={() => handlePageChange(Math.min(totalPages, pageNumber + 1))}
-              disabled={pageNumber === totalPages || totalPages === 0}
-              className="w-8 h-8 flex items-center justify-center border border-slate-200 border-l-0 rounded-r-lg text-slate-400 hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <IconImage src={FiChevronRight} alt="Next" className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+      {totalCount > 0 && (
+        <HRMPagination
+          page={pageNumber}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+          label="employees"
+          disabled={isLoading}
+        />
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import { apiRequest, unwrapApiResponse, PaginatedResponse } from './apiClient'
 import type { CreateGuestRequest, Guest, UpdateGuestRequest } from '../../models/Guest'
 
-const basePath = 'pms/guests'
+const basePath = '/guests'
 
 export function getGuests(params?: { pageNumber?: number; pageSize?: number; search?: string; status?: string; guestType?: string; roomType?: string; checkInFrom?: string; checkInTo?: string }, signal?: AbortSignal) {
   const p = params || { pageNumber: 1, pageSize: 50 }

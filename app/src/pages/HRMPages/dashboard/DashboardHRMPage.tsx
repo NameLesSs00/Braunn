@@ -1,9 +1,21 @@
+import { useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { fetchHRMOverview } from '../../../features/HRMfeatures/management/hrManagementSlice';
 import { HRMStatsCards } from './components/HRMStatsCards';
 import { HRMDepartments } from './components/HRMDepartments';
 import { HRMAttendanceTrends } from './components/HRMAttendanceTrends';
 import { HRMBiometricLogs } from './components/HRMBiometricLogs';
 
 export function DashboardHRMPage() {
+  const dispatch = useAppDispatch();
+  const { overviewStatus } = useAppSelector((state) => state.hrManagement);
+
+  useEffect(() => {
+    if (overviewStatus === 'idle') {
+      dispatch(fetchHRMOverview());
+    }
+  }, [dispatch, overviewStatus]);
+
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
       {/* Page heading */}

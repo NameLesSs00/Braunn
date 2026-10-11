@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Clock, Trash2 } from 'lucide-react';
-import { appAlert } from '../../../../shared/ui/AppAlert';
+import { toast } from 'sonner';
 import { useSettingsContext } from '../SettingsContext';
 import { AddShiftPopup } from '../popups/AddShiftPopup';
 import { DeleteShiftPopup } from '../popups/DeleteShiftPopup';
@@ -25,15 +25,7 @@ export function ShiftsTab() {
   // Error Toast Notification
   useEffect(() => {
     if (status === 'failed' && error) {
-      appAlert.fire({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 4000,
-        timerProgressBar: true,
-        icon: 'error',
-        title: error,
-      });
+      toast.error(error);
       dispatch(clearHrShiftsError());
     }
   }, [status, error, dispatch]);
@@ -97,7 +89,11 @@ export function ShiftsTab() {
         onClose={() => setAddOpen(false)}
         mode="add"
         onSubmit={async (data) => {
-          await dispatch(createHrShift(data));
+          await toast.promise(dispatch(createHrShift(data)).unwrap(), {
+            loading: 'Creating shift...',
+            success: 'Shift created successfully',
+            error: 'Failed to create shift',
+          });
           setAddOpen(false);
         }}
       />
@@ -114,7 +110,11 @@ export function ShiftsTab() {
             endTime: editTarget.endTime,
           }}
           onSubmit={async (data) => {
-            await dispatch(updateHrShift({ id: editTarget.id, payload: data }));
+            await toast.promise(dispatch(updateHrShift({ id: editTarget.id, payload: data })).unwrap(), {
+              loading: 'Updating shift...',
+              success: 'Shift updated successfully',
+              error: 'Failed to update shift',
+            });
             setEditTarget(null);
           }}
         />
@@ -127,17 +127,12 @@ export function ShiftsTab() {
           onClose={() => setDeleteTarget(null)}
           shiftName={deleteTarget.name}
           onDelete={() => {
-            dispatch(deleteHrShift(deleteTarget.id)).unwrap().then(() => {
-              appAlert.fire({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                icon: 'success',
-                title: 'Shift deleted successfully',
-              });
-              setDeleteTarget(null);
+            toast.promise(dispatch(deleteHrShift(deleteTarget.id)).unwrap(), {
+              loading: 'Deleting shift...',
+              success: 'Shift deleted successfully',
+              error: 'Failed to delete shift',
             });
+            setDeleteTarget(null);
           }}
         />
       )}

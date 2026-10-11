@@ -6,6 +6,7 @@ import type { ShiftReadDto } from '../../../../models/HRMmodels/Shift';
 import { useAppSelector, useAppDispatch } from '../../../../store/hooks';
 import { updateShiftAssignment, fetchShiftAssignments } from '../../../../features/HRMfeatures/shiftAssignments/shiftAssignmentsSlice';
 import { fetchHrShifts } from '../../../../features/HRMfeatures/shifts/hrShiftsSlice';
+import { showErrorToast, showPromiseToast } from '../../../../shared/ui/toastFeedback';
 
 type Props = {
   open: boolean;
@@ -24,6 +25,7 @@ export function ShiftTransferPopup({ open, onClose, employee }: Props) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [reason, setReason] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
 
   const dateFromRef = useRef<HTMLInputElement>(null);
   const dateToRef = useRef<HTMLInputElement>(null);
@@ -59,28 +61,45 @@ export function ShiftTransferPopup({ open, onClose, employee }: Props) {
     onClose();
   };
 
-  const handleConfirm = () => {
-    if (!employee || !shiftId || !dateFrom || !dateTo || !reason) return;
+  const handleConfirm = async () => {
+    if (!employee || !shiftId || !dateFrom || !dateTo || !reason) {
+      showErrorToast('Please select a shift, date range, and transfer reason.', 'Please select a shift, date range, and transfer reason.');
+      return;
+    }
     
     // Find the employee's current assignment to update
     const currentAssignment = assignments.find((a: any) => a.employeeId === employee.id);
     if (!currentAssignment) {
-      console.warn("No existing assignment found to transfer.");
+      showErrorToast('No existing assignment found to transfer.', 'No existing assignment found to transfer.');
       return;
     }
 
-    dispatch(updateShiftAssignment({
-      id: currentAssignment.id,
-      payload: {
-        shiftId,
-        from: new Date(dateFrom).toISOString(),
-        to: new Date(dateTo).toISOString(),
-        reason
-      }
-    })).unwrap().then(() => {
+    setSubmitting(true);
+
+    try {
+      await showPromiseToast(
+        dispatch(updateShiftAssignment({
+          id: currentAssignment.id,
+          payload: {
+            shiftId,
+            from: new Date(dateFrom).toISOString(),
+            to: new Date(dateTo).toISOString(),
+            reason
+          }
+        })).unwrap(),
+        {
+          loading: 'Transferring employee...',
+          success: 'Employee transferred successfully',
+          error: 'Failed to transfer employee',
+        },
+      );
       dispatch(fetchShiftAssignments({ PageNumber: 1, PageSize: 100 }));
       handleClose();
-    });
+    } catch {
+      // The toast already shows the API error; keep the modal open.
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!employee) return null;
@@ -225,21 +244,22 @@ export function ShiftTransferPopup({ open, onClose, employee }: Props) {
           <button
             type="button"
             onClick={handleClose}
-            className="h-12 w-40 rounded-xl border border-slate-300 text-[14px] font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+            disabled={submitting}
+            className="h-12 w-40 rounded-xl border border-slate-300 text-[14px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={!shiftId || !dateFrom || !dateTo || !reason}
+            disabled={submitting || !shiftId || !dateFrom || !dateTo || !reason}
             className={`h-12 w-48 rounded-xl text-[14px] font-bold transition-all ${
-              (!shiftId || !dateFrom || !dateTo || !reason)
+              (submitting || !shiftId || !dateFrom || !dateTo || !reason)
                 ? 'bg-slate-300 text-white cursor-not-allowed'
                 : 'bg-[#0B4EA2] text-white hover:bg-[#093d82]'
             }`}
           >
-            Confirm Transfer
+            {submitting ? 'Transferring...' : 'Confirm Transfer'}
           </button>
         </div>
       </div>

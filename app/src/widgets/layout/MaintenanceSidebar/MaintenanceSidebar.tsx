@@ -1,8 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
-import { IoHomeOutline, IoSettingsOutline } from 'react-icons/io5'
+import { IoHomeOutline, IoSettingsOutline, IoShieldCheckmarkOutline } from 'react-icons/io5'
 import { MdOutlineInventory2 } from 'react-icons/md'
-import { PiTShirt } from 'react-icons/pi'
+import { FiTool } from 'react-icons/fi'
 import { HiOutlineBell } from 'react-icons/hi2'
 import { LayoutGrid } from 'lucide-react'
 import type { IconType } from 'react-icons'
@@ -15,11 +15,11 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { to: routes.maintenance.dashboard, label: 'Dashboard', icon: IoHomeOutline },
-  { to: routes.maintenance.requests, label: 'Maintenance Requests', icon: PiTShirt },
-  { to: routes.maintenance.inventory, label: 'Maintenance Inventory', icon: MdOutlineInventory2 },
-  { to: routes.maintenance.preventive, label: 'Maintenance Preventive', icon: MdOutlineInventory2 },
-  { to: routes.maintenance.categories, label: 'Maintenance categories', icon: IoSettingsOutline },
-  { to: routes.maintenance.notifications, label: 'Maintenance Notifications', icon: HiOutlineBell },
+  { to: routes.maintenance.requests, label: 'Requests', icon: FiTool },
+  { to: routes.maintenance.inventory, label: 'Inventory', icon: MdOutlineInventory2 },
+  { to: routes.maintenance.preventive, label: 'Preventive', icon: IoShieldCheckmarkOutline },
+  { to: routes.maintenance.categories, label: 'Categories', icon: IoSettingsOutline },
+  { to: routes.maintenance.notifications, label: 'Notifications', icon: HiOutlineBell },
 ]
 
 function MaintenanceSidebarLink({ item }: { item: NavItem }) {
@@ -28,20 +28,20 @@ function MaintenanceSidebarLink({ item }: { item: NavItem }) {
       to={item.to}
       className={({ isActive }) =>
         [
-          'relative grid grid-cols-[48px_1fr] items-center',
+          'relative grid grid-cols-[44px_1fr] items-center',
           isActive ? 'text-[#0B4EA2]' : 'text-slate-700',
         ].join(' ')
       }
     >
       {({ isActive }) => (
         <>
-          <div className="relative grid h-14 w-12 place-items-center bg-[#0B4EA2]">
+          <div className="relative grid h-14 w-11 place-items-center bg-[#0B4EA2]">
             <item.icon className="h-5 w-5 text-white" />
           </div>
 
           <div
             className={[
-              'relative flex min-h-14 items-center px-5 py-2 text-[14px] leading-snug transition-colors',
+              'relative flex h-14 items-center px-5 text-[15px] transition-colors',
               isActive ? 'font-medium' : 'bg-white hover:bg-slate-50',
             ].join(' ')}
           >
@@ -61,7 +61,7 @@ function MaintenanceSidebarLink({ item }: { item: NavItem }) {
                 }}
               />
             ) : null}
-            <span className="relative min-w-0 break-words">{item.label}</span>
+            <span className="relative truncate">{item.label}</span>
           </div>
         </>
       )}
@@ -74,17 +74,17 @@ export function MaintenanceSidebar() {
 
   return (
     <aside
-      className="h-full w-[320px] shadow-sm flex flex-col"
+      className="h-full w-[260px] shadow-sm flex flex-col"
       style={{
-        background: 'linear-gradient(to right, #0B4EA2 0 48px, #ffffff 48px 100%)',
+        background: 'linear-gradient(to right, #0B4EA2 0 44px, #ffffff 44px 100%)',
       }}
     >
       {/* Logo area */}
-      <div className="grid grid-cols-[48px_1fr] flex-shrink-0">
+      <div className="grid grid-cols-[44px_1fr] flex-shrink-0">
         <div className="bg-transparent" />
         <div className="flex flex-col justify-center px-6 py-5 border-b border-slate-100">
           <img src="/assets/Asset 9 1.svg" alt="Braun" className="h-10 w-auto" />
-          <p className="mt-1 text-[11px] font-medium text-[#0B4EA2]">Maintenance department</p>
+          <p className="mt-1 text-[11px] font-medium text-[#0B4EA2]">Maintenance Department</p>
         </div>
       </div>
 
@@ -98,7 +98,7 @@ export function MaintenanceSidebar() {
       </div>
 
       {/* Back to System Selection */}
-      <div className="flex-shrink-0 grid grid-cols-[48px_1fr] border-t border-transparent">
+      <div className="flex-shrink-0 grid grid-cols-[44px_1fr] border-t border-transparent">
         <div className="bg-[#0B4EA2]" />
         <button
           type="button"

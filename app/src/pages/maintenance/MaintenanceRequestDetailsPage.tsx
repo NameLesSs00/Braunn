@@ -4,11 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { fetchMaintenanceRequestById, clearSelected } from '../../features/maintenance/maintenanceRequestsSlice'
 import { appAlert } from '../../shared/ui/AppAlert'
-import { API_BASE_URL } from '../../store/apiClient'
 import { ReassignHistoryItem } from '../../models/MaintenanceRequest'
 import { maintenanceRequestsApi } from '../../shared/apis/maintenanceRequestsApi'
-
-
 
 export default function MaintenanceRequestDetailsPage() {
   const { id } = useParams()
@@ -24,7 +21,7 @@ export default function MaintenanceRequestDetailsPage() {
   useEffect(() => {
     if (!id) return
     dispatch(fetchMaintenanceRequestById(id)).unwrap().catch((e) => {
-      appAlert.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 5000, icon: 'error', title: 'Failed to load request', text: e?.message || 'Unknown error' })
+      appAlert.fire({ icon: 'error', title: 'Failed to load request', text: e?.message || 'Unknown error' })
     })
 
     setLoadingHistory(true)
@@ -102,8 +99,8 @@ export default function MaintenanceRequestDetailsPage() {
   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {selected.images && selected.images.length > 0 ? (
       selected.images.map((image) => {
-        // const imageUrl = `https://pmss.runasp.net/${image.imageUrl}`;
-        const imageUrl = `https://pms.premiumasp.net/${image.imageUrl}`;
+        const imageUrl = `https://pmss.runasp.net/${image.imageUrl}`;
+        // const imageUrl = `https://pms.premiumasp.net/${image.imageUrl}`;
 
         return (
           <a

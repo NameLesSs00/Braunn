@@ -24,6 +24,8 @@ export type PaginatedResponse<T> = {
   hasNextPage: boolean
 }
 
+import { getAccessToken, clearAuth } from '../utils/authUtils'
+
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
   (import.meta.env.DEV ? '/api' : '/api')
@@ -64,12 +66,13 @@ export function unwrapApiResponse<T>(value: unknown): T {
 
 export async function apiRequest<T>({ method, path, body, signal }: RequestOptions): Promise<T> {
   const url = joinUrl(API_BASE_URL, path)
-  const token = localStorage.getItem('access_token')
+  const token = getAccessToken()
 
   const publicPaths = ['/authenticate', '/auth/admin-login', '/rt/auth', '/login']
   const isPublic = publicPaths.some((p) => path.includes(p))
 
   if (!token && !isPublic) {
+    clearAuth()
     window.location.href = '/login'
     throw new Error('No access token found. Redirecting to login...')
   }
@@ -97,6 +100,11 @@ export async function apiRequest<T>({ method, path, body, signal }: RequestOptio
   console.log(`[API] response ${res.status} from ${url}`)
 
   if (!res.ok) {
+    if (res.status === 401 && !isPublic) {
+      clearAuth()
+      window.location.href = '/login'
+    }
+
     const contentType = res.headers.get('content-type') ?? ''
     const errorPayload = contentType.includes('application/json')
       ? await res.json().catch(() => undefined)

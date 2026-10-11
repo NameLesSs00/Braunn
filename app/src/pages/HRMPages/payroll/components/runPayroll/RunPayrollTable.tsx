@@ -1,7 +1,7 @@
 import { ChevronDown, Download, PlayCircle, Search } from 'lucide-react';
 import type { HRPayrollReadDto } from '../../../../../models/HRMmodels/Payroll';
 import { formatMoney, formatPeriod, getGrossPay, getInitials } from '../../payrollUtils';
-import { PayrollPagination } from '../PayrollPagination';
+import { HRMPagination } from '../../../../../shared/HRMshared/ui/HRMPagination';
 
 type Props = {
   pageRecords: HRPayrollReadDto[];
@@ -9,8 +9,9 @@ type Props = {
   selectedIds: Set<string>;
   page: number;
   totalPages: number;
-  startRecord: number;
-  endRecord: number;
+  totalRecords: number;
+  pageSize: number;
+  onPageSizeChange: (size: number) => void;
   searchTerm: string;
   processing: boolean;
   setPage: (page: number) => void;
@@ -28,8 +29,9 @@ export function RunPayrollTable({
   selectedIds,
   page,
   totalPages,
-  startRecord,
-  endRecord,
+  totalRecords,
+  pageSize,
+  onPageSizeChange,
   searchTerm,
   processing,
   setPage,
@@ -172,13 +174,13 @@ export function RunPayrollTable({
         </table>
       </div>
 
-      <PayrollPagination
+      <HRMPagination
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
-        startRecord={startRecord}
-        endRecord={endRecord}
-        totalRecords={allRecords.length}
+        totalCount={totalRecords || allRecords.length}
+        pageSize={pageSize}
+        onPageSizeChange={onPageSizeChange}
         label="employees"
       />
     </div>

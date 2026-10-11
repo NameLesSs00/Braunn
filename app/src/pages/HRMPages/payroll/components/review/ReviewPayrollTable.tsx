@@ -1,7 +1,7 @@
 import { CheckCircle2, ChevronDown, Download, Loader2, Search } from 'lucide-react';
 import type { HRPayrollReadDto, PayrollStatus } from '../../../../../models/HRMmodels/Payroll';
 import { formatMoney, formatPeriod, getGrossPay, getInitials } from '../../payrollUtils';
-import { PayrollPagination } from '../PayrollPagination';
+import { HRMPagination } from '../../../../../shared/HRMshared/ui/HRMPagination';
 
 type Props = {
   pageRecords: HRPayrollReadDto[];
@@ -9,9 +9,9 @@ type Props = {
   selectedIds: Set<string>;
   page: number;
   totalPages: number;
-  startRecord: number;
-  endRecord: number;
   totalRecords: number;
+  pageSize: number;
+  onPageSizeChange: (size: number) => void;
   searchTerm: string;
   statusFilter: PayrollStatus | '';
   loading: boolean;
@@ -47,9 +47,9 @@ export function ReviewPayrollTable({
   selectedIds,
   page,
   totalPages,
-  startRecord,
-  endRecord,
   totalRecords,
+  pageSize,
+  onPageSizeChange,
   searchTerm,
   statusFilter,
   loading,
@@ -174,7 +174,7 @@ export function ReviewPayrollTable({
                         </div>
                         <div>
                           <div className="text-[14px] font-bold text-slate-900">{rec.employeeName}</div>
-                          <div className="text-[11px] text-slate-400">Payroll row {startRecord + index}</div>
+                          <div className="text-[11px] text-slate-400">Payroll row {(page - 1) * pageSize + 1 + index}</div>
                         </div>
                       </div>
                     </td>
@@ -210,13 +210,13 @@ export function ReviewPayrollTable({
         </table>
       </div>
 
-      <PayrollPagination
+      <HRMPagination
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
-        startRecord={startRecord}
-        endRecord={endRecord}
-        totalRecords={totalRecords || allRecords.length}
+        totalCount={totalRecords || allRecords.length}
+        pageSize={pageSize}
+        onPageSizeChange={onPageSizeChange}
         label="employees"
       />
     </div>

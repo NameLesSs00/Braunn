@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchDepartments } from '../../../../features/HRMfeatures/departments/departmentsSlice';
 import { fetchPositions } from '../../../../features/HRMfeatures/positions/positionsSlice';
 import { updateHrEmployee, uploadHrEmployeeImage } from '../../../../features/HRMfeatures/employees/hrEmployeesSlice';
-import { appAlert } from '../../../../shared/ui/AppAlert';
+import { toast } from 'sonner';
 import type { HREmployeeReadDto, HREmployeeUpdateDto } from '../../../../models/HRMmodels/HREmployee';
 import { resolveImageUrl } from '../../../../shared/HRMshared/utils/imageUrl';
 
@@ -16,6 +16,9 @@ type Props = {
 type FormState = {
   fullName: string;
   email: string;
+  phone: string;
+  address: string;
+  nationalId: string;
   departmentId: string;
   annualLeaveEntitlement: string;
   positionId: string;
@@ -45,6 +48,9 @@ export function EditEmployeeForm({ employee, onCancel }: Props) {
   const [form, setForm] = useState<FormState>({
     fullName: employee.fullName,
     email: employee.email,
+    phone: employee.phone || '',
+    address: employee.address || '',
+    nationalId: employee.nationalId || '',
     departmentId: employee.departmentId,
     annualLeaveEntitlement: employee.annualLeaveEntitlement.toString(),
     positionId: employee.positionId,
@@ -82,7 +88,7 @@ export function EditEmployeeForm({ employee, onCancel }: Props) {
 
   const validateForm = (): boolean => {
     if (!form.fullName || !form.email || !form.departmentId || !form.positionId || !form.status) {
-      appAlert.fire({ icon: 'error', title: 'Missing Fields', text: 'Please fill out all required fields.' });
+      toast.error('Missing Fields: Please fill out all required fields.');
       return false;
     }
     return true;
@@ -92,10 +98,14 @@ export function EditEmployeeForm({ employee, onCancel }: Props) {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-    try {
+
+    const savePromise = (async () => {
       const updatePayload: HREmployeeUpdateDto = {
         fullName: form.fullName,
         email: form.email,
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        nationalId: form.nationalId.trim(),
         departmentId: form.departmentId,
         positionId: form.positionId,
         annualLeaveEntitlement: Number(form.annualLeaveEntitlement) || 0,
@@ -108,21 +118,19 @@ export function EditEmployeeForm({ employee, onCancel }: Props) {
       if (photoFile) {
         await dispatch(uploadHrEmployeeImage({ employeeId: employee.id, file: photoFile })).unwrap();
       }
+    })();
 
-      appAlert.fire({
-        showConfirmButton: false,
-        timer: 3000,
-        icon: 'success',
-        title: 'Employee updated successfully',
-      });
+    toast.promise(savePromise, {
+      loading: 'Updating employee...',
+      success: 'Employee updated successfully',
+      error: (err) => err || 'Failed to update employee',
+    });
+
+    try {
+      await savePromise;
       onCancel();
-    } catch (error: any) {
-      appAlert.fire({
-        showConfirmButton: false,
-        timer: 3000,
-        icon: 'error',
-        title: error || 'Failed to update employee',
-      });
+    } catch (error) {
+      // error handled by toast
     } finally {
       setIsSubmitting(false);
     }
@@ -196,6 +204,42 @@ export function EditEmployeeForm({ employee, onCancel }: Props) {
                 placeholder="john.doe@example.com"
                 value={form.email}
                 onChange={set('email')}
+              />
+            </div>
+
+            {/* Phone Number */}
+            <div>
+              <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">Phone Number</label>
+              <input
+                type="tel"
+                className={inputClass}
+                placeholder="+1 234 567 890"
+                value={form.phone}
+                onChange={set('phone')}
+              />
+            </div>
+
+            {/* National ID */}
+            <div>
+              <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">National ID</label>
+              <input
+                type="text"
+                className={inputClass}
+                placeholder="ID Number"
+                value={form.nationalId}
+                onChange={set('nationalId')}
+              />
+            </div>
+
+            {/* Address */}
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">Address</label>
+              <input
+                type="text"
+                className={inputClass}
+                placeholder="Full address"
+                value={form.address}
+                onChange={set('address')}
               />
             </div>
           </div>

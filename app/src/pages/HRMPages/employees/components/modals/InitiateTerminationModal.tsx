@@ -4,11 +4,19 @@ import { IoClose } from 'react-icons/io5';
 import { AlertTriangle } from 'lucide-react';
 import { Employee } from '../EmployeesTable';
 
+type TerminationSubmitData = {
+  type: string;
+  date: string;
+  reason: string;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   employee: Employee | null;
-  onSubmit: (data: any) => void;
+  submitting?: boolean;
+  // eslint-disable-next-line no-unused-vars
+  onSubmit: (_data: TerminationSubmitData) => void | Promise<void>;
 };
 
 const TERMINATION_TYPES = [
@@ -18,7 +26,7 @@ const TERMINATION_TYPES = [
   'Dismissal'
 ];
 
-export function InitiateTerminationModal({ open, onClose, employee, onSubmit }: Props) {
+export function InitiateTerminationModal({ open, onClose, employee, submitting = false, onSubmit }: Props) {
   const [terminationType, setTerminationType] = useState('Resignation');
   const [date, setDate] = useState('');
   const [reason, setReason] = useState('');
@@ -94,16 +102,17 @@ export function InitiateTerminationModal({ open, onClose, employee, onSubmit }: 
         <div className="px-8 pb-8 grid grid-cols-2 gap-4 pt-2">
           <button 
             onClick={onClose}
+            disabled={submitting}
             className="py-3.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-[15px] hover:bg-slate-50 transition-colors"
           >
             cancel
           </button>
           <button 
             onClick={() => onSubmit({ type: terminationType, date, reason })}
-            disabled={!date || !reason}
+            disabled={submitting || !date || !reason}
             className="py-3.5 rounded-xl bg-[#0B4EA2] text-white font-semibold text-[15px] hover:bg-[#0a428a] transition-colors shadow-sm disabled:opacity-50"
           >
-            Submit
+            {submitting ? 'Submitting...' : 'Submit'}
           </button>
         </div>
       </div>

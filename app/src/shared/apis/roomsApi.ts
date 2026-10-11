@@ -1,7 +1,7 @@
 import { apiRequest, unwrapApiResponse, PaginatedResponse } from './apiClient'
 import type { Room, RoomAvailability } from '../../models/Room'
 
-const basePath = 'pms/Rooms'
+const basePath = '/Rooms'
 
 export function getRooms(params?: { pageNumber?: number; pageSize?: number }, signal?: AbortSignal) {
   const p = params || { pageNumber: 1, pageSize: 1000 }

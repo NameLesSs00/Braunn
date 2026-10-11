@@ -10,14 +10,19 @@ type Props = {
 
 export function AssignmentNotes({ open, request, onClose }: Props) {
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} closeOnBackdrop={true}>
       <div className="w-[520px] max-w-full overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between bg-[#0B4EA2] px-6 py-4 text-white">
           <div>
             <h2 className="text-base font-bold">Assignment Details</h2>
             <p className="text-[12px] text-blue-100">{request?.requestNo ?? 'Maintenance request'}</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white">
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-lg text-white/80 transition hover:bg-white/10 hover:text-white cursor-pointer"
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>

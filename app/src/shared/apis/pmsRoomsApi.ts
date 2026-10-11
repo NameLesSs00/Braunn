@@ -30,7 +30,7 @@ export const pmsRoomsApi = {
 
     return apiRequest<unknown>({
       method: 'GET',
-      path: `pms/rooms?${urlParams.toString()}`,
+      path: `/rooms?${urlParams.toString()}`,
       signal,
     }).then((r) => unwrapApiResponse<PaginatedResponse<PmsRoom>>(r))
   },

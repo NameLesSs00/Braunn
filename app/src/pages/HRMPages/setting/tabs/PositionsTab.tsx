@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Briefcase, Trash2 } from 'lucide-react';
-import { appAlert } from '../../../../shared/ui/AppAlert';
+import { toast } from 'sonner';
 import { useSettingsContext } from '../SettingsContext';
 import { AddPositionPopup } from '../popups/AddPositionPopup';
 import { DeletePositionPopup } from '../popups/DeletePositionPopup';
@@ -35,12 +35,7 @@ export function PositionsTab() {
   // Error Toast Notification
   useEffect(() => {
     if (status === 'failed' && error) {
-      appAlert.fire({
-        showConfirmButton: false,
-        timer: 4000,
-        icon: 'error',
-        title: error,
-      });
+      toast.error(error);
       dispatch(clearPositionsError());
     }
   }, [status, error, dispatch]);
@@ -133,15 +128,11 @@ export function PositionsTab() {
         onClose={() => setAddOpen(false)}
         mode="add"
         onSubmit={async (data) => {
-          const result = await dispatch(createPosition(data));
-          if (createPosition.fulfilled.match(result)) {
-            appAlert.fire({
-              showConfirmButton: false,
-              timer: 3000,
-              icon: 'success',
-              title: 'Position created successfully',
-            });
-          }
+          await toast.promise(dispatch(createPosition(data)).unwrap(), {
+            loading: 'Creating position...',
+            success: 'Position created successfully',
+            error: 'Failed to create position',
+          });
           setAddOpen(false);
         }}
       />
@@ -159,20 +150,19 @@ export function PositionsTab() {
             departmentId: editTarget.departmentId,
           }}
           onSubmit={async (data) => {
-            const result = await dispatch(
-              updatePosition({
-                id: editTarget.id,
-                payload: { ...data, isActive: editTarget.isActive },
-              })
+            await toast.promise(
+              dispatch(
+                updatePosition({
+                  id: editTarget.id,
+                  payload: { ...data, isActive: editTarget.isActive },
+                })
+              ).unwrap(),
+              {
+                loading: 'Updating position...',
+                success: 'Position updated successfully',
+                error: 'Failed to update position',
+              }
             );
-            if (updatePosition.fulfilled.match(result)) {
-              appAlert.fire({
-                showConfirmButton: false,
-                timer: 3000,
-                icon: 'success',
-                title: 'Position updated successfully',
-              });
-            }
             setEditTarget(null);
           }}
         />
@@ -185,17 +175,12 @@ export function PositionsTab() {
           onClose={() => setDeleteTarget(null)}
           positionName={deleteTarget.name}
           onDelete={() => {
-            dispatch(deletePosition(deleteTarget.id))
-              .unwrap()
-              .then(() => {
-                appAlert.fire({
-                  showConfirmButton: false,
-                  timer: 3000,
-                  icon: 'success',
-                  title: 'Position deleted successfully',
-                });
-                setDeleteTarget(null);
-              });
+            toast.promise(dispatch(deletePosition(deleteTarget.id)).unwrap(), {
+              loading: 'Deleting position...',
+              success: 'Position deleted successfully',
+              error: 'Failed to delete position',
+            });
+            setDeleteTarget(null);
           }}
         />
       )}

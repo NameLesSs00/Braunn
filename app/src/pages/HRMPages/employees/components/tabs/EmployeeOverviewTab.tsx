@@ -87,6 +87,18 @@ export function EmployeeOverviewTab({ employee }: Props) {
               <div className="text-[14px] font-medium text-slate-900">{employee.email}</div>
             </div>
             <div>
+              <div className="text-[12px] text-slate-400 mb-1.5">Phone Number</div>
+              <div className="text-[14px] font-medium text-slate-900">{employee.phone || '—'}</div>
+            </div>
+            <div>
+              <div className="text-[12px] text-slate-400 mb-1.5">National ID</div>
+              <div className="text-[14px] font-medium text-slate-900">{employee.nationalId ? employee.nationalId : '—'}</div>
+            </div>
+            <div className="col-span-2">
+              <div className="text-[12px] text-slate-400 mb-1.5">Address</div>
+              <div className="text-[14px] font-medium text-slate-900">{employee.address || '—'}</div>
+            </div>
+            <div>
               <div className="text-[12px] text-slate-400 mb-1.5">Gender</div>
               <div className="text-[14px] font-medium text-slate-900 capitalize">{employee.gender || '—'}</div>
             </div>

@@ -62,7 +62,6 @@ import { EmployeesHRMPage } from './pages/HRMPages/employees/EmployeesHRMPage'
 import { ShiftManagementHRMPage } from './pages/HRMPages/shiftManagement/ShiftManagementHRMPage'
 import { AttendanceHRMPage } from './pages/HRMPages/attendance/AttendanceHRMPage'
 import { LeaveManagementHRMPage } from './pages/HRMPages/leaveManagement/LeaveManagementHRMPage'
-import { DepartmentsHRMPage } from './pages/HRMPages/departments/DepartmentsHRMPage'
 import { SalaryIncrementsHRMPage } from './pages/HRMPages/salaryIncrements/SalaryIncrementsHRMPage'
 import { PayrollHRMPage } from './pages/HRMPages/payroll/PayrollHRMPage'
 import { SettingHRMPage } from './pages/HRMPages/setting/SettingHRMPage'
@@ -73,6 +72,12 @@ import { RestaurantPOSPage } from './pages/POSPages/restaurant/RestaurantPOSPage
 import { CashierPOSView } from './pages/POSPages/restaurant/components/CashierPOSView'
 import { SystemSelectionPage } from './pages/systems/SystemSelectionPage'
 import { PurchaseDashboardPage } from './pages/PurchasePages/dashboard/PurchaseDashboardPage'
+import { SuppliersPurchasePage } from './pages/PurchasePages/suppliers/SuppliersPurchasePage'
+import { SupplierPurchasesPage } from './pages/PurchasePages/supplierPurchases/SupplierPurchasesPage'
+import { PurchasingAdvancesPage } from './pages/PurchasePages/advances/PurchasingAdvancesPage'
+import { PurchasingInstallmentsPage } from './pages/PurchasePages/installments/PurchasingInstallmentsPage'
+import { PurchasingTransactionsPage } from './pages/PurchasePages/transactions/PurchasingTransactionsPage'
+import { PurchasingTransfersPage } from './pages/PurchasePages/transfers/PurchasingTransfersPage'
 import { AccountingDashboardPage } from './pages/AccountingPages/dashboard/AccountingDashboardPage'
 import { RoomManagementPage } from './pages/AccountingPages/roomManagement/RoomManagementPage'
 import { SalesAndRevenueDashboardPage } from './pages/SalesAndRevenuePages/dashboard/SalesAndRevenueDashboardPage'
@@ -146,7 +151,6 @@ export default function App() {
     { from: alternateRoutes.hrm.shiftManagement, to: routes.hrm.shiftManagement },
     { from: alternateRoutes.hrm.attendance, to: routes.hrm.attendance },
     { from: alternateRoutes.hrm.leaveManagement, to: routes.hrm.leaveManagement },
-    { from: alternateRoutes.hrm.departments, to: routes.hrm.departments },
     { from: alternateRoutes.hrm.salaryIncrements, to: routes.hrm.salaryIncrements },
     { from: alternateRoutes.hrm.payroll, to: routes.hrm.payroll },
     { from: alternateRoutes.hrm.setting.root, to: routes.hrm.setting.departments },
@@ -190,6 +194,12 @@ export default function App() {
           {/* Purchase Module */}
           <Route path={routes.purchase.root} element={<Navigate to={routes.purchase.dashboard} replace />} />
           <Route path={routes.purchase.dashboard} element={<PurchaseDashboardPage />} />
+          <Route path={routes.purchase.suppliers} element={<SuppliersPurchasePage />} />
+          <Route path={routes.purchase.supplierPurchases} element={<SupplierPurchasesPage />} />
+          <Route path={routes.purchase.advances} element={<PurchasingAdvancesPage />} />
+          <Route path={routes.purchase.installments} element={<PurchasingInstallmentsPage />} />
+          <Route path={routes.purchase.transactions} element={<PurchasingTransactionsPage />} />
+          <Route path={routes.purchase.transfers} element={<PurchasingTransfersPage />} />
 
           {/* Accounting Module */}
           <Route path={routes.accounting.root} element={<Navigate to={routes.accounting.dashboard} replace />} />
@@ -333,7 +343,6 @@ export default function App() {
             <Route path={routes.hrm.shiftManagement} element={<ShiftManagementHRMPage />} />
             <Route path={routes.hrm.attendance} element={<AttendanceHRMPage />} />
             <Route path={routes.hrm.leaveManagement} element={<LeaveManagementHRMPage />} />
-            <Route path={routes.hrm.departments} element={<DepartmentsHRMPage />} />
             <Route path={routes.hrm.salaryIncrements} element={<SalaryIncrementsHRMPage />} />
             <Route path={routes.hrm.payroll} element={<PayrollHRMPage />} />
             <Route path={routes.hrm.setting.root} element={<SettingHRMPage />}>

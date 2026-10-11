@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   FiAlertCircle,
-  FiArrowDown,
   FiChevronLeft,
   FiChevronRight,
   FiEdit3,
@@ -94,6 +93,15 @@ function CategoryModal({
     }
   }, [isOpen, initialData])
 
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, isSubmitting, onClose])
+
   if (!isOpen) return null
 
   const handleSubmit = () => {
@@ -105,11 +113,17 @@ function CategoryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-[480px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-[480px] overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between bg-[#004bb0] px-5 py-4 text-white">
           <div className="text-[18px] font-bold">{title}</div>
-          <button type="button" onClick={onClose} disabled={isSubmitting} className="rounded-full p-1 text-white hover:bg-white/15" aria-label="Close">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="rounded-full p-1 text-white hover:bg-white/15 cursor-pointer disabled:opacity-50"
+            aria-label="Close"
+          >
             <FiX className="h-5 w-5" />
           </button>
         </div>
@@ -202,11 +216,20 @@ function DeleteCategoryModal({
   onConfirm: () => void
   isDeleting: boolean
 }) {
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isDeleting) onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, isDeleting, onClose])
+
   if (!isOpen || !category) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-[440px] rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-[440px] rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-5">
           <div className="mb-4 flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-full bg-[#fee2e2] text-[#b91c1c]">
@@ -266,6 +289,15 @@ function UnitModal({
     }
   }, [isOpen, initialData])
 
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, isSubmitting, onClose])
+
   if (!isOpen) return null
 
   const handleSubmit = () => {
@@ -277,11 +309,17 @@ function UnitModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-[480px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-[480px] overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between bg-[#004bb0] px-5 py-4 text-white">
           <div className="text-[18px] font-bold">{title}</div>
-          <button type="button" onClick={onClose} disabled={isSubmitting} className="rounded-full p-1 text-white hover:bg-white/15" aria-label="Close">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="rounded-full p-1 text-white hover:bg-white/15 cursor-pointer disabled:opacity-50"
+            aria-label="Close"
+          >
             <FiX className="h-5 w-5" />
           </button>
         </div>
@@ -325,11 +363,20 @@ function DeleteUnitModal({
   onConfirm: () => void
   isDeleting: boolean
 }) {
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isDeleting) onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, isDeleting, onClose])
+
   if (!isOpen || !unit) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-[440px] rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-[440px] rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-5">
           <div className="mb-4 flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-full bg-[#fee2e2] text-[#b91c1c]">
@@ -367,7 +414,7 @@ function DeleteUnitModal({
 export function AssetCategoriesPage() {
   const dispatch = useAppDispatch()
   
-  const { items, totalCount, status, createStatus, updateStatus, deleteStatus, error } = useAppSelector((state) => state.maintenanceCategories)
+  const { items, totalCount, fetchStatus, createStatus, updateStatus, deleteStatus, error } = useAppSelector((state) => state.maintenanceCategories)
   
   // Tab state
   const [activeTab, setActiveTab] = useState<'categories' | 'units'>('categories')
@@ -454,13 +501,13 @@ export function AssetCategoriesPage() {
 
   // Error handling
   useEffect(() => {
-    if (status === 'failed' || createStatus === 'failed' || updateStatus === 'failed' || deleteStatus === 'failed') {
+    if (fetchStatus === 'failed' || createStatus === 'failed' || updateStatus === 'failed' || deleteStatus === 'failed') {
       if (error) {
         appAlert.fire({ icon: 'error', title: 'Error', text: error })
         dispatch(clearCategoryError())
       }
     }
-  }, [status, createStatus, updateStatus, deleteStatus, error, dispatch])
+  }, [fetchStatus, createStatus, updateStatus, deleteStatus, error, dispatch])
 
   const handleCreateOrUpdate = async (data: { name: string; code: string; description: string; icon: string }) => {
     if (modalMode === 'create') {
@@ -533,7 +580,7 @@ export function AssetCategoriesPage() {
   const unitsTotalPages = Math.max(1, Math.ceil((unitsTotalCount || 0) / unitsPageSize))
   const isSubmitting = createStatus === 'loading' || updateStatus === 'loading'
   const isDeleting = deleteStatus === 'loading'
-  const isLoadingList = status === 'loading'
+  const isLoadingList = fetchStatus === 'loading'
 
   return (
     <div className="space-y-6">

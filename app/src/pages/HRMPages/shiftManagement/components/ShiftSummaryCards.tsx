@@ -1,6 +1,12 @@
 import { UserCheck, Sun, Sunrise, Moon } from 'lucide-react';
+import { useAppSelector } from '../../../../store/hooks';
 
 export function ShiftSummaryCards() {
+  const { shiftOverview } = useAppSelector((state) => state.hrManagement);
+
+  const getShiftCount = (name: string) => 
+    shiftOverview?.shifts.find(s => s.shiftName.toLowerCase() === name.toLowerCase())?.employeeCount ?? '-';
+
   return (
     <div className="grid grid-cols-4 gap-6">
       {/* Total Today */}
@@ -10,7 +16,7 @@ export function ShiftSummaryCards() {
         </div>
         <div className="text-right">
           <div className="text-sm font-semibold text-slate-500">Total Today</div>
-          <div className="text-4xl font-bold text-[#0B4EA2]">149</div>
+          <div className="text-4xl font-bold text-[#0B4EA2]">{shiftOverview?.activeEmployeesCount ?? '-'}</div>
           <div className="text-sm text-slate-500 mt-1">Employee</div>
         </div>
       </div>
@@ -22,7 +28,7 @@ export function ShiftSummaryCards() {
         </div>
         <div className="text-right">
           <div className="text-sm font-semibold text-blue-100">Morning</div>
-          <div className="text-4xl font-bold">80</div>
+          <div className="text-4xl font-bold">{getShiftCount('morning')}</div>
           <div className="text-sm text-blue-100 mt-1">employee</div>
         </div>
       </div>
@@ -34,7 +40,7 @@ export function ShiftSummaryCards() {
         </div>
         <div className="text-right">
           <div className="text-sm font-semibold text-slate-500">Evening</div>
-          <div className="text-4xl font-bold text-[#0B4EA2]">50</div>
+          <div className="text-4xl font-bold text-[#0B4EA2]">{getShiftCount('evening')}</div>
           <div className="text-sm text-slate-500 mt-1">Employee</div>
         </div>
       </div>
@@ -46,7 +52,7 @@ export function ShiftSummaryCards() {
         </div>
         <div className="text-right">
           <div className="text-sm font-semibold text-blue-100">Night</div>
-          <div className="text-4xl font-bold">50</div>
+          <div className="text-4xl font-bold">{getShiftCount('night')}</div>
           <div className="text-sm text-blue-100 mt-1">Employee</div>
         </div>
       </div>

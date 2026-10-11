@@ -1,5 +1,5 @@
-// const SERVER_BASE = 'https://pmss.runasp.net';
-const SERVER_BASE = 'https://pms.premiumasp.net/';
+const SERVER_BASE = 'https://pmss.runasp.net';
+// const SERVER_BASE = 'https://pms.premiumasp.net/';
 
 /**
  * Resolves an employee image URL from the backend.

@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import * as api from '../../shared/apis/AuthAPi'
+import { clearAuth } from '../../shared/utils/authUtils'
 
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
 
@@ -65,9 +66,7 @@ const authSlice = createSlice({
       state.user = undefined
       state.status = 'idle'
       state.error = undefined
-      localStorage.removeItem('isAuthenticated')
-      localStorage.removeItem('user')
-      localStorage.removeItem('access_token')
+      clearAuth()
     },
     clearAuthError(state) {
       state.error = undefined
@@ -85,9 +84,13 @@ const authSlice = createSlice({
         state.status = 'succeeded'
         state.user = action.payload
         const token = typeof action.payload === 'string' ? action.payload : (action.payload?.accessToken || action.payload?.access_token || action.payload?.token)
-        if (token) localStorage.setItem('access_token', token)
-        localStorage.setItem('isAuthenticated', 'true')
-        localStorage.setItem('user', JSON.stringify(action.payload))
+        if (token) {
+          localStorage.setItem('access_token', token)
+          localStorage.setItem('isAuthenticated', 'true')
+          localStorage.setItem('user', JSON.stringify(action.payload))
+        } else {
+          clearAuth()
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed'
@@ -102,9 +105,13 @@ const authSlice = createSlice({
         state.status = 'succeeded'
         state.user = action.payload
         const token = typeof action.payload === 'string' ? action.payload : (action.payload?.accessToken || action.payload?.access_token || action.payload?.token)
-        if (token) localStorage.setItem('access_token', token)
-        localStorage.setItem('isAuthenticated', 'true')
-        localStorage.setItem('user', JSON.stringify(action.payload))
+        if (token) {
+          localStorage.setItem('access_token', token)
+          localStorage.setItem('isAuthenticated', 'true')
+          localStorage.setItem('user', JSON.stringify(action.payload))
+        } else {
+          clearAuth()
+        }
       })
       .addCase(adminLogin.rejected, (state, action) => {
         state.status = 'failed'

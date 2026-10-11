@@ -47,6 +47,7 @@ import { lostAndFoundReducer } from '../features/HKfeatures/lostAndFound/lostAnd
 import { hrLeavesReducer } from '../features/HRMfeatures/leaves/hrLeavesSlice'
 import { hrPayrollReducer } from '../features/HRMfeatures/payroll/hrPayrollSlice'
 import { hrTerminationsReducer } from '../features/HRMfeatures/terminations/hrTerminationsSlice'
+import hrManagementReducer from '../features/HRMfeatures/management/hrManagementSlice'
 import { laundryInventoryItemsReducer } from '../features/Laundryfeatures/laundryInventoryItems/laundryInventoryItemsSlice';
 import { laundryInventoryCategoriesReducer } from '../features/Laundryfeatures/laundryInventoryCategories/laundryInventoryCategoriesSlice';
 import { laundryInventoryUnitsReducer } from '../features/Laundryfeatures/laundryInventoryUnits/laundryInventoryUnitsSlice';
@@ -54,6 +55,13 @@ import { laundryTypesReducer } from '../features/Laundryfeatures/laundryTypes/la
 import { laundryIssuesReducer } from '../features/Laundryfeatures/laundryIssues/laundryIssuesSlice';
 import { laundryPurchasesReducer } from '../features/Laundryfeatures/laundryPurchases/laundryPurchasesSlice';
 import corporateContractReducer from '../features/corporateContracts/corporateContractSlice';
+import { suppliersReducer } from '../features/Purchasefeatures/suppliers/suppliersSlice';
+import { supplierPurchasesReducer } from '../features/Purchasefeatures/supplierPurchases/supplierPurchasesSlice';
+import { purchasingAdvancesReducer } from '../features/Purchasefeatures/purchasingAdvances/purchasingAdvancesSlice';
+import { purchasingPaymentsReducer } from '../features/Purchasefeatures/purchasingPayments/purchasingPaymentsSlice';
+import { purchasingInstallmentsReducer } from '../features/Purchasefeatures/purchasingInstallments/purchasingInstallmentsSlice';
+import { supplierFinanceReducer } from '../features/Purchasefeatures/supplierFinance/supplierFinanceSlice';
+import { inventoryTransfersReducer } from '../features/Purchasefeatures/inventoryTransfers/inventoryTransfersSlice';
 import otaReservationDraftReducer from '../features/reservations/otaReservationDraftSlice';
 import { roomPlanReducer } from '../features/roomPlan/roomPlanSlice'
 import { dashboardReducer } from '../features/dashboard/dashboardSlice'
@@ -125,6 +133,7 @@ export const store = configureStore({
     hrLeaves: hrLeavesReducer,
     hrPayroll: hrPayrollReducer,
     hrTerminations: hrTerminationsReducer,
+    hrManagement: hrManagementReducer,
     laundryInventoryItems: laundryInventoryItemsReducer,
     laundryInventoryCategories: laundryInventoryCategoriesReducer,
     laundryInventoryUnits: laundryInventoryUnitsReducer,
@@ -153,6 +162,13 @@ export const store = configureStore({
     restaurantWarehouses: restaurantWarehousesReducer,
     restaurantInventory: restaurantInventoryReducer,
     restaurantMaterialRequests: restaurantMaterialRequestsReducer,
+    suppliers: suppliersReducer,
+    supplierPurchases: supplierPurchasesReducer,
+    purchasingAdvances: purchasingAdvancesReducer,
+    purchasingPayments: purchasingPaymentsReducer,
+    purchasingInstallments: purchasingInstallmentsReducer,
+    supplierFinance: supplierFinanceReducer,
+    inventoryTransfers: inventoryTransfersReducer,
   },
 })
 

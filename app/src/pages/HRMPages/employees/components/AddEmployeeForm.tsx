@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, User, Briefcase, Camera, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, User, Briefcase, Camera, ShieldAlert, Eye, EyeOff } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchDepartments } from '../../../../features/HRMfeatures/departments/departmentsSlice';
 import { fetchPositions } from '../../../../features/HRMfeatures/positions/positionsSlice';
 import { createHrEmployee, uploadHrEmployeeImage } from '../../../../features/HRMfeatures/employees/hrEmployeesSlice';
-import { appAlert } from '../../../../shared/ui/AppAlert';
+import { toast } from 'sonner';
 import type { EmployeeGender, EmployeeRole } from '../../../../models/HRMmodels/HREmployee';
 
 
@@ -19,6 +19,9 @@ type FormState = {
   employeeCode: string;
   fullName: string;
   email: string;
+  phone: string;
+  nationalId: string |'';
+  address: string;
   gender: EmployeeGender | '';
   nationality: string;
   role: EmployeeRole | '';
@@ -37,6 +40,9 @@ const INITIAL_FORM: FormState = {
   employeeCode: '',
   fullName: '',
   email: '',
+  phone: '',
+  nationalId: '',
+  address: '',
   gender: '',
   nationality: '',
   role: '',
@@ -71,6 +77,7 @@ export function AddEmployeeForm({ onCancel }: Props) {
 
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -99,15 +106,15 @@ export function AddEmployeeForm({ onCancel }: Props) {
 
   const validateForm = (): boolean => {
     if (!form.photoFile) {
-      appAlert.fire({ icon: 'error', title: 'Photo Required', text: 'Please select a profile photo.' });
+      toast.error('Photo Required: Please select a profile photo.');
       return false;
     }
     if (!form.employeeCode || !form.fullName || !form.email || !form.gender || !form.nationality || !form.role || !form.departmentId || !form.positionId || !form.joiningDate || !form.basicSalary || !form.bankAccountNumber) {
-      appAlert.fire({ icon: 'error', title: 'Missing Fields', text: 'Please fill out all required fields.' });
+      toast.error('Missing Fields: Please fill out all required fields.');
       return false;
     }
     if (form.role === 'Manager' && !form.password) {
-      appAlert.fire({ icon: 'error', title: 'Password Required', text: 'A password is required for Manager role.' });
+      toast.error('Password Required: A password is required for Manager role.');
       return false;
     }
     return true;
@@ -117,12 +124,16 @@ export function AddEmployeeForm({ onCancel }: Props) {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-    try {
+
+    const savePromise = (async () => {
       // 1. Create Employee
       const createPayload = {
         employeeCode: form.employeeCode,
         fullName: form.fullName,
         email: form.email,
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        nationalId: form.nationalId || "",
         annualLeaveEntitlement: Number(form.annualLeaveEntitlement) || 0,
         nationality: form.nationality,
         bankAccountNumber: form.bankAccountNumber,
@@ -141,21 +152,19 @@ export function AddEmployeeForm({ onCancel }: Props) {
       if (form.photoFile && result.id) {
         await dispatch(uploadHrEmployeeImage({ employeeId: result.id, file: form.photoFile })).unwrap();
       }
+    })();
 
-      appAlert.fire({
-        showConfirmButton: false,
-        timer: 3000,
-        icon: 'success',
-        title: 'Employee added successfully',
-      });
+    toast.promise(savePromise, {
+      loading: 'Creating employee...',
+      success: 'Employee added successfully',
+      error: (err) => err || 'Failed to add employee',
+    });
+
+    try {
+      await savePromise;
       onCancel();
-    } catch (error: any) {
-      appAlert.fire({
-        showConfirmButton: false,
-        timer: 3000,
-        icon: 'error',
-        title: error || 'Failed to add employee',
-      });
+    } catch (error) {
+      // error is handled by toast
     } finally {
       setIsSubmitting(false);
     }
@@ -259,6 +268,45 @@ export function AddEmployeeForm({ onCancel }: Props) {
                 placeholder="e.g. American, Egyptian, Saudi"
                 value={form.nationality}
                 onChange={set('nationality')}
+              />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">Phone Number</label>
+              <input
+                id="add-employee-phone"
+                type="tel"
+                className={inputClass}
+                placeholder="e.g. +20 100 000 0000"
+                value={form.phone}
+                onChange={set('phone')}
+              />
+            </div>
+
+            {/* National ID */}
+            <div>
+              <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">National ID</label>
+              <input
+                id="add-employee-national-id"
+                type="text"
+                className={inputClass}
+                placeholder="e.g. 123456789"
+                value={form.nationalId}
+                onChange={set('nationalId')}
+              />
+            </div>
+
+            {/* Address */}
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">Address</label>
+              <input
+                id="add-employee-address"
+                type="text"
+                className={inputClass}
+                placeholder="Street, city, country"
+                value={form.address}
+                onChange={set('address')}
               />
             </div>
           </div>
@@ -370,13 +418,22 @@ export function AddEmployeeForm({ onCancel }: Props) {
             {form.role === 'Manager' && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                 <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">Account Password <span className="text-red-500">*</span></label>
-                <input
-                  type="password"
-                  className={inputClass}
-                  placeholder="Enter secure password"
-                  value={form.password}
-                  onChange={set('password')}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className={`${inputClass} pr-10`}
+                    placeholder="Enter secure password"
+                    value={form.password}
+                    onChange={set('password')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 <p className="mt-1 text-[11px] text-slate-500">Required for Manager access.</p>
               </div>
             )}

@@ -21,6 +21,7 @@ export interface SalaryHistoryEntry {
 interface HrEmployeesState {
   employees: HREmployeeReadDto[];
   totalCount: number;
+  totalPages: number;
   pageNumber: number;
   pageSize: number;
   selectedEmployee: HREmployeeReadDto | null;
@@ -28,11 +29,13 @@ interface HrEmployeesState {
   salaryHistoryStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | undefined;
+  listRequestId: string | undefined;
 }
 
 const initialState: HrEmployeesState = {
   employees: [],
   totalCount: 0,
+  totalPages: 1,
   pageNumber: 1,
   pageSize: 10,
   selectedEmployee: null,
@@ -40,6 +43,7 @@ const initialState: HrEmployeesState = {
   salaryHistoryStatus: 'idle',
   status: 'idle',
   error: undefined,
+  listRequestId: undefined,
 };
 
 // --- Thunks ---
@@ -167,18 +171,25 @@ const hrEmployeesSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // fetchEmployees
-      .addCase(fetchHrEmployees.pending, (state) => {
+      .addCase(fetchHrEmployees.pending, (state, action) => {
         state.status = 'loading';
         state.error = undefined;
+        state.listRequestId = action.meta.requestId;
       })
-      .addCase(fetchHrEmployees.fulfilled, (state, action: PayloadAction<PaginatedHREmployees>) => {
+      .addCase(fetchHrEmployees.fulfilled, (state, action) => {
+        // Ignore responses from older requests (e.g. fast page clicking)
+        if (state.listRequestId !== action.meta.requestId) return;
         state.status = 'succeeded';
         state.employees = action.payload.items;
         state.totalCount = action.payload.totalCount;
         state.pageNumber = action.payload.pageNumber;
         state.pageSize = action.payload.pageSize;
+        state.totalPages =
+          action.payload.totalPages ??
+          Math.max(1, Math.ceil(action.payload.totalCount / (action.payload.pageSize || 1)));
       })
       .addCase(fetchHrEmployees.rejected, (state, action) => {
+        if (state.listRequestId !== action.meta.requestId) return;
         state.status = 'failed';
         state.error = action.payload as string;
       })

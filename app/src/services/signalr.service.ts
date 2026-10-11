@@ -1,4 +1,5 @@
 import * as signalR from '@microsoft/signalr';
+import { getAccessToken } from '../shared/utils/authUtils';
 
 export interface PreventiveMaintenanceRequestNotification {
   planId: number;
@@ -25,17 +26,18 @@ class SignalRService {
       return [import.meta.env.VITE_NOTIFICATION_HUB_URL];
     }
 
-    const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
-    const cleanBase = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
-    
-    // Try both singular (/notification) and plural (/notifications) to handle any backend ASP.NET Core MapHub configuration
-    // Also including MaintenanceRequestCreated as specified by user
-  return [
-  `https://pms.premiumasp.net/api/hubs/notifications`
-];
+    return [
+      `https://pms.premiumasp.net/api/hubs/notifications`
+    ];
   }
 
   public async startConnection(): Promise<void> {
+    const token = getAccessToken();
+    if (!token) {
+      console.log('[SignalR] No access token available, skipping connection');
+      return;
+    }
+
     if (this.connection && this.connection.state !== signalR.HubConnectionState.Disconnected) {
       console.log('[SignalR] Connection already active or reconnecting:', this.connection.state);
       return;
@@ -50,8 +52,7 @@ class SignalRService {
       const builder = new signalR.HubConnectionBuilder()
         .withUrl(hubUrl, {
           accessTokenFactory: () => {
-            const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
-            return token;
+            return getAccessToken() || '';
           },
         })
         .withAutomaticReconnect({

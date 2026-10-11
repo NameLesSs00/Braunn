@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
 import { translateAppText } from '../../../shared/lib/appTranslation'
 import { IoHomeOutline, IoSettingsOutline } from 'react-icons/io5'
-import { FiUsers, FiClock, FiCalendar, FiLogOut, FiBriefcase, FiDollarSign, FiTrendingUp } from 'react-icons/fi'
+import { FiUsers, FiClock, FiCalendar, FiLogOut, FiDollarSign, FiTrendingUp } from 'react-icons/fi'
 import { LayoutGrid } from 'lucide-react'
 import type { IconType } from 'react-icons'
 
@@ -18,7 +18,6 @@ const navItems: NavItem[] = [
   { to: routes.hrm.shiftManagement, label: 'Shift Management', icon: FiClock },
   { to: routes.hrm.attendance, label: 'Attendance', icon: FiCalendar },
   { to: routes.hrm.leaveManagement, label: 'Leave Management', icon: FiLogOut },
-  { to: routes.hrm.departments, label: 'Departments', icon: FiBriefcase },
   { to: routes.hrm.salaryIncrements, label: 'Salary Increments', icon: FiTrendingUp },
   { to: routes.hrm.payroll, label: 'Payroll', icon: FiDollarSign },
   { to: routes.hrm.setting.root, label: 'Setting', icon: IoSettingsOutline },

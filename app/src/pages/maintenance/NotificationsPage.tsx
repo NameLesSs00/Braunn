@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import {
-  FiAlertCircle,
   FiChevronLeft,
   FiChevronRight,
   FiEye,
   FiFilter,
-  FiSearch,
   FiX,
 } from 'react-icons/fi'
 import { HiOutlineBell } from 'react-icons/hi2'
@@ -43,17 +41,26 @@ function DetailModal({
   onClose: () => void
   notification: NotificationItem | null
 }) {
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   if (!isOpen || !notification) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-[600px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-[600px] overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between bg-[#004bb0] px-5 py-4 text-white">
           <div className="text-[18px] font-bold">Notification Details</div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1 text-white hover:bg-white/15"
+            className="rounded-full p-1 text-white hover:bg-white/15 cursor-pointer"
             aria-label="Close"
           >
             <FiX className="h-5 w-5" />

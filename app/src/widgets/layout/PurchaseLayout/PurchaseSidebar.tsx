@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
 import { IoHomeOutline } from 'react-icons/io5'
+import { FiTruck, FiShoppingCart, FiCreditCard, FiCalendar, FiFileText, FiRepeat } from 'react-icons/fi'
 import { LayoutGrid } from 'lucide-react'
 import type { IconType } from 'react-icons'
 
@@ -12,6 +13,12 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { to: routes.purchase.dashboard, label: 'Overview', icon: IoHomeOutline },
+  { to: routes.purchase.suppliers, label: 'Suppliers', icon: FiTruck },
+  { to: routes.purchase.supplierPurchases, label: 'Supplier Purchases', icon: FiShoppingCart },
+  { to: routes.purchase.advances, label: 'Advances', icon: FiCreditCard },
+  { to: routes.purchase.installments, label: 'Installments', icon: FiCalendar },
+  { to: routes.purchase.transactions, label: 'Transactions', icon: FiFileText },
+  { to: routes.purchase.transfers, label: 'Inventory Transfers', icon: FiRepeat },
 ]
 
 function PurchaseSidebarLink({ item }: { item: NavItem }) {

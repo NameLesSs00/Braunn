@@ -1,11 +1,11 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { routes } from '../lib/routes'
+import { getAccessToken } from '../utils/authUtils'
 
 export function AuthGuard() {
-  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
-  const hasToken = !!localStorage.getItem('access_token')
+  const token = getAccessToken()
 
-  if (!isAuthenticated || !hasToken) {
+  if (!token) {
     return <Navigate to={routes.root} replace />
   }
 

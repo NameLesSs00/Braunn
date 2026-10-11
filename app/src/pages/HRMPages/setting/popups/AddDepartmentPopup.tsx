@@ -7,8 +7,10 @@ import {
   createDepartment,
   updateDepartment,
   fetchDepartments,
+  clearDepartmentsError,
 } from '../../../../features/HRMfeatures/departments/departmentsSlice';
 import type { DepartmentReadDto } from '../../../../models/HRMmodels/Department';
+import { showErrorToast, showPromiseToast } from '../../../../shared/ui/toastFeedback';
 
 type Props = {
   open: boolean;
@@ -32,25 +34,52 @@ export function AddDepartmentPopup({ open, onClose, mode = 'add', initialData }:
   };
 
   const handleSubmit = async () => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim()) {
+      showErrorToast('Department name is required.', 'Department name is required.');
+      return;
+    }
+
     setLoading(true);
     try {
+      const activeStatusChanged = mode === 'edit' && initialData && initialData.isActive !== form.isActive;
+
       if (mode === 'edit' && initialData) {
-        await dispatch(
-          updateDepartment({
-            id: initialData.id,
-            payload: { name: form.name, description: form.description, isActive: form.isActive },
-          })
-        ).unwrap();
+        const successMessage = activeStatusChanged
+          ? form.isActive
+            ? 'Department activated successfully'
+            : 'Department deactivated successfully'
+          : 'Department updated successfully';
+
+        await showPromiseToast(
+          dispatch(
+            updateDepartment({
+              id: initialData.id,
+              payload: { name: form.name, description: form.description, isActive: form.isActive },
+            })
+          ).unwrap(),
+          {
+            loading: 'Saving department...',
+            success: successMessage,
+            error: 'Failed to update department',
+          },
+        );
       } else {
-        await dispatch(
-          createDepartment({ name: form.name, description: form.description })
-        ).unwrap();
+        await showPromiseToast(
+          dispatch(
+            createDepartment({ name: form.name, description: form.description })
+          ).unwrap(),
+          {
+            loading: 'Creating department...',
+            success: 'Department created successfully',
+            error: 'Failed to create department',
+          },
+        );
       }
       await dispatch(fetchDepartments(undefined));
       handleClose();
     } catch {
-      // error is stored in redux state; keep modal open
+      // The toast already shows the API error; keep the modal open.
+      dispatch(clearDepartmentsError());
     } finally {
       setLoading(false);
     }

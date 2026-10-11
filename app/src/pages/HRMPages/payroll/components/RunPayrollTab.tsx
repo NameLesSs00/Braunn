@@ -32,9 +32,9 @@ export function RunPayrollTab({ month, year }: Props) {
     processingRecords,
     selectedSnapshot,
   } = useAppSelector((state) => state.hrPayroll);
-  const { employees } = useAppSelector((state) => state.hrEmployees);
   const [view, setView] = useState<View>('table');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAYROLL_PAGE_SIZE);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailsRecord, setDetailsRecord] = useState<HRPayrollReadDto | null>(null);
   const [runEmployees, setRunEmployees] = useState<HRPayrollReadDto[]>([]);
@@ -62,11 +62,6 @@ export function RunPayrollTab({ month, year }: Props) {
     }
   }, [detailsRecord, dispatch]);
 
-  const activeEmployeeIds = useMemo(
-    () => new Set(employees.filter((employee) => employee.status === 'Active').map((employee) => employee.id)),
-    [employees]
-  );
-
   const processedPayrollIds = useMemo(
     () => new Set(processingRecords.map((record) => record.payrollId)),
     [processingRecords]
@@ -74,16 +69,13 @@ export function RunPayrollTab({ month, year }: Props) {
 
   const eligibleRecords = useMemo(() => {
     return payrolls.filter((record) => {
-      const isActiveEmployee = activeEmployeeIds.size === 0 || activeEmployeeIds.has(record.employeeId);
       const matchesSearch = !searchTerm || record.employeeName.toLowerCase().includes(searchTerm.toLowerCase());
-      return record.status === 'Reviewed' && isActiveEmployee && !processedPayrollIds.has(record.id) && matchesSearch;
+      return record.status === 'Reviewed' && !processedPayrollIds.has(record.id) && matchesSearch;
     });
-  }, [activeEmployeeIds, payrolls, processedPayrollIds, searchTerm]);
+  }, [payrolls, processedPayrollIds, searchTerm]);
 
-  const totalPages = Math.max(1, Math.ceil(eligibleRecords.length / PAYROLL_PAGE_SIZE));
-  const pageRecords = eligibleRecords.slice((page - 1) * PAYROLL_PAGE_SIZE, page * PAYROLL_PAGE_SIZE);
-  const startRecord = eligibleRecords.length === 0 ? 0 : (page - 1) * PAYROLL_PAGE_SIZE + 1;
-  const endRecord = Math.min(page * PAYROLL_PAGE_SIZE, eligibleRecords.length);
+  const totalPages = Math.max(1, Math.ceil(eligibleRecords.length / pageSize));
+  const pageRecords = eligibleRecords.slice((page - 1) * pageSize, page * pageSize);
   const processing = processStatus === 'loading';
 
   const handleRunPayroll = (id: string) => {
@@ -170,8 +162,9 @@ export function RunPayrollTab({ month, year }: Props) {
         selectedIds={selectedIds}
         page={page}
         totalPages={totalPages}
-        startRecord={startRecord}
-        endRecord={endRecord}
+        totalRecords={eligibleRecords.length}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
         searchTerm={searchTerm}
         processing={processing}
         setPage={setPage}

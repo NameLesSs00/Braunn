@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FiAlertTriangle, FiChevronDown, FiChevronRight, FiCircle, FiPlus, FiSearch, FiTriangle, FiX } from 'react-icons/fi'
 import { MaintenanceHeader } from '../../widgets/layout/MaintenanceHeader/MaintenanceHeader'
 
@@ -81,18 +81,32 @@ function ConditionPill({ condition }: { condition: AssetRow['condition'] }) {
 }
 
 function AddAssetModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-[680px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-[680px] overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="bg-[#004bb0] px-5 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-[22px] font-bold">Add New Asset</div>
               <div className="text-[13px] text-blue-100">Register a new piece of equipment or machinery</div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-full p-1 text-white hover:bg-white/15" aria-label="Close">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-1 text-white hover:bg-white/15 cursor-pointer"
+              aria-label="Close"
+            >
               <FiX className="h-5 w-5" />
             </button>
           </div>
@@ -175,18 +189,32 @@ function AddAssetModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 }
 
 function EditStatusModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-[460px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="w-full max-w-[460px] overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="bg-[#004bb0] px-5 py-4 text-white">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-[20px] font-bold">Edit Asset Status</div>
               <div className="text-[12px] text-blue-100">HVAC Unit — Floor 4</div>
             </div>
-            <button type="button" onClick={onClose} className="rounded-full p-1 text-white hover:bg-white/15" aria-label="Close">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-1 text-white hover:bg-white/15 cursor-pointer"
+              aria-label="Close"
+            >
               <FiX className="h-5 w-5" />
             </button>
           </div>

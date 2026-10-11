@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { fetchShiftAssignments } from '../../../features/HRMfeatures/shiftAssignments/shiftAssignmentsSlice';
 import { fetchHrEmployees } from '../../../features/HRMfeatures/employees/hrEmployeesSlice';
+import { fetchShiftManagementOverview } from '../../../features/HRMfeatures/management/hrManagementSlice';
 import type { HREmployeeReadDto } from '../../../models/HRMmodels/HREmployee';
 import { ShiftSummaryCards } from './components/ShiftSummaryCards';
 import { ShiftToolbar } from './components/ShiftToolbar';
@@ -25,6 +26,7 @@ export function ShiftManagementHRMPage() {
   const dispatch = useAppDispatch();
   const { items: assignments } = useAppSelector((state: any) => state.shiftAssignments);
   const { employees } = useAppSelector((state: any) => state.hrEmployees);
+  const { shiftOverviewStatus } = useAppSelector((state) => state.hrManagement);
 
   const [isSelectOpen, setIsSelectOpen] = useState(false);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
@@ -41,7 +43,11 @@ export function ShiftManagementHRMPage() {
     // Fetch with large page size to get all assignments and employees
     dispatch(fetchShiftAssignments({ PageNumber: 1, PageSize: 100 }));
     dispatch(fetchHrEmployees({ PageNumber: 1, PageSize: 100 }));
-  }, [dispatch]);
+    
+    if (shiftOverviewStatus === 'idle') {
+      dispatch(fetchShiftManagementOverview());
+    }
+  }, [dispatch, shiftOverviewStatus]);
 
   // Derived Week Days
   const weekDays = useMemo(() => {

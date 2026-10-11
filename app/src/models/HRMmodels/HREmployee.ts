@@ -6,6 +6,9 @@ export interface HREmployeeReadDto {
   employeeCode: string;
   fullName: string;
   email: string;
+  phone: string;
+  address: string;
+  nationalId: string;
   annualLeaveEntitlement: number;
   nationality: string;
   bankAccountNumber: string;
@@ -28,6 +31,9 @@ export interface HREmployeeCreateDto {
   employeeCode: string;
   fullName: string;
   email: string;
+  phone: string;
+  address: string;
+  nationalId: string;
   annualLeaveEntitlement: number;
   nationality: string;
   bankAccountNumber: string;
@@ -44,6 +50,9 @@ export interface HREmployeeCreateDto {
 export interface HREmployeeUpdateDto {
   fullName: string;
   email: string;
+  phone: string;
+  address: string;
+  nationalId: string;
   departmentId: string;
   annualLeaveEntitlement: number;
   positionId: string;
@@ -75,4 +84,7 @@ export interface PaginatedHREmployees {
   pageSize: number;
   items: HREmployeeReadDto[];
   totalCount: number;
+  totalPages?: number;
+  hasPreviousPage?: boolean;
+  hasNextPage?: boolean;
 }

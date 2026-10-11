@@ -296,6 +296,22 @@ export function PreventiveMaintenancePageContent() {
     }
   })
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsAddModalOpen(false)
+        setIsEditModalOpen(false)
+        setIsDetailsModalOpen(false)
+        setIsCompleteModalOpen(false)
+        setIsAssignModalOpen(false)
+        setSelectedPlan(null)
+        setSelectedRequest(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
 
   const totalPlanPages = Math.max(1, Math.ceil(plansTotalCount / plansPageSize))
   const totalRequestPages = Math.max(1, Math.ceil(requestsTotalCount / requestsPageSize))
@@ -741,7 +757,7 @@ export function PreventiveMaintenancePageContent() {
                       </td>
                       <td className="px-4 py-3 text-slate-600">{plan.categoryName || '-'}</td>
                       <td className="px-4 py-3"><span className="inline-flex rounded-full bg-[#EEF2FF] px-2.5 py-0.5 text-xs font-semibold text-[#4F46E5]">{plan.frequency || '-'}</span></td>
-                      <td className="px-4 py-3"><div className="font-medium text-slate-700">{formatDateValue(plan.nextMaintenanceDate)}</div><div className="text-[12px] text-slate-400">{plan.nextDueDate ? 'Next due' : '-'}</div></td>
+                      <td className="px-4 py-3"><div className="font-medium text-slate-700">{formatDateValue(plan.nextMaintenanceDate)}</div><div className="text-[12px] text-slate-400">{plan.nextMaintenanceDate ? 'Next due' : '-'}</div></td>
                       <td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(plan.status)}`}>{plan.status || 'Pending'}</span></td>
                       <td className="px-4 py-3 text-slate-500">{formatDateValue(plan.createdAt)}</td>
                       <td className="px-4 py-3">
@@ -791,7 +807,6 @@ export function PreventiveMaintenancePageContent() {
                     const isAssigned = reqStatus === 'assigned';
                     const isInProgress = reqStatus === 'inprogress' || reqStatus === 'in progress';
                     const isCompleted = reqStatus === 'completed';
-                    const isCancelled = reqStatus === 'cancelled';
                     return (
                     <tr key={request.id} className="relative border-t border-slate-100 transition hover:bg-slate-50/70">
                       <td className="px-4 py-3">
@@ -843,14 +858,21 @@ export function PreventiveMaintenancePageContent() {
       </div>
 
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)}>
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between bg-[#0242A6] px-6 py-5 text-white">
               <div>
                 <h3 className="text-lg font-bold">Create Preventive Maintenance Plan</h3>
                 <p className="mt-0.5 text-xs text-blue-100">Add a new recurring maintenance plan</p>
               </div>
-              <button type="button" onClick={() => setIsAddModalOpen(false)} className="rounded-full p-1 text-white transition hover:bg-blue-800"><X className="h-5 w-5" /></button>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="rounded-full p-1 text-white transition hover:bg-blue-800 cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <form onSubmit={handleCreatePlan} className="space-y-4 p-6">
               <div>
@@ -916,14 +938,21 @@ export function PreventiveMaintenancePageContent() {
       )}
 
       {isEditModalOpen && selectedPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setIsEditModalOpen(false); setSelectedPlan(null) }}>
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between bg-[#0242A6] px-6 py-5 text-white">
               <div>
                 <h3 className="text-lg font-bold">Update Preventive Maintenance Plan</h3>
                 <p className="mt-0.5 text-xs text-blue-100">Edit the selected maintenance plan</p>
               </div>
-              <button type="button" onClick={() => { setIsEditModalOpen(false); setSelectedPlan(null) }} className="rounded-full p-1 text-white transition hover:bg-blue-800"><X className="h-5 w-5" /></button>
+              <button
+                type="button"
+                onClick={() => { setIsEditModalOpen(false); setSelectedPlan(null) }}
+                className="rounded-full p-1 text-white transition hover:bg-blue-800 cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <form onSubmit={handleUpdatePlan} className="space-y-4 p-6">
               <div>
@@ -989,14 +1018,21 @@ export function PreventiveMaintenancePageContent() {
       )}
 
       {isDetailsModalOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setIsDetailsModalOpen(false); setSelectedRequest(null) }}>
+          <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 bg-white">
               <div>
                 <h3 className="text-[17px] font-bold text-slate-800">Maintenance Request Details</h3>
                 <p className="text-xs text-slate-400">Request #{selectedRequest.id}</p>
               </div>
-              <button type="button" onClick={() => { setIsDetailsModalOpen(false); setSelectedRequest(null) }} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"><X className="h-5 w-5" /></button>
+              <button
+                type="button"
+                onClick={() => { setIsDetailsModalOpen(false); setSelectedRequest(null) }}
+                className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <div className="max-h-[70vh] space-y-6 overflow-y-auto p-6">
               <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-100 bg-slate-50 p-5 sm:grid-cols-2">
@@ -1017,14 +1053,21 @@ export function PreventiveMaintenancePageContent() {
       )}
 
       {isCompleteModalOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setIsCompleteModalOpen(false); setSelectedRequest(null) }}>
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between bg-[#0242A6] px-6 py-5 text-white">
               <div>
                 <h3 className="text-lg font-bold">Complete Maintenance Request</h3>
                 <p className="mt-0.5 text-xs text-blue-100">Add completion notes</p>
               </div>
-              <button type="button" onClick={() => { setIsCompleteModalOpen(false); setSelectedRequest(null) }} className="rounded-full p-1 text-white transition hover:bg-blue-800"><X className="h-5 w-5" /></button>
+              <button
+                type="button"
+                onClick={() => { setIsCompleteModalOpen(false); setSelectedRequest(null) }}
+                className="rounded-full p-1 text-white transition hover:bg-blue-800 cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <form onSubmit={handleCompleteRequest} className="space-y-4 p-6">
               <div>
@@ -1044,14 +1087,21 @@ export function PreventiveMaintenancePageContent() {
       )}
 
       {isAssignModalOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setIsAssignModalOpen(false); setSelectedRequest(null) }}>
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between bg-[#0242A6] px-6 py-5 text-white">
               <div>
                 <h3 className="text-lg font-bold">{selectedRequest.employeeId || selectedRequest.assignedEmployeeId ? 'Reassign Maintenance Request' : 'Assign Maintenance Request'}</h3>
                 <p className="mt-0.5 text-xs text-blue-100">Select an employee</p>
               </div>
-              <button type="button" onClick={() => { setIsAssignModalOpen(false); setSelectedRequest(null) }} className="rounded-full p-1 text-white transition hover:bg-blue-800"><X className="h-5 w-5" /></button>
+              <button
+                type="button"
+                onClick={() => { setIsAssignModalOpen(false); setSelectedRequest(null) }}
+                className="rounded-full p-1 text-white transition hover:bg-blue-800 cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <form onSubmit={handleAssignRequest} className="space-y-4 p-6">
               <div>

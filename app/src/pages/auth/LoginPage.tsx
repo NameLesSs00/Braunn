@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { routes } from '../../shared/lib/routes'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { adminLogin, clearAuthError } from '../../features/auth/authSlice'
 import { AuthTranslationBoundary } from './components/AuthTranslationBoundary'
+import { getAccessToken } from '../../shared/utils/authUtils'
 
 export function LoginPage() {
   const [email, setEmail] = useState('admin@gear.com')
   const [password, setPassword] = useState('Gear@321')
+  const [showPassword, setShowPassword] = useState(false)
   const { status, error } = useAppSelector((state) => state.auth)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
-    if (isAuthenticated) {
+    const token = getAccessToken()
+    if (token) {
       navigate(routes.systems)
     }
     return () => {
@@ -77,15 +80,24 @@ export function LoginPage() {
               <label htmlFor="password" className="text-sm font-semibold text-slate-700 ml-1">
                 Password
               </label>
-              <input
+              <div className="relative">
+                <input
                 id="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder=""
-                className="w-full h-14 px-5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 focus:border-[#0B4EA2] transition-all"
+                className="w-full h-14 pl-5 pr-12 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 focus:border-[#0B4EA2] transition-all"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
             </div>
 
             <div className="flex items-center gap-2 ml-1">
