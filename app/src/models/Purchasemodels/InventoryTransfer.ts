@@ -1,5 +1,27 @@
 export type TransferStatus = 'Pending' | 'Confirmed' | 'Cancelled';
-export type DepartmentType = 'Restaurant' | 'Maintenance' | 'Housekeeping' | string;
+export type DepartmentType = 'Restaurant' | 'Laundry' | 'Housekeeping' | 'Maintenance' | string;
+
+export interface UnifiedDepartmentRequestItem {
+  id?: number;
+  itemId: number;
+  itemName: string;
+  quantity: number;
+  priority?: string;
+  unitId?: number | null;
+  unitSymbol?: string;
+}
+
+export interface UnifiedDepartmentRequest {
+  id: number;
+  department: 'Restaurant' | 'Laundry' | 'Housekeeping' | 'Maintenance';
+  referenceCode: string;
+  requesterName: string;
+  requiredDate: string;
+  status: string;
+  itemsCount: number;
+  items: UnifiedDepartmentRequestItem[];
+  rawRequest: any;
+}
 
 export interface InventoryTransferItem {
   id: number;
@@ -20,9 +42,7 @@ export interface InventoryTransferItem {
 export interface InventoryTransfer {
   id: number;
   departmentType: DepartmentType;
-  itemId: number;
-  quantity: number;
-  mainInventoryId: number;
+  mainInventoryId?: number;
   status: TransferStatus;
   destinationWarehouseId?: number | null;
   destinationWarehouseName?: string;
@@ -30,8 +50,10 @@ export interface InventoryTransfer {
   restaurantName?: string;
   materialRequestId?: number | null;
   transferredBy: string;
+  transferredByName?: string | null;
   transferDate: string;
   confirmedBy?: string | null;
+  confirmedByName?: string | null;
   confirmedAt?: string | null;
   notes?: string;
   items: InventoryTransferItem[];
@@ -90,6 +112,44 @@ export interface PurchasingInventoryItem {
   modifiedAt?: string;
 }
 
+export interface InventoryTransaction {
+  id: number;
+  inventoryItemId: number;
+  purchaseId: number | null;
+  transactionType: 'Receipt' | 'TransferOut' | string;
+  quantity: number;
+  unitId: number;
+  unitName: string;
+  unitSymbol: string;
+  beforeQuantity: number;
+  afterQuantity: number;
+  reference: string;
+  notes: string;
+  createdAt: string;
+}
+
+export interface PurchasingInventoryDetail extends PurchasingInventoryItem {
+  recentTransactions: InventoryTransaction[];
+}
+
+export interface PurchasingInventoryPaginatedResponse {
+  items: PurchasingInventoryItem[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  totalValuation: number;
+}
+
+export interface PurchasingInventoryFilterQuery {
+  pageNumber?: number;
+  pageSize?: number;
+  purchaseType?: string;
+  isActive?: boolean;
+  lowStockOnly?: boolean;
+  search?: string;
+}
+
 export interface RestaurantMaterialRequestItem {
   id: number;
   materialRequestId: number;
@@ -111,4 +171,16 @@ export interface RestaurantMaterialRequest {
   items: RestaurantMaterialRequestItem[];
   createdAt: string;
   createdBy: string;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}
+
+export interface RestaurantMaterialRequestFilterQuery {
+  pageNumber?: number;
+  pageSize?: number;
+  restaurantId?: number;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
 }

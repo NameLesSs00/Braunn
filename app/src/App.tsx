@@ -40,6 +40,7 @@ import { MaintenanceDashboardPage } from './pages/maintenance/MaintenanceDashboa
 import { NewMaintenanceRequestPage } from './pages/maintenance/NewMaintenanceRequestPage'
 import { WorkOrderDashboardPage } from './pages/maintenance/WorkOrderDashboardPage'
 import { MaintenanceInventoryPage } from './pages/maintenance/MaintenanceInventoryPage'
+import { MaintenancePurchasesPage } from './pages/maintenance/MaintenancePurchasesPage'
 import { AssetCategoriesPage } from './pages/maintenance/AssetCategoriesPage'
 import { AssetsEquipmentPage } from './pages/maintenance/AssetsEquipmentPage'
 import MaintenanceRequestDetailsPage from './pages/maintenance/MaintenanceRequestDetailsPage'
@@ -47,6 +48,7 @@ import { NotificationsPage } from './pages/maintenance/NotificationsPage'
 import { LaundryOverviewPage } from './pages/laundry/overview/LaundryOverviewPage'
 import { RoomRequestsPage } from './pages/laundry/roomRequests/RoomRequestsPage'
 import { InventoryLaundryPage } from './pages/laundry/inventory/InventoryLaundryPage'
+import { LaundryPurchasesPage } from './pages/laundry/purchases/LaundryPurchasesPage'
 import { SettingsLaundryPage } from './pages/laundry/settings/SettingsLaundryPage'
 import { HousekeepingLayout } from './widgets/layout/HousekeepingLayout/HousekeepingLayout'
 import { DashboardHKPage } from './pages/HKPages/dashboard/DashboardHKPage'
@@ -54,6 +56,7 @@ import { CleaningTasksHKPage } from './pages/HKPages/cleaningTasks/CleaningTasks
 import { GuestRequestsHKPage } from './pages/HKPages/guestRequests/GuestRequestsHKPage'
 import { FoundsAndLostHKPage } from './pages/HKPages/foundsAndLost/FoundsAndLostHKPage'
 import { InventoryHKPage } from './pages/HKPages/inventory/InventoryHKPage'
+import { PurchasesHKPage } from './pages/HKPages/purchases/PurchasesHKPage'
 import { SettingsHKPage } from './pages/HKPages/settings/SettingsHKPage'
 import { RoomStatusHKPage } from './pages/HKPages/roomStatus/RoomStatusHKPage'
 import { HRMLayout } from './widgets/layout/HRMLayout/HRMLayout'
@@ -141,6 +144,7 @@ export default function App() {
     { from: alternateRoutes.laundry.overview, to: routes.laundry.overview },
     { from: alternateRoutes.laundry.roomRequests, to: routes.laundry.roomRequests },
     { from: alternateRoutes.laundry.inventory, to: routes.laundry.inventory },
+    { from: alternateRoutes.laundry.purchases, to: routes.laundry.purchases },
     { from: alternateRoutes.laundry.settings, to: routes.laundry.settings },
   ]
 
@@ -167,6 +171,7 @@ export default function App() {
     { from: alternateRoutes.hk.guestRequests, to: routes.hk.guestRequests },
     { from: alternateRoutes.hk.foundsAndLost, to: routes.hk.foundsAndLost },
     { from: alternateRoutes.hk.inventory, to: routes.hk.inventory },
+    { from: alternateRoutes.hk.purchases, to: routes.hk.purchases },
     { from: alternateRoutes.hk.settings, to: routes.hk.settings },
   ]
 
@@ -178,6 +183,7 @@ export default function App() {
     { from: alternateRoutes.maintenance.newRequest, to: routes.maintenance.newRequest },
     { from: alternateRoutes.maintenance.workOrders, to: routes.maintenance.workOrders },
     { from: alternateRoutes.maintenance.inventory, to: routes.maintenance.inventory },
+    { from: alternateRoutes.maintenance.purchases, to: routes.maintenance.purchases },
     { from: alternateRoutes.maintenance.categories, to: routes.maintenance.categories },
     { from: alternateRoutes.maintenance.assets, to: routes.maintenance.assets },
     { from: alternateRoutes.maintenance.notifications, to: routes.maintenance.notifications },
@@ -303,6 +309,7 @@ export default function App() {
             <Route path={routes.maintenance.newRequest} element={<NewMaintenanceRequestPage />} />
             <Route path={routes.maintenance.workOrders} element={<WorkOrderDashboardPage />} />
             <Route path={routes.maintenance.inventory} element={<MaintenanceInventoryPage />} />
+            <Route path={routes.maintenance.purchases} element={<MaintenancePurchasesPage />} />
             <Route path={routes.maintenance.categories} element={<AssetCategoriesPage />} />
             <Route path={routes.maintenance.assets} element={<AssetsEquipmentPage />} />
             <Route path={routes.maintenance.notifications} element={<NotificationsPage />} />
@@ -316,6 +323,7 @@ export default function App() {
             <Route path={routes.laundry.overview} element={<LaundryOverviewPage />} />
             <Route path={routes.laundry.roomRequests} element={<RoomRequestsPage />} />
             <Route path={routes.laundry.inventory} element={<InventoryLaundryPage />} />
+            <Route path={routes.laundry.purchases} element={<LaundryPurchasesPage />} />
             <Route path={routes.laundry.settings} element={<SettingsLaundryPage />} />
           </Route>
 
@@ -330,6 +338,7 @@ export default function App() {
             <Route path={routes.hk.guestRequests} element={<GuestRequestsHKPage />} />
             <Route path={routes.hk.foundsAndLost} element={<FoundsAndLostHKPage />} />
             <Route path={routes.hk.inventory} element={<InventoryHKPage />} />
+            <Route path={routes.hk.purchases} element={<PurchasesHKPage />} />
             <Route path={routes.hk.settings} element={<SettingsHKPage />} />
           </Route>
 

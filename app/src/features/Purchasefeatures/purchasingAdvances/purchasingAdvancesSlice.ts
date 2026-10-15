@@ -168,13 +168,17 @@ const purchasingAdvancesSlice = createSlice({
         fetchPurchasingAdvances.fulfilled,
         (state, action: PayloadAction<PaginatedPurchasingAdvances>) => {
           state.fetchStatus = 'succeeded';
-          state.advances = action.payload.data;
-          state.totalCount = action.payload.totalCount;
-          state.pageNumber = action.payload.pageNumber;
-          state.pageSize = action.payload.pageSize;
-          state.totalPages = action.payload.totalPages;
-          state.hasPreviousPage = action.payload.hasPreviousPage;
-          state.hasNextPage = action.payload.hasNextPage;
+          const raw = action.payload as any;
+          const items = Array.isArray(raw)
+            ? raw
+            : raw?.data || raw?.Data || raw?.items || raw?.Items || [];
+          state.advances = items;
+          state.totalCount = Number(raw?.totalCount ?? raw?.TotalCount ?? (Array.isArray(raw) ? raw.length : items.length));
+          state.pageNumber = Number(raw?.pageNumber && raw.pageNumber > 0 ? raw.pageNumber : 1);
+          state.pageSize = Number(raw?.pageSize && raw.pageSize > 0 ? raw.pageSize : 10);
+          state.totalPages = Number(raw?.totalPages ?? raw?.TotalPages ?? Math.max(1, Math.ceil(state.totalCount / (state.pageSize || 1))));
+          state.hasPreviousPage = Boolean(raw?.hasPreviousPage ?? (state.pageNumber > 1));
+          state.hasNextPage = Boolean(raw?.hasNextPage ?? (state.pageNumber < state.totalPages));
         }
       )
       .addCase(fetchPurchasingAdvances.rejected, (state, action) => {

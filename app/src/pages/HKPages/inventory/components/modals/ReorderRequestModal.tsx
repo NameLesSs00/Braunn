@@ -23,7 +23,6 @@ let nextId = 0;
 export function ReorderRequestModal({ isOpen, onClose, initialItem }: ReorderRequestModalProps) {
   const dispatch = useAppDispatch();
   const [requestDate, setRequestDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [supplierName, setSupplierName] = useState('');
   const [notes, setNotes] = useState('');
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItemState[]>([]);
   const [allItems, setAllItems] = useState<HkmInventoryItemReadDto[]>([]);
@@ -33,7 +32,6 @@ export function ReorderRequestModal({ isOpen, onClose, initialItem }: ReorderReq
     if (isOpen) {
       // Reset form
       setRequestDate(new Date().toISOString().split('T')[0]);
-      setSupplierName('');
       setNotes('');
       if (initialItem) {
         const needed = initialItem.minimumStock && initialItem.minimumStock > initialItem.quantity 
@@ -70,10 +68,6 @@ export function ReorderRequestModal({ isOpen, onClose, initialItem }: ReorderReq
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplierName) {
-      alert("Supplier is required");
-      return;
-    }
     const validItems = purchaseItems.filter(i => i.selectedItem && i.quantity > 0);
     if (validItems.length === 0) {
       alert("At least one item is required");
@@ -83,7 +77,7 @@ export function ReorderRequestModal({ isOpen, onClose, initialItem }: ReorderReq
     setIsLoading(true);
     try {
       const payload = {
-        supplierName,
+        supplierName: 'Internal HK Store',
         date: new Date(requestDate).toISOString(),
         notes,
         purchaseItems: validItems.map(i => ({
@@ -114,7 +108,7 @@ export function ReorderRequestModal({ isOpen, onClose, initialItem }: ReorderReq
           {/* Request Information Section */}
           <div className="space-y-4">
             <h3 className="text-[15px] font-bold text-slate-800">Request Information</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="max-w-xs">
               <div className="flex flex-col gap-2">
                 <label className="text-[14px] font-medium text-slate-700">
                   Request Date <span className="text-red-500">*</span>
@@ -128,20 +122,6 @@ export function ReorderRequestModal({ isOpen, onClose, initialItem }: ReorderReq
                     className="w-full pl-4 pr-10 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] text-[14px] text-slate-700"
                   />
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[14px] font-medium text-slate-700">
-                  Supplier <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={supplierName}
-                  onChange={(e) => setSupplierName(e.target.value)}
-                  placeholder="Enter Supplier Name"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] text-[14px] text-slate-700 bg-white"
-                />
               </div>
             </div>
           </div>

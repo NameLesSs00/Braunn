@@ -6,41 +6,47 @@ import type {
   CreateRestaurantTransferRequest,
   CreateAdHocTransferRequest,
   PurchasingInventoryItem,
+  PurchasingInventoryDetail,
+  PurchasingInventoryPaginatedResponse,
+  PurchasingInventoryFilterQuery,
   RestaurantMaterialRequest,
+  RestaurantMaterialRequestFilterQuery,
 } from '../../../models/Purchasemodels/InventoryTransfer';
 
-const BASE_PATH = 'purchasing/inventory-transfers';
-
 export const inventoryTransfersApi = {
+  // ==========================================
+  // CENTRAL MAIN INVENTORY (STOCK CATALOG)
+  // ==========================================
+
   /**
-   * Get paginated inventory transfers with optional query filters
+   * Get paginated Central Purchasing Stock / Inventory
    */
-  getTransfers: async (
-    params?: InventoryTransfersFilterQuery,
+  getMainInventory: async (
+    params?: PurchasingInventoryFilterQuery,
     signal?: AbortSignal
-  ): Promise<InventoryTransfersPaginatedResponse> => {
+  ): Promise<PurchasingInventoryPaginatedResponse> => {
     const searchParams = new URLSearchParams();
-    if (params?.pageNumber !== undefined) {
-      searchParams.append('PageNumber', params.pageNumber.toString());
+    const pageNum = params?.pageNumber && params.pageNumber > 0 ? params.pageNumber : 1;
+    searchParams.append('PageNumber', pageNum.toString());
+
+    const pageSize = params?.pageSize && params.pageSize > 0 ? params.pageSize : 20;
+    searchParams.append('PageSize', pageSize.toString());
+
+    if (params?.purchaseType && params.purchaseType !== 'ALL') {
+      searchParams.append('PurchaseType', params.purchaseType);
     }
-    if (params?.pageSize !== undefined) {
-      searchParams.append('PageSize', params.pageSize.toString());
+    if (params?.isActive !== undefined) {
+      searchParams.append('IsActive', params.isActive.toString());
     }
-    if (params?.departmentType && params.departmentType !== 'ALL') {
-      searchParams.append('DepartmentType', params.departmentType);
+    if (params?.lowStockOnly) {
+      searchParams.append('LowStockOnly', 'true');
     }
-    if (params?.itemId !== undefined) {
-      searchParams.append('ItemId', params.itemId.toString());
-    }
-    if (params?.dateFrom) {
-      searchParams.append('DateFrom', params.dateFrom);
-    }
-    if (params?.dateTo) {
-      searchParams.append('DateTo', params.dateTo);
+    if (params?.search) {
+      searchParams.append('Search', params.search);
     }
 
     const qs = searchParams.toString();
-    const path = qs ? `${BASE_PATH}?${qs}` : BASE_PATH;
+    const path = qs ? `purchasing/inventory?${qs}` : 'purchasing/inventory';
 
     const res = await apiRequest<unknown>({
       method: 'GET',
@@ -48,95 +54,47 @@ export const inventoryTransfersApi = {
       signal,
     });
 
-    return unwrapApiResponse<InventoryTransfersPaginatedResponse>(res);
+    const parsed = unwrapApiResponse<PurchasingInventoryPaginatedResponse>(res);
+    const raw = parsed as any;
+    const items = Array.isArray(raw)
+      ? raw
+      : raw?.items || raw?.Items || raw?.data?.items || raw?.data?.Items || raw?.data || [];
+    const totalCount = Number(raw?.totalCount ?? raw?.TotalCount ?? (Array.isArray(raw) ? raw.length : items.length));
+    const pageNumber = Number(raw?.pageNumber && raw.pageNumber > 0 ? raw.pageNumber : pageNum);
+    const resolvedPageSize = Number(raw?.pageSize && raw.pageSize > 0 ? raw.pageSize : pageSize);
+    const totalPages = Number(
+      raw?.totalPages ?? raw?.TotalPages ?? Math.max(1, Math.ceil(totalCount / (resolvedPageSize || 1)))
+    );
+    const totalValuation = Number(raw?.totalValuation ?? raw?.TotalValuation ?? 0);
+
+    return {
+      items,
+      totalCount,
+      pageNumber,
+      pageSize: resolvedPageSize,
+      totalPages,
+      totalValuation,
+    };
   },
 
   /**
-   * Get single inventory transfer by ID
+   * Get Central Purchasing Stock item by ID with Recent Transactions history
    */
-  getTransferById: async (
+  getMainInventoryItemById: async (
     id: number,
     signal?: AbortSignal
-  ): Promise<InventoryTransfer> => {
+  ): Promise<PurchasingInventoryDetail> => {
     const res = await apiRequest<unknown>({
       method: 'GET',
-      path: `${BASE_PATH}/${id}`,
+      path: `purchasing/inventory/${id}`,
       signal,
     });
 
-    return unwrapApiResponse<InventoryTransfer>(res);
+    return unwrapApiResponse<PurchasingInventoryDetail>(res);
   },
 
   /**
-   * Create restaurant transfer with destination warehouse and line items
-   */
-  createRestaurantTransfer: async (
-    payload: CreateRestaurantTransferRequest,
-    signal?: AbortSignal
-  ): Promise<InventoryTransfer> => {
-    const res = await apiRequest<unknown>({
-      method: 'POST',
-      path: `${BASE_PATH}/restaurant-transfer`,
-      body: payload,
-      signal,
-    });
-
-    return unwrapApiResponse<InventoryTransfer>(res);
-  },
-
-  /**
-   * Create ad-hoc transfer for an item
-   */
-  createAdHocTransfer: async (
-    payload: CreateAdHocTransferRequest,
-    signal?: AbortSignal
-  ): Promise<InventoryTransfer> => {
-    const res = await apiRequest<unknown>({
-      method: 'POST',
-      path: BASE_PATH,
-      body: payload,
-      signal,
-    });
-
-    return unwrapApiResponse<InventoryTransfer>(res);
-  },
-
-  /**
-   * Confirm a pending inventory transfer
-   */
-  confirmTransfer: async (
-    id: number,
-    signal?: AbortSignal
-  ): Promise<boolean> => {
-    const res = await apiRequest<unknown>({
-      method: 'POST',
-      path: `${BASE_PATH}/${id}/confirm`,
-      signal,
-    });
-
-    return unwrapApiResponse<boolean>(res);
-  },
-
-  /**
-   * Cancel an inventory transfer with reason
-   */
-  cancelTransfer: async (
-    id: number,
-    reason: string,
-    signal?: AbortSignal
-  ): Promise<boolean> => {
-    const searchParams = new URLSearchParams({ reason });
-    const res = await apiRequest<unknown>({
-      method: 'POST',
-      path: `${BASE_PATH}/${id}/cancel?${searchParams.toString()}`,
-      signal,
-    });
-
-    return unwrapApiResponse<boolean>(res);
-  },
-
-  /**
-   * Get Central Purchasing Stock / Inventory
+   * Quick lookup for purchasing inventory (for dropdowns)
    */
   getPurchasingInventory: async (
     signal?: AbortSignal
@@ -152,21 +110,226 @@ export const inventoryTransfersApi = {
     return parsed?.items || [];
   },
 
+  // ==========================================
+  // INVENTORY TRANSFERS
+  // ==========================================
+
   /**
-   * Get Pending Material Requests from Restaurant
+   * Get paginated inventory transfers with optional query filters
+   * GET /api/purchasing/inventory/transfer
    */
-  getRestaurantMaterialRequests: async (
+  getTransfers: async (
+    params?: InventoryTransfersFilterQuery,
     signal?: AbortSignal
-  ): Promise<RestaurantMaterialRequest[]> => {
+  ): Promise<InventoryTransfersPaginatedResponse> => {
+    const searchParams = new URLSearchParams();
+    const pageNum = params?.pageNumber && params.pageNumber > 0 ? params.pageNumber : 1;
+    searchParams.append('PageNumber', pageNum.toString());
+
+    const pageSize = params?.pageSize && params.pageSize > 0 ? params.pageSize : 20;
+    searchParams.append('PageSize', pageSize.toString());
+
+    if (params?.departmentType && params.departmentType !== 'ALL') {
+      searchParams.append('DepartmentType', params.departmentType);
+    }
+    if (params?.itemId !== undefined) {
+      searchParams.append('ItemId', params.itemId.toString());
+    }
+    if (params?.dateFrom) {
+      searchParams.append('DateFrom', params.dateFrom);
+    }
+    if (params?.dateTo) {
+      searchParams.append('DateTo', params.dateTo);
+    }
+
+    const qs = searchParams.toString();
+    const path = qs ? `purchasing/inventory/transfer?${qs}` : 'purchasing/inventory/transfer';
+
     const res = await apiRequest<unknown>({
       method: 'GET',
-      path: 'restaurant/material-requests?PageSize=50',
+      path,
       signal,
     });
 
-    const parsed = unwrapApiResponse<{ items: RestaurantMaterialRequest[] } | RestaurantMaterialRequest[]>(res);
-    if (Array.isArray(parsed)) return parsed;
-    return parsed?.items || [];
+    const parsed = unwrapApiResponse<InventoryTransfersPaginatedResponse>(res);
+    const raw = parsed as any;
+    const items = Array.isArray(raw)
+      ? raw
+      : raw?.items || raw?.Items || raw?.data?.items || raw?.data?.Items || raw?.data || [];
+    const totalCount = Number(raw?.totalCount ?? raw?.TotalCount ?? (Array.isArray(raw) ? raw.length : items.length));
+    const pageNumber = Number(raw?.pageNumber && raw.pageNumber > 0 ? raw.pageNumber : pageNum);
+    const resolvedPageSize = Number(raw?.pageSize && raw.pageSize > 0 ? raw.pageSize : pageSize);
+    const totalPages = Number(
+      raw?.totalPages ?? raw?.TotalPages ?? Math.max(1, Math.ceil(totalCount / (resolvedPageSize || 1)))
+    );
+
+    return {
+      items,
+      totalCount,
+      pageNumber,
+      pageSize: resolvedPageSize,
+      totalPages,
+    };
+  },
+
+  /**
+   * Get single inventory transfer by ID
+   * GET /api/purchasing/inventory/transfer/{id}
+   */
+  getTransferById: async (
+    id: number,
+    signal?: AbortSignal
+  ): Promise<InventoryTransfer> => {
+    const res = await apiRequest<unknown>({
+      method: 'GET',
+      path: `purchasing/inventory/transfer/${id}`,
+      signal,
+    });
+
+    return unwrapApiResponse<InventoryTransfer>(res);
+  },
+
+  /**
+   * Create restaurant transfer with destination warehouse and line items
+   * POST /api/purchasing/inventory/restaurant-transfer
+   */
+  createRestaurantTransfer: async (
+    payload: CreateRestaurantTransferRequest,
+    signal?: AbortSignal
+  ): Promise<InventoryTransfer> => {
+    const res = await apiRequest<unknown>({
+      method: 'POST',
+      path: 'purchasing/inventory/restaurant-transfer',
+      body: payload,
+      signal,
+    });
+
+    return unwrapApiResponse<InventoryTransfer>(res);
+  },
+
+  /**
+   * Create ad-hoc transfer for an item
+   * POST /api/purchasing/inventory/transfer
+   */
+  createAdHocTransfer: async (
+    payload: CreateAdHocTransferRequest,
+    signal?: AbortSignal
+  ): Promise<InventoryTransfer> => {
+    const res = await apiRequest<unknown>({
+      method: 'POST',
+      path: 'purchasing/inventory/transfer',
+      body: payload,
+      signal,
+    });
+
+    return unwrapApiResponse<InventoryTransfer>(res);
+  },
+
+  /**
+   * Confirm a pending inventory transfer
+   * POST /api/purchasing/inventory/transfer/{id}/confirm
+   */
+  confirmTransfer: async (
+    id: number,
+    signal?: AbortSignal
+  ): Promise<boolean> => {
+    const res = await apiRequest<unknown>({
+      method: 'POST',
+      path: `purchasing/inventory/transfer/${id}/confirm`,
+      signal,
+    });
+
+    return unwrapApiResponse<boolean>(res);
+  },
+
+  /**
+   * Cancel an inventory transfer with reason
+   * POST /api/purchasing/inventory/transfer/{id}/cancel?reason=...
+   */
+  cancelTransfer: async (
+    id: number,
+    reason: string,
+    signal?: AbortSignal
+  ): Promise<boolean> => {
+    const searchParams = new URLSearchParams({ reason });
+    const res = await apiRequest<unknown>({
+      method: 'POST',
+      path: `purchasing/inventory/transfer/${id}/cancel?${searchParams.toString()}`,
+      signal,
+    });
+
+    return unwrapApiResponse<boolean>(res);
+  },
+
+  // ==========================================
+  // RESTAURANT MATERIAL REQUESTS & WAREHOUSES
+  // ==========================================
+
+  /**
+   * Get Material Requests from Restaurant
+   * GET /api/restaurant/material-requests
+   */
+  getRestaurantMaterialRequests: async (
+    params?: RestaurantMaterialRequestFilterQuery,
+    signal?: AbortSignal
+  ): Promise<{ items: RestaurantMaterialRequest[]; totalCount: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params?.pageNumber !== undefined) {
+      searchParams.append('PageNumber', params.pageNumber.toString());
+    } else {
+      searchParams.append('PageNumber', '1');
+    }
+    if (params?.pageSize !== undefined) {
+      searchParams.append('PageSize', params.pageSize.toString());
+    } else {
+      searchParams.append('PageSize', '50');
+    }
+    if (params?.restaurantId !== undefined) {
+      searchParams.append('RestaurantId', params.restaurantId.toString());
+    }
+    if (params?.status) {
+      searchParams.append('Status', params.status);
+    }
+    if (params?.dateFrom) {
+      searchParams.append('DateFrom', params.dateFrom);
+    }
+    if (params?.dateTo) {
+      searchParams.append('DateTo', params.dateTo);
+    }
+    if (params?.search) {
+      searchParams.append('Search', params.search);
+    }
+
+    const qs = searchParams.toString();
+    const path = qs ? `restaurant/material-requests?${qs}` : 'restaurant/material-requests';
+
+    const res = await apiRequest<{
+      isSuccess?: boolean;
+      data?: { items?: RestaurantMaterialRequest[]; totalCount?: number };
+      items?: RestaurantMaterialRequest[];
+      totalCount?: number;
+    }>({
+      method: 'GET',
+      path,
+      signal,
+    });
+
+    // Check envelope shape: { isSuccess, data: { items } } or direct { items }
+    if (res?.data?.items) {
+      return {
+        items: res.data.items,
+        totalCount: res.data.totalCount ?? res.data.items.length,
+      };
+    }
+    if (res?.items) {
+      return {
+        items: res.items,
+        totalCount: res.totalCount ?? res.items.length,
+      };
+    }
+    const unwrapped = unwrapApiResponse<{ items?: RestaurantMaterialRequest[]; data?: { items?: RestaurantMaterialRequest[] } }>(res);
+    const items = unwrapped?.data?.items || unwrapped?.items || [];
+    return { items, totalCount: items.length };
   },
 
   /**

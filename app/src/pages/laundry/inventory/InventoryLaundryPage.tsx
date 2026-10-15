@@ -7,7 +7,6 @@ import { LaundryInventoryTabs, type LaundryInventoryTab } from './components/Lau
 import { LaundryInventoryTable } from './components/LaundryInventoryTable';
 import { LaundryLowStockTab } from './components/LaundryLowStockTab';
 import { LaundryWithdrawItemsTable } from './components/LaundryWithdrawItemsTable';
-import { LaundryPurchaseRequestsTab } from './components/LaundryPurchaseRequestsTab';
 import { LaundryTransactionsTable } from './components/LaundryTransactionsTable';
 
 export function InventoryLaundryPage() {
@@ -47,8 +46,6 @@ export function InventoryLaundryPage() {
         return <LaundryTransactionsTable />;
       case 'Low Stock':
         return <LaundryLowStockTab items={lowStockItems} />;
-      case 'Purchase Requests':
-        return <LaundryPurchaseRequestsTab />;
       default:
         return null;
     }

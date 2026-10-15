@@ -4,10 +4,10 @@ export type PurchaseStatus =
   | 'Approved' 
   | 'Rejected' 
   | 'Ordered' 
-  | 'Completed' 
-  | 'Cancelled'
+  | 'Completed'
+export type PurchasePriority = 'Low' | 'Normal' | 'High'
 
-export type PurchaseStatusAction = 'view' | 'approve' | 'order' | 'complete' | 'reject' | 'cancel'
+export type PurchaseStatusAction = 'view' | 'approve' | 'order' | 'complete' | 'reject'
 
 export interface StatusActionOption {
   action: PurchaseStatusAction
@@ -22,7 +22,6 @@ export function getNextStatusForAction(action: PurchaseStatusAction): PurchaseSt
     case 'order': return 'Ordered'
     case 'complete': return 'Completed'
     case 'reject': return 'Rejected'
-    case 'cancel': return 'Cancelled'
   }
 }
 
@@ -32,52 +31,76 @@ export function getAvailablePurchaseActions(status: PurchaseStatus): StatusActio
       return [
         { action: 'view', label: 'View', variant: 'primary' },
         { action: 'reject', label: 'Reject', variant: 'danger' },
-        { action: 'cancel', label: 'Cancel', variant: 'secondary' },
       ]
     case 'Viewed':
       return [
         { action: 'approve', label: 'Approve', variant: 'success' },
-        { action: 'cancel', label: 'Cancel', variant: 'secondary' },
       ]
     case 'Approved':
       return [
         { action: 'order', label: 'Order', variant: 'primary' },
-        { action: 'cancel', label: 'Cancel', variant: 'secondary' },
       ]
     case 'Ordered':
       return [
         { action: 'complete', label: 'Complete', variant: 'success' },
-        { action: 'cancel', label: 'Cancel', variant: 'secondary' },
-      ]
-    case 'Rejected':
-      return [
-        { action: 'cancel', label: 'Cancel', variant: 'secondary' },
       ]
     case 'Completed':
-    case 'Cancelled':
+    case 'Rejected':
     default:
       return []
   }
 }
 
-export type MaintenancePurchase = {
-  id: number
+export interface MaintenancePurchaseItem {
+  id?: number
   itemId: number
-  itemName: string
+  itemName?: string
   quantity: number
+  priority: PurchasePriority
+}
+
+export interface CreateMaintenancePurchaseItemPayload {
+  itemId: number
+  quantity: number
+  priority: PurchasePriority
+}
+
+export interface MaintenancePurchaseSummary {
+  id: number
+  requiredDate: string
+  reason: string
   status: PurchaseStatus
+  itemCount: number
   createdAt: string
   createdBy?: string
+  createdByName?: string
+}
+
+export interface MaintenancePurchaseDetail {
+  id: number
+  requiredDate: string
+  reason: string
+  status: PurchaseStatus
+  items: MaintenancePurchaseItem[]
+  createdAt: string
+  createdBy?: string
+  createdByName?: string
   modifiedAt?: string
   modifiedBy?: string
+  modifiedByName?: string
 }
 
-export type CreateMaintenancePurchaseRequest = {
-  itemId: number
-  quantity: number
+// Backward compatibility alias for list views
+export type MaintenancePurchase = MaintenancePurchaseSummary
+
+export interface CreateMaintenancePurchaseRequest {
+  requiredDate: string
+  reason: string
+  items: CreateMaintenancePurchaseItemPayload[]
 }
 
-export type UpdateMaintenancePurchaseRequest = {
-  itemId: number
-  quantity: number
+export interface UpdateMaintenancePurchaseRequest {
+  requiredDate: string
+  reason: string
+  items: CreateMaintenancePurchaseItemPayload[]
 }

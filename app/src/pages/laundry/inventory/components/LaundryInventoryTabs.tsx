@@ -4,15 +4,13 @@ export type LaundryInventoryTab =
   | 'Stock Overview'
   | 'Withdraw Items'
   | 'Transactions'
-  | 'Low Stock'
-  | 'Purchase Requests';
+  | 'Low Stock';
 
 export const LAUNDRY_INVENTORY_TABS: LaundryInventoryTab[] = [
   'Stock Overview',
   'Withdraw Items',
   'Transactions',
   'Low Stock',
-  'Purchase Requests',
 ];
 
 interface LaundryInventoryTabsProps {

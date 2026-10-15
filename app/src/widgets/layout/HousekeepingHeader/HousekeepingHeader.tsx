@@ -17,6 +17,7 @@ const titleByRoute: Record<string, string> = {
   [routes.hk.guestRequests]: 'Guest Requests',
   [routes.hk.foundsAndLost]: 'Lost & Found Management',
   [routes.hk.inventory]: 'Inventory Management',
+  [routes.hk.purchases]: 'Purchase Requests',
   [routes.hk.settings]: 'Settings',
 }
 

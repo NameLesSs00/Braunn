@@ -208,13 +208,17 @@ const supplierFinanceSlice = createSlice({
         fetchFinanceTransactions.fulfilled,
         (state, action: PayloadAction<PaginatedFinanceTransactions>) => {
           state.transactionsStatus = 'succeeded';
-          state.transactions = action.payload.data;
-          state.transactionsTotalCount = action.payload.totalCount;
-          state.totalCount = action.payload.totalCount;
-          state.transactionsPage = action.payload.pageNumber;
-          state.transactionsPageSize = action.payload.pageSize;
-          state.transactionsTotalPages = action.payload.totalPages;
-          state.totalPages = action.payload.totalPages;
+          const raw = action.payload as any;
+          const items = Array.isArray(raw)
+            ? raw
+            : raw?.data || raw?.Data || raw?.items || raw?.Items || [];
+          state.transactions = items;
+          state.transactionsTotalCount = Number(raw?.totalCount ?? raw?.TotalCount ?? (Array.isArray(raw) ? raw.length : items.length));
+          state.totalCount = state.transactionsTotalCount;
+          state.transactionsPage = Number(raw?.pageNumber && raw.pageNumber > 0 ? raw.pageNumber : 1);
+          state.transactionsPageSize = Number(raw?.pageSize && raw.pageSize > 0 ? raw.pageSize : 20);
+          state.transactionsTotalPages = Number(raw?.totalPages ?? raw?.TotalPages ?? Math.max(1, Math.ceil(state.totalCount / (state.transactionsPageSize || 1))));
+          state.totalPages = state.transactionsTotalPages;
         }
       )
       .addCase(fetchFinanceTransactions.rejected, (state, action) => {

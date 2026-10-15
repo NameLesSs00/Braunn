@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
-import { IoHomeOutline, IoSettingsOutline, IoShieldCheckmarkOutline } from 'react-icons/io5'
+import { IoHomeOutline, IoSettingsOutline, IoShieldCheckmarkOutline, IoCartOutline } from 'react-icons/io5'
 import { MdOutlineInventory2 } from 'react-icons/md'
 import { FiTool } from 'react-icons/fi'
 import { HiOutlineBell } from 'react-icons/hi2'
@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { to: routes.maintenance.dashboard, label: 'Dashboard', icon: IoHomeOutline },
   { to: routes.maintenance.requests, label: 'Requests', icon: FiTool },
   { to: routes.maintenance.inventory, label: 'Inventory', icon: MdOutlineInventory2 },
+  { to: routes.maintenance.purchases, label: 'Purchases', icon: IoCartOutline },
   { to: routes.maintenance.preventive, label: 'Preventive', icon: IoShieldCheckmarkOutline },
   { to: routes.maintenance.categories, label: 'Categories', icon: IoSettingsOutline },
   { to: routes.maintenance.notifications, label: 'Notifications', icon: HiOutlineBell },

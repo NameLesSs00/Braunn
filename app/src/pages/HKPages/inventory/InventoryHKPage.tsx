@@ -8,10 +8,6 @@ import { InventoryTable } from './components/InventoryTable';
 import { WithdrawItemsTable } from './components/WithdrawItemsTable';
 import { TransactionsTable } from './components/TransactionsTable';
 import { LowStockTab } from './components/LowStockTab';
-import { PurchaseRequestsTab } from './components/PurchaseRequestsTab';
-import {
-  inventoryData,
-} from './mockData';
 
 export function InventoryHKPage() {
   const [activeTab, setActiveTab] = useState<InventoryTab>('Stock Overview');
@@ -50,8 +46,6 @@ export function InventoryHKPage() {
         return <TransactionsTable />;
       case 'Low Stock':
         return <LowStockTab items={lowStockItems} />;
-      case 'Purchase Requests':
-        return <PurchaseRequestsTab />;
       default:
         return null;
     }

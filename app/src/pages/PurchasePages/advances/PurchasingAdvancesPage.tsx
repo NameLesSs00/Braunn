@@ -92,12 +92,57 @@ export function PurchasingAdvancesPage() {
     refreshKey,
   ]);
 
+  // Periodic polling & tab focus refresh
+  useEffect(() => {
+    const refreshData = () => {
+      dispatch(
+        fetchPurchasingAdvances({
+          pageNumber: page,
+          pageSize: rowsPerPage,
+          supplierId: selectedSupplierId === 'ALL' ? undefined : selectedSupplierId,
+          status: selectedStatus === 'ALL' ? undefined : selectedStatus,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+          minAmount: minAmount ? parseFloat(minAmount) : undefined,
+          maxAmount: maxAmount ? parseFloat(maxAmount) : undefined,
+          search: debouncedSearch || undefined,
+        })
+      );
+    };
+
+    const interval = setInterval(refreshData, 25000);
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [
+    dispatch,
+    page,
+    rowsPerPage,
+    selectedSupplierId,
+    selectedStatus,
+    fromDate,
+    toDate,
+    minAmount,
+    maxAmount,
+    debouncedSearch,
+  ]);
+
   // Client search filter on items if API search isn't backend-wide
   const displayAdvances = useMemo(() => {
     if (!debouncedSearch) return advances;
 
     return advances.filter((a) => {
-      const idMatch = a.id.toString().includes(debouncedSearch);
+      const idMatch = String(a?.id ?? '').includes(debouncedSearch);
       const supplierMatch = a.supplierName?.toLowerCase().includes(debouncedSearch);
       const notesMatch = a.notes?.toLowerCase().includes(debouncedSearch);
       return idMatch || supplierMatch || notesMatch;
@@ -162,8 +207,6 @@ export function PurchasingAdvancesPage() {
           totalAmountSum={totalAmountSum}
           remainingAmountSum={remainingAmountSum}
           onAddClick={() => setIsCreateOpen(true)}
-          onRefresh={handleRefresh}
-          isLoading={fetchStatus === 'loading'}
         />
 
         {/* Filter Toolbar */}

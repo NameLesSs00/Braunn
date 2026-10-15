@@ -142,7 +142,7 @@ export function TransferDetailsDrawer({
                 <div className="flex items-center gap-1.5">
                   <Layers className="h-4 w-4 text-[#0B4EA2]" />
                   <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-                    Transferred Materials ({transfer.items?.length || 1})
+                    Transferred Materials ({transfer.items?.length || 0})
                   </h3>
                 </div>
                 {transfer.materialRequestId && (
@@ -184,19 +184,8 @@ export function TransferDetailsDrawer({
                       ))
                     ) : (
                       <tr>
-                        <td className="px-4 py-3 font-semibold text-slate-800">
-                          Item #{transfer.itemId}
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-slate-500">
-                          {transfer.quantity}
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-[#0B4EA2]">
-                          {transfer.quantity}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
-                            Units
-                          </span>
+                        <td colSpan={4} className="px-4 py-8 text-center text-xs text-slate-400">
+                          No line items found for this transfer.
                         </td>
                       </tr>
                     )}
@@ -225,8 +214,11 @@ export function TransferDetailsDrawer({
                   <span className="text-slate-400 flex items-center gap-1">
                     <User className="h-3.5 w-3.5" /> Transferred By:
                   </span>
-                  <span className="font-mono text-[11px] text-slate-600 truncate block" title={transfer.transferredBy}>
-                    {transfer.transferredBy || 'System Admin'}
+                  <span
+                    className="font-semibold text-slate-800 truncate block"
+                    title={transfer.transferredByName || transfer.transferredBy || 'System Admin'}
+                  >
+                    {transfer.transferredByName || transfer.transferredBy || 'System Admin'}
                   </span>
                 </div>
 
@@ -243,8 +235,11 @@ export function TransferDetailsDrawer({
                   <span className="text-slate-400 flex items-center gap-1">
                     <User className="h-3.5 w-3.5" /> Confirmed By:
                   </span>
-                  <span className="font-mono text-[11px] text-slate-600 truncate block" title={transfer.confirmedBy || '—'}>
-                    {transfer.confirmedBy || '—'}
+                  <span
+                    className="font-semibold text-slate-800 truncate block"
+                    title={transfer.confirmedByName || transfer.confirmedBy || '—'}
+                  >
+                    {transfer.confirmedByName || transfer.confirmedBy || '—'}
                   </span>
                 </div>
               </div>

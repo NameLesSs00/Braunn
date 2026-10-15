@@ -10,6 +10,7 @@ import { PurchasingTransactionsHeader } from './components/PurchasingTransaction
 import { PurchasingTransactionsFilters } from './components/PurchasingTransactionsFilters';
 import { PurchasingTransactionsTable } from './components/PurchasingTransactionsTable';
 import { PurchaseDetailsDrawer } from '../supplierPurchases/components/PurchaseDetailsDrawer';
+import { PayPurchaseInvoiceDrawer } from '../supplierPurchases/components/PayPurchaseInvoiceDrawer';
 
 export function PurchasingTransactionsPage() {
   const dispatch = useAppDispatch();
@@ -32,8 +33,10 @@ export function PurchasingTransactionsPage() {
   const [maxAmount, setMaxAmount] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Selected Invoice Drawer state
+  // Selected Invoice Drawer & Action states
   const [inspectingPurchase, setInspectingPurchase] =
+    useState<SupplierPurchaseListItem | null>(null);
+  const [payingPurchase, setPayingPurchase] =
     useState<SupplierPurchaseListItem | null>(null);
 
   // Debounce search
@@ -176,11 +179,12 @@ export function PurchasingTransactionsPage() {
 
   // Inspect invoice
   const handleViewInvoice = (purchaseId: number) => {
+    const linkedTx = transactions.find((t) => t.supplierPurchaseId === purchaseId);
     setInspectingPurchase({
       id: purchaseId,
-      supplierId: 0,
-      supplierName: 'Loading Purchase Order...',
-      purchaseDate: '',
+      supplierId: linkedTx?.supplierId || 0,
+      supplierName: linkedTx?.supplierName || `Purchase Order #${purchaseId}`,
+      purchaseDate: linkedTx?.transactionDate || '',
       totalAmount: 0,
       paidAmount: 0,
       remainingAmount: 0,
@@ -199,8 +203,6 @@ export function PurchasingTransactionsPage() {
           totalVolume={totalVolume}
           cashVolume={cashVolume}
           advanceVolume={advanceVolume}
-          isLoading={transactionsStatus === 'loading'}
-          onRefresh={handleRefresh}
           onExport={handleExportCSV}
         />
 
@@ -291,7 +293,18 @@ export function PurchasingTransactionsPage() {
         open={Boolean(inspectingPurchase)}
         purchase={inspectingPurchase}
         onClose={() => setInspectingPurchase(null)}
-        onReceive={() => {}}
+        showReceiveAction={false}
+        onPay={(purchase) => setPayingPurchase(purchase)}
+      />
+
+      <PayPurchaseInvoiceDrawer
+        open={Boolean(payingPurchase)}
+        purchase={payingPurchase}
+        onClose={() => setPayingPurchase(null)}
+        onSuccess={() => {
+          handleRefresh();
+          setInspectingPurchase(null);
+        }}
       />
     </PurchaseLayout>
   );

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FiChevronLeft, FiChevronRight, FiChevronsLeft } from 'react-icons/fi';
 import { LaundryQuickWithdrawModal } from './modals/LaundryQuickWithdrawModal';
-import { LaundryReorderRequestModal } from './modals/LaundryReorderRequestModal';
+import { NewLaundryPurchaseModal } from './modals/NewLaundryPurchaseModal';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { fetchLaundryIssues } from '../../../../features/Laundryfeatures/laundryIssues/laundryIssuesSlice';
 import type { LaundryInventoryItemReadDto, LaundryItemStatus } from '../../../../models/Laundrymodels/LaundryInventoryItem';
@@ -224,8 +224,8 @@ export function LaundryWithdrawItemsTable() {
         }} 
         initialItem={selectedItemForWithdraw}
       />
-      <LaundryReorderRequestModal 
-        isOpen={reorderOpen} 
+      <NewLaundryPurchaseModal 
+        open={reorderOpen} 
         onClose={() => {
           setReorderOpen(false);
           setSelectedItemForReorder(undefined);

@@ -1,5 +1,4 @@
 import {
-  RotateCw,
   Plus,
   ArrowRightLeft,
   CheckCircle2,
@@ -12,8 +11,6 @@ interface PurchasingTransfersHeaderProps {
   confirmedCount: number;
   pendingCount: number;
   cancelledCount: number;
-  isLoading: boolean;
-  onRefresh: () => void;
   onCreateTransfer: () => void;
 }
 
@@ -22,8 +19,6 @@ export function PurchasingTransfersHeader({
   confirmedCount,
   pendingCount,
   cancelledCount,
-  isLoading,
-  onRefresh,
   onCreateTransfer,
 }: PurchasingTransfersHeaderProps) {
   return (
@@ -47,16 +42,6 @@ export function PurchasingTransfersHeader({
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isLoading}
-            title="Refresh transfers"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            <RotateCw className={`h-4 w-4 ${isLoading ? 'animate-spin text-[#0B4EA2]' : ''}`} />
-          </button>
-
           <button
             type="button"
             onClick={onCreateTransfer}

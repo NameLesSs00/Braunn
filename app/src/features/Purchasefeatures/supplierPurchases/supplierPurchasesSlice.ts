@@ -184,11 +184,15 @@ const supplierPurchasesSlice = createSlice({
         fetchSupplierPurchases.fulfilled,
         (state, action: PayloadAction<PaginatedSupplierPurchases>) => {
           state.status = 'succeeded';
-          state.purchases = action.payload.items;
-          state.totalCount = action.payload.totalCount;
-          state.pageNumber = action.payload.pageNumber;
-          state.pageSize = action.payload.pageSize;
-          state.totalPages = action.payload.totalPages;
+          const raw = action.payload as any;
+          const items = Array.isArray(raw)
+            ? raw
+            : raw?.items || raw?.Items || raw?.data?.items || raw?.data?.Items || raw?.data || [];
+          state.purchases = items;
+          state.totalCount = Number(raw?.totalCount ?? raw?.TotalCount ?? (Array.isArray(raw) ? raw.length : items.length));
+          state.pageNumber = Number(raw?.pageNumber && raw.pageNumber > 0 ? raw.pageNumber : 1);
+          state.pageSize = Number(raw?.pageSize && raw.pageSize > 0 ? raw.pageSize : 10);
+          state.totalPages = Number(raw?.totalPages ?? raw?.TotalPages ?? Math.max(1, Math.ceil(state.totalCount / (state.pageSize || 1))));
         }
       )
       .addCase(fetchSupplierPurchases.rejected, (state, action) => {

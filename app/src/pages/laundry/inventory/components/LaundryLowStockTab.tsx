@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FiAlertTriangle } from 'react-icons/fi';
-import { LaundryReorderRequestModal } from './modals/LaundryReorderRequestModal';
+import { NewLaundryPurchaseModal } from './modals/NewLaundryPurchaseModal';
 import type { LaundryInventoryItemReadDto } from '../../../../models/Laundrymodels/LaundryInventoryItem';
 
 interface LowStockCardProps {
@@ -43,7 +43,7 @@ function LowStockCard({ item, onRequestClick }: LowStockCardProps) {
       {/* CTA */}
       <button
         onClick={onRequestClick}
-        className="w-full py-3 mt-auto text-[14px] font-bold text-white bg-[#ef4444] hover:bg-red-600 rounded-xl transition-colors"
+        className="w-full py-3 mt-auto text-[14px] font-bold text-white bg-[#ef4444] hover:bg-red-600 rounded-xl transition-colors cursor-pointer"
       >
         Create Purchase Request
       </button>
@@ -92,8 +92,8 @@ export function LaundryLowStockTab({ items }: LaundryLowStockTabProps) {
         </div>
       </div>
 
-      <LaundryReorderRequestModal
-        isOpen={isReorderOpen}
+      <NewLaundryPurchaseModal
+        open={isReorderOpen}
         onClose={() => {
           setIsReorderOpen(false);
           setSelectedItem(undefined);

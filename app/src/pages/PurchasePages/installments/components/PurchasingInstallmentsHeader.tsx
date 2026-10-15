@@ -1,12 +1,10 @@
-import { RotateCw, Calendar, AlertTriangle, Wallet, CheckCircle2 } from 'lucide-react';
+import { Calendar, AlertTriangle, Wallet, CheckCircle2 } from 'lucide-react';
 
 interface PurchasingInstallmentsHeaderProps {
   totalCount: number;
   overdueCount: number;
   remainingAmountSum: number;
   paidAmountSum: number;
-  onRefresh: () => void;
-  isLoading?: boolean;
 }
 
 export function PurchasingInstallmentsHeader({
@@ -14,8 +12,6 @@ export function PurchasingInstallmentsHeader({
   overdueCount,
   remainingAmountSum,
   paidAmountSum,
-  onRefresh,
-  isLoading = false,
 }: PurchasingInstallmentsHeaderProps) {
   return (
     <div className="space-y-4">
@@ -35,18 +31,6 @@ export function PurchasingInstallmentsHeader({
               </p>
             </div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isLoading}
-            title="Refresh installments"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50"
-          >
-            <RotateCw className={`h-4 w-4 ${isLoading ? 'animate-spin text-[#0B4EA2]' : ''}`} />
-          </button>
         </div>
       </div>
 

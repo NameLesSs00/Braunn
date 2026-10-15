@@ -18,12 +18,22 @@ interface CreatePurchaseOrderDrawerProps {
   suppliers: Supplier[];
   onClose: () => void;
   onSuccess: () => void;
+  initialDepartment?: PurchasingDepartmentType;
+  initialItems?: Array<{
+    departmentType: PurchasingDepartmentType;
+    itemId: number;
+    itemName?: string;
+    quantity: number;
+    unitPrice?: number;
+    notes?: string;
+  }>;
 }
 
 interface FormLineItem {
   key: string;
   departmentType: PurchasingDepartmentType;
   itemId: number | '';
+  itemName?: string;
   unitId: number | '';
   quantity: number | '';
   unitPrice: number | '';
@@ -35,6 +45,8 @@ export function CreatePurchaseOrderDrawer({
   suppliers,
   onClose,
   onSuccess,
+  initialDepartment,
+  initialItems,
 }: CreatePurchaseOrderDrawerProps) {
   const dispatch = useAppDispatch();
   const materials = useAppSelector((state) => state.restaurantMaterials.items);
@@ -54,6 +66,7 @@ export function CreatePurchaseOrderDrawer({
       key: 'item-1',
       departmentType: 'Restaurant',
       itemId: '',
+      itemName: '',
       unitId: '',
       quantity: 1,
       unitPrice: 0,
@@ -69,7 +82,7 @@ export function CreatePurchaseOrderDrawer({
     }
   }, [open, materials.length, units.length, dispatch]);
 
-  // Reset form when drawer opens
+  // Reset or populate form when drawer opens
   useEffect(() => {
     if (open) {
       const now = new Date();
@@ -77,19 +90,36 @@ export function CreatePurchaseOrderDrawer({
       setPurchaseDate(now.toISOString().slice(0, 16));
       setSupplierId(suppliers.length > 0 ? suppliers[0].id : '');
       setNotes('');
-      setLineItems([
-        {
-          key: `item-${Date.now()}`,
-          departmentType: 'Restaurant',
-          itemId: '',
-          unitId: '',
-          quantity: 1,
-          unitPrice: 0,
-          notes: '',
-        },
-      ]);
+
+      if (initialItems && initialItems.length > 0) {
+        setLineItems(
+          initialItems.map((it, idx) => ({
+            key: `item-${Date.now()}-${idx}`,
+            departmentType: it.departmentType || initialDepartment || 'Restaurant',
+            itemId: it.itemId || '',
+            itemName: it.itemName || '',
+            unitId: '',
+            quantity: it.quantity || 1,
+            unitPrice: it.unitPrice || 0,
+            notes: it.notes || '',
+          }))
+        );
+      } else {
+        setLineItems([
+          {
+            key: `item-${Date.now()}`,
+            departmentType: initialDepartment || 'Restaurant',
+            itemId: '',
+            itemName: '',
+            unitId: '',
+            quantity: 1,
+            unitPrice: 0,
+            notes: '',
+          },
+        ]);
+      }
     }
-  }, [open, suppliers]);
+  }, [open, suppliers, initialItems, initialDepartment]);
 
   const selectedSupplier = useMemo(
     () => suppliers.find((s) => s.id === supplierId),
@@ -111,8 +141,9 @@ export function CreatePurchaseOrderDrawer({
       ...prev,
       {
         key: `item-${Date.now()}-${Math.random()}`,
-        departmentType: 'Restaurant',
+        departmentType: initialDepartment || prev[prev.length - 1]?.departmentType || 'Restaurant',
         itemId: '',
+        itemName: '',
         unitId: '',
         quantity: 1,
         unitPrice: 0,
@@ -144,6 +175,7 @@ export function CreatePurchaseOrderDrawer({
       next[index] = {
         ...next[index],
         itemId: material.id,
+        itemName: material.name,
         unitId: material.unitId || next[index].unitId,
       };
       return next;
@@ -166,11 +198,11 @@ export function CreatePurchaseOrderDrawer({
     for (let i = 0; i < lineItems.length; i++) {
       const itm = lineItems[i];
       if (!itm.itemId) {
-        toast.error(`Please select a material item for line #${i + 1}`);
+        toast.error(`Please select or enter an item for line #${i + 1}`);
         return;
       }
-      if (!itm.unitId) {
-        toast.error(`Please select a unit for line #${i + 1}`);
+      if (itm.departmentType === 'Restaurant' && !itm.unitId) {
+        toast.error(`Please select a unit for restaurant line #${i + 1}`);
         return;
       }
       if (typeof itm.quantity !== 'number' || itm.quantity <= 0) {
@@ -191,7 +223,7 @@ export function CreatePurchaseOrderDrawer({
         departmentType: itm.departmentType,
         itemId: Number(itm.itemId),
         quantity: Number(itm.quantity),
-        unitId: Number(itm.unitId),
+        unitId: itm.unitId ? Number(itm.unitId) : null,
         unitPrice: Number(itm.unitPrice),
         notes: itm.notes.trim() || undefined,
       })),
@@ -364,25 +396,66 @@ export function CreatePurchaseOrderDrawer({
                       key={itm.key}
                       className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3 transition-all hover:border-slate-300"
                     >
-                      {/* Top Row: Searchable Material + Unit */}
+                      {/* Top Row: Department + Item + Unit + Delete */}
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
-                        {/* Material search picker */}
-                        <div className="sm:col-span-7">
+                        {/* Department selector */}
+                        <div className="sm:col-span-3">
                           <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                            Item #{idx + 1} (Restaurant Material) *
+                            Department *
                           </label>
-                          <SearchableMaterialSelect
-                            materials={materials}
-                            selectedId={itm.itemId}
-                            onSelect={(mat) => handleSelectMaterial(idx, mat)}
-                            required
-                          />
+                          <select
+                            value={itm.departmentType}
+                            onChange={(e) =>
+                              handleItemChange(
+                                idx,
+                                'departmentType',
+                                e.target.value as PurchasingDepartmentType
+                              )
+                            }
+                            className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-800 focus:border-[#0B4EA2] focus:outline-none"
+                          >
+                            <option value="Laundry">🧺 Laundry</option>
+                            <option value="Housekeeping">🧹 Housekeeping</option>
+                            <option value="Maintenance">🔧 Maintenance</option>
+                            <option value="Restaurant">🍽️ Restaurant</option>
+                          </select>
+                        </div>
+
+                        {/* Item search or input */}
+                        <div className="sm:col-span-5">
+                          <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                            {itm.departmentType === 'Restaurant'
+                              ? 'Restaurant Material *'
+                              : `${itm.departmentType} Item *`}
+                          </label>
+                          {itm.departmentType === 'Restaurant' ? (
+                            <SearchableMaterialSelect
+                              materials={materials}
+                              selectedId={itm.itemId}
+                              onSelect={(mat) => handleSelectMaterial(idx, mat)}
+                              required
+                            />
+                          ) : (
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={itm.itemName || (itm.itemId ? `Item #${itm.itemId}` : '')}
+                                onChange={(e) => {
+                                  handleItemChange(idx, 'itemName', e.target.value);
+                                  if (!itm.itemId) handleItemChange(idx, 'itemId', idx + 1);
+                                }}
+                                placeholder={`e.g. ${itm.departmentType} Supply Item...`}
+                                required
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#0B4EA2] focus:outline-none"
+                              />
+                            </div>
+                          )}
                         </div>
 
                         {/* Unit selector */}
-                        <div className="sm:col-span-4">
+                        <div className="sm:col-span-3">
                           <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                            Unit *
+                            Unit {itm.departmentType === 'Restaurant' ? '*' : '(Optional)'}
                           </label>
                           <select
                             value={itm.unitId}
@@ -393,7 +466,6 @@ export function CreatePurchaseOrderDrawer({
                                 e.target.value ? Number(e.target.value) : ''
                               )
                             }
-                            required
                             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#0B4EA2] focus:outline-none"
                           >
                             <option value="">Choose Unit...</option>

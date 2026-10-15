@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
 import { translateAppText } from '../../../shared/lib/appTranslation'
-import { IoHomeOutline, IoSettingsOutline } from 'react-icons/io5'
+import { IoHomeOutline, IoSettingsOutline, IoCartOutline } from 'react-icons/io5'
 import { MdOutlineInventory2 } from 'react-icons/md'
 import { PiTShirt } from 'react-icons/pi'
 import { LayoutGrid } from 'lucide-react'
@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { to: routes.laundry.overview, label: 'Overview', icon: IoHomeOutline },
   { to: routes.laundry.roomRequests, label: 'Room Requests', icon: PiTShirt },
   { to: routes.laundry.inventory, label: 'Inventory', icon: MdOutlineInventory2 },
+  { to: routes.laundry.purchases, label: 'Purchase Requests', icon: IoCartOutline },
   { to: routes.laundry.settings, label: 'Settings', icon: IoSettingsOutline },
 ]
 

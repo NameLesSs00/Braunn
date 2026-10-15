@@ -1,5 +1,4 @@
 import {
-  RotateCw,
   CreditCard,
   Wallet,
   ArrowUpRight,
@@ -13,8 +12,6 @@ interface PurchasingTransactionsHeaderProps {
   totalVolume: number;
   cashVolume: number;
   advanceVolume: number;
-  isLoading: boolean;
-  onRefresh: () => void;
   onExport?: () => void;
 }
 
@@ -23,8 +20,6 @@ export function PurchasingTransactionsHeader({
   totalVolume,
   cashVolume,
   advanceVolume,
-  isLoading,
-  onRefresh,
   onExport,
 }: PurchasingTransactionsHeaderProps) {
   return (
@@ -48,21 +43,11 @@ export function PurchasingTransactionsHeader({
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isLoading}
-            title="Refresh transactions"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50"
-          >
-            <RotateCw className={`h-4 w-4 ${isLoading ? 'animate-spin text-[#0B4EA2]' : ''}`} />
-          </button>
-
           {onExport && (
             <button
               type="button"
               onClick={onExport}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 active:scale-[0.98] transition-all"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 active:scale-[0.98] transition-all cursor-pointer"
             >
               <Download className="h-4 w-4 text-slate-500" />
               <span>Export CSV</span>

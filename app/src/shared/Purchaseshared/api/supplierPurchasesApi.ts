@@ -21,16 +21,16 @@ export const supplierPurchasesApi = {
     signal?: AbortSignal
   ): Promise<PaginatedSupplierPurchases> => {
     const searchParams = new URLSearchParams();
-    if (params?.pageNumber !== undefined) {
-      searchParams.append('PageNumber', params.pageNumber.toString());
-    }
-    if (params?.pageSize !== undefined) {
-      searchParams.append('PageSize', params.pageSize.toString());
-    }
+    const pageNum = params?.pageNumber && params.pageNumber > 0 ? params.pageNumber : 1;
+    searchParams.append('PageNumber', pageNum.toString());
+
+    const pageSize = params?.pageSize && params.pageSize > 0 ? params.pageSize : 10;
+    searchParams.append('PageSize', pageSize.toString());
+
     if (params?.supplierId !== undefined) {
       searchParams.append('SupplierId', params.supplierId.toString());
     }
-    if (params?.status) {
+    if (params?.status && params.status !== 'ALL' && params.status !== 'All') {
       searchParams.append('Status', params.status);
     }
     if (params?.dateFrom) {
@@ -41,13 +41,30 @@ export const supplierPurchasesApi = {
     }
 
     const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
-    return unwrapApiResponse<PaginatedSupplierPurchases>(
-      await apiRequest<PaginatedSupplierPurchases>({
-        method: 'GET',
-        path: `/${BASE_PATH}${query}`,
-        signal,
-      })
+    const res = await apiRequest<unknown>({
+      method: 'GET',
+      path: `/${BASE_PATH}${query}`,
+      signal,
+    });
+    const parsed = unwrapApiResponse<PaginatedSupplierPurchases>(res);
+    const raw = parsed as any;
+    const items = Array.isArray(raw)
+      ? raw
+      : raw?.items || raw?.Items || raw?.data?.items || raw?.data?.Items || raw?.data || [];
+    const totalCount = Number(raw?.totalCount ?? raw?.TotalCount ?? (Array.isArray(raw) ? raw.length : items.length));
+    const pageNumber = Number(raw?.pageNumber && raw.pageNumber > 0 ? raw.pageNumber : pageNum);
+    const resolvedPageSize = Number(raw?.pageSize && raw.pageSize > 0 ? raw.pageSize : pageSize);
+    const totalPages = Number(
+      raw?.totalPages ?? raw?.TotalPages ?? Math.max(1, Math.ceil(totalCount / (resolvedPageSize || 1)))
     );
+
+    return {
+      items,
+      totalCount,
+      pageNumber,
+      pageSize: resolvedPageSize,
+      totalPages,
+    };
   },
 
   /**

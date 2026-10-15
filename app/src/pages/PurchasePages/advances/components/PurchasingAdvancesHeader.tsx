@@ -1,4 +1,4 @@
-import { Plus, RotateCw, Wallet, CreditCard, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { Plus, Wallet, CreditCard, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 
 interface PurchasingAdvancesHeaderProps {
   totalCount: number;
@@ -6,8 +6,6 @@ interface PurchasingAdvancesHeaderProps {
   totalAmountSum: number;
   remainingAmountSum: number;
   onAddClick: () => void;
-  onRefresh: () => void;
-  isLoading?: boolean;
 }
 
 export function PurchasingAdvancesHeader({
@@ -16,8 +14,6 @@ export function PurchasingAdvancesHeader({
   totalAmountSum,
   remainingAmountSum,
   onAddClick,
-  onRefresh,
-  isLoading = false,
 }: PurchasingAdvancesHeaderProps) {
   return (
     <div className="space-y-4">
@@ -42,18 +38,8 @@ export function PurchasingAdvancesHeader({
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
           <button
             type="button"
-            onClick={onRefresh}
-            disabled={isLoading}
-            title="Refresh advances"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-2xs hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50"
-          >
-            <RotateCw className={`h-4 w-4 ${isLoading ? 'animate-spin text-[#0B4EA2]' : ''}`} />
-          </button>
-
-          <button
-            type="button"
             onClick={onAddClick}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#0B4EA2] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#093d80] active:scale-[0.98] transition-all"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#0B4EA2] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#093d80] active:scale-[0.98] transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4 stroke-[2.5]" />
             <span>New Advance</span>

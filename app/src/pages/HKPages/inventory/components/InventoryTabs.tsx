@@ -4,15 +4,13 @@ export type InventoryTab =
   | 'Stock Overview'
   | 'Withdraw Items'
   | 'Transactions'
-  | 'Low Stock'
-  | 'Purchase Requests';
+  | 'Low Stock';
 
 export const INVENTORY_TABS: InventoryTab[] = [
   'Stock Overview',
   'Withdraw Items',
   'Transactions',
   'Low Stock',
-  'Purchase Requests',
 ];
 
 interface InventoryTabsProps {

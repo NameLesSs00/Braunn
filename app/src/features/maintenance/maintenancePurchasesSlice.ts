@@ -1,7 +1,8 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import * as api from '../../shared/apis/maintenancePurchasesApi'
 import {
-  MaintenancePurchase,
+  MaintenancePurchaseSummary,
+  MaintenancePurchaseDetail,
   CreateMaintenancePurchaseRequest,
   UpdateMaintenancePurchaseRequest,
   PurchaseStatus,
@@ -12,15 +13,16 @@ import {
 type AsyncStatus = 'idle' | 'loading' | 'succeeded' | 'failed'
 
 export type MaintenancePurchasesState = {
-  items: MaintenancePurchase[]
-  pendingItems: MaintenancePurchase[]
-  selectedItem?: MaintenancePurchase
+  items: MaintenancePurchaseSummary[]
+  pendingItems: MaintenancePurchaseSummary[]
+  selectedItem?: MaintenancePurchaseDetail
   totalCount: number
   pageNumber: number
   pageSize: number
   totalPages: number
   hasPreviousPage: boolean
   hasNextPage: boolean
+  filters: api.GetMaintenancePurchasesParams
 
   fetchStatus: AsyncStatus
   pendingFetchStatus: AsyncStatus
@@ -42,6 +44,10 @@ const initialState: MaintenancePurchasesState = {
   totalPages: 0,
   hasPreviousPage: false,
   hasNextPage: false,
+  filters: {
+    pageNumber: 1,
+    pageSize: 10,
+  },
 
   fetchStatus: 'idle',
   pendingFetchStatus: 'idle',
@@ -60,7 +66,15 @@ export const fetchMaintenancePurchases = createAsyncThunk(
   'maintenancePurchases/fetchAll',
   async (params: api.GetMaintenancePurchasesParams | undefined, thunkApi) => {
     try {
-      return await api.getMaintenancePurchases(params, thunkApi.signal)
+      const state = (thunkApi.getState() as { maintenancePurchases: MaintenancePurchasesState }).maintenancePurchases
+      const effectiveParams: api.GetMaintenancePurchasesParams = {
+        pageNumber: params?.pageNumber || state.pageNumber || 1,
+        pageSize: params?.pageSize || state.pageSize || 10,
+        status: params?.status !== undefined ? (String(params.status) !== 'All' ? params.status : undefined) : state.filters.status,
+        fromDate: params?.fromDate !== undefined ? (params.fromDate || undefined) : state.filters.fromDate,
+        toDate: params?.toDate !== undefined ? (params.toDate || undefined) : state.filters.toDate,
+      }
+      return await api.getMaintenancePurchases(effectiveParams, thunkApi.signal)
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to fetch purchases'
       return thunkApi.rejectWithValue(message)
@@ -98,7 +112,6 @@ export const addMaintenancePurchase = createAsyncThunk(
   async (payload: CreateMaintenancePurchaseRequest, thunkApi) => {
     try {
       const created = await api.createMaintenancePurchase(payload, thunkApi.signal)
-      thunkApi.dispatch(fetchMaintenancePurchases(undefined))
       thunkApi.dispatch(fetchPendingPurchases(undefined))
       return created
     } catch (e) {
@@ -113,7 +126,6 @@ export const editMaintenancePurchase = createAsyncThunk(
   async ({ id, payload }: { id: number; payload: UpdateMaintenancePurchaseRequest }, thunkApi) => {
     try {
       const updated = await api.updateMaintenancePurchase(id, payload, thunkApi.signal)
-      thunkApi.dispatch(fetchMaintenancePurchases(undefined))
       thunkApi.dispatch(fetchPendingPurchases(undefined))
       return updated
     } catch (e) {
@@ -128,7 +140,6 @@ export const removeMaintenancePurchase = createAsyncThunk(
   async (id: number, thunkApi) => {
     try {
       await api.deleteMaintenancePurchase(id, thunkApi.signal)
-      thunkApi.dispatch(fetchMaintenancePurchases(undefined))
       thunkApi.dispatch(fetchPendingPurchases(undefined))
       return id
     } catch (e) {
@@ -146,7 +157,6 @@ export const changeMaintenancePurchaseStatus = createAsyncThunk(
   ) => {
     try {
       await api.updateMaintenancePurchaseStatus(id, statusAction, thunkApi.signal)
-      thunkApi.dispatch(fetchMaintenancePurchases(undefined))
       thunkApi.dispatch(fetchPendingPurchases(undefined))
       return { id, statusAction }
     } catch (e) {
@@ -170,6 +180,12 @@ const maintenancePurchasesSlice = createSlice({
     clearSelectedItem(state) {
       state.selectedItem = undefined
     },
+    setFilters(state, action: { payload: Partial<api.GetMaintenancePurchasesParams> }) {
+      state.filters = { ...state.filters, ...action.payload }
+    },
+    resetFilters(state) {
+      state.filters = { pageNumber: 1, pageSize: 10 }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -180,13 +196,45 @@ const maintenancePurchasesSlice = createSlice({
       })
       .addCase(fetchMaintenancePurchases.fulfilled, (state, action) => {
         state.fetchStatus = 'succeeded'
-        state.items = action.payload.items
-        state.totalCount = action.payload.totalCount
-        state.pageNumber = action.payload.pageNumber
-        state.pageSize = action.payload.pageSize
-        state.totalPages = action.payload.totalPages
-        state.hasPreviousPage = action.payload.hasPreviousPage
-        state.hasNextPage = action.payload.hasNextPage
+        const raw = action.payload as any
+        let itemsList: any[] = []
+        if (Array.isArray(raw)) {
+          itemsList = raw
+        } else if (raw && Array.isArray(raw.items)) {
+          itemsList = raw.items
+        } else if (raw && Array.isArray(raw.Items)) {
+          itemsList = raw.Items
+        } else if (raw?.data && Array.isArray(raw.data.items)) {
+          itemsList = raw.data.items
+        } else if (raw?.data && Array.isArray(raw.data.Items)) {
+          itemsList = raw.data.Items
+        } else if (raw?.data && Array.isArray(raw.data)) {
+          itemsList = raw.data
+        } else if (raw?.Data && Array.isArray(raw.Data.Items)) {
+          itemsList = raw.Data.Items
+        } else if (raw?.Data && Array.isArray(raw.Data)) {
+          itemsList = raw.Data
+        }
+
+        state.items = itemsList.map((item: any) => ({
+          id: item.id != null ? Number(item.id) : 0,
+          requiredDate: item.requiredDate || new Date().toISOString(),
+          reason: item.reason || '',
+          status: item.status || 'Pending',
+          itemCount: item.itemCount ?? (Array.isArray(item.items) ? item.items.length : 1),
+          createdAt: item.createdAt || new Date().toISOString(),
+          createdBy: item.createdBy,
+          createdByName: item.createdByName,
+        }))
+
+        state.totalCount = raw?.totalCount ?? raw?.TotalCount ?? raw?.data?.totalCount ?? state.items.length
+        state.pageNumber = raw?.pageNumber || raw?.PageNumber || state.pageNumber || 1
+        state.pageSize = raw?.pageSize || raw?.PageSize || state.pageSize || 10
+        state.totalPages = raw?.totalPages || raw?.TotalPages || (Math.ceil(state.totalCount / state.pageSize) || 1)
+        state.hasPreviousPage = state.pageNumber > 1
+        state.hasNextPage = state.pageNumber < state.totalPages
+        state.filters.pageNumber = state.pageNumber
+        state.filters.pageSize = state.pageSize
       })
       .addCase(fetchMaintenancePurchases.rejected, (state, action) => {
         state.fetchStatus = 'failed'
@@ -200,7 +248,29 @@ const maintenancePurchasesSlice = createSlice({
       })
       .addCase(fetchPendingPurchases.fulfilled, (state, action) => {
         state.pendingFetchStatus = 'succeeded'
-        state.pendingItems = action.payload.items
+        const raw = action.payload as any
+        let pendingList: any[] = []
+        if (Array.isArray(raw)) {
+          pendingList = raw
+        } else if (raw && Array.isArray(raw.items)) {
+          pendingList = raw.items
+        } else if (raw && Array.isArray(raw.Items)) {
+          pendingList = raw.Items
+        } else if (raw?.data && Array.isArray(raw.data.items)) {
+          pendingList = raw.data.items
+        } else if (raw?.data && Array.isArray(raw.data)) {
+          pendingList = raw.data
+        }
+        state.pendingItems = pendingList.map((item: any) => ({
+          id: item.id != null ? Number(item.id) : 0,
+          requiredDate: item.requiredDate || new Date().toISOString(),
+          reason: item.reason || '',
+          status: item.status || 'Pending',
+          itemCount: item.itemCount ?? (Array.isArray(item.items) ? item.items.length : 1),
+          createdAt: item.createdAt || new Date().toISOString(),
+          createdBy: item.createdBy,
+          createdByName: item.createdByName,
+        }))
       })
       .addCase(fetchPendingPurchases.rejected, (state, action) => {
         state.pendingFetchStatus = 'failed'
@@ -214,7 +284,8 @@ const maintenancePurchasesSlice = createSlice({
       })
       .addCase(fetchMaintenancePurchaseById.fulfilled, (state, action) => {
         state.fetchDetailsStatus = 'succeeded'
-        state.selectedItem = action.payload
+        const raw = action.payload as any
+        state.selectedItem = (raw?.data ?? raw?.Data ?? raw) as any
       })
       .addCase(fetchMaintenancePurchaseById.rejected, (state, action) => {
         state.fetchDetailsStatus = 'failed'
@@ -226,8 +297,27 @@ const maintenancePurchasesSlice = createSlice({
         state.createStatus = 'loading'
         state.error = undefined
       })
-      .addCase(addMaintenancePurchase.fulfilled, (state) => {
+      .addCase(addMaintenancePurchase.fulfilled, (state, action) => {
         state.createStatus = 'succeeded'
+        const raw = action.payload as any
+        const p = (raw?.data ?? raw?.Data ?? raw) as any
+        if (p && p.id != null) {
+          const newItem: MaintenancePurchaseSummary = {
+            id: Number(p.id),
+            requiredDate: p.requiredDate || new Date().toISOString(),
+            reason: p.reason || '',
+            status: p.status || 'Pending',
+            itemCount: Array.isArray(p.items) ? p.items.length : (p.itemCount ?? 1),
+            createdAt: p.createdAt || new Date().toISOString(),
+            createdBy: p.createdBy,
+            createdByName: p.createdByName,
+          }
+          const exists = state.items.some((i) => i.id === newItem.id)
+          if (!exists) {
+            state.items.unshift(newItem)
+            state.totalCount += 1
+          }
+        }
       })
       .addCase(addMaintenancePurchase.rejected, (state, action) => {
         state.createStatus = 'failed'
@@ -239,8 +329,24 @@ const maintenancePurchasesSlice = createSlice({
         state.updateStatus = 'loading'
         state.error = undefined
       })
-      .addCase(editMaintenancePurchase.fulfilled, (state) => {
+      .addCase(editMaintenancePurchase.fulfilled, (state, action) => {
         state.updateStatus = 'succeeded'
+        if (action.payload) {
+          const p = action.payload as any
+          const idx = state.items.findIndex((i) => i.id === p.id)
+          if (idx !== -1) {
+            state.items[idx] = {
+              ...state.items[idx],
+              requiredDate: p.requiredDate ?? state.items[idx].requiredDate,
+              reason: p.reason ?? state.items[idx].reason,
+              status: p.status ?? state.items[idx].status,
+              itemCount: p.items?.length ?? state.items[idx].itemCount,
+            }
+          }
+          if (state.selectedItem?.id === p.id) {
+            state.selectedItem = p
+          }
+        }
       })
       .addCase(editMaintenancePurchase.rejected, (state, action) => {
         state.updateStatus = 'failed'
@@ -252,8 +358,15 @@ const maintenancePurchasesSlice = createSlice({
         state.deleteStatus = 'loading'
         state.error = undefined
       })
-      .addCase(removeMaintenancePurchase.fulfilled, (state) => {
+      .addCase(removeMaintenancePurchase.fulfilled, (state, action) => {
         state.deleteStatus = 'succeeded'
+        const id = action.payload
+        state.items = state.items.filter((i) => i.id !== id)
+        state.pendingItems = state.pendingItems.filter((i) => i.id !== id)
+        state.totalCount = Math.max(0, state.totalCount - 1)
+        if (state.selectedItem?.id === id) {
+          state.selectedItem = undefined
+        }
       })
       .addCase(removeMaintenancePurchase.rejected, (state, action) => {
         state.deleteStatus = 'failed'
@@ -303,5 +416,5 @@ const maintenancePurchasesSlice = createSlice({
   },
 })
 
-export const { clearPurchaseError, clearSelectedItem } = maintenancePurchasesSlice.actions
+export const { clearPurchaseError, clearSelectedItem, setFilters, resetFilters } = maintenancePurchasesSlice.actions
 export const maintenancePurchasesReducer = maintenancePurchasesSlice.reducer

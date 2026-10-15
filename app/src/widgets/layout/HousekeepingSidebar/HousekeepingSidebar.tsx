@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { routes } from '../../../shared/lib/routes'
-import { IoHomeOutline, IoSettingsOutline } from 'react-icons/io5'
+import { IoHomeOutline, IoSettingsOutline, IoCartOutline } from 'react-icons/io5'
 import { MdOutlineCleaningServices } from 'react-icons/md'
 import { FiFileText, FiArchive, FiBox } from 'react-icons/fi'
 import { BsBuilding } from 'react-icons/bs'
@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { to: routes.hk.guestRequests, label: 'Guest Requests', icon: FiFileText },
   { to: routes.hk.foundsAndLost, label: 'Founds&lost', icon: FiArchive },
   { to: routes.hk.inventory, label: 'Inventory', icon: FiBox },
+  { to: routes.hk.purchases, label: 'Purchase Requests', icon: IoCartOutline },
   { to: routes.hk.settings, label: 'Settings', icon: IoSettingsOutline },
 ]
 

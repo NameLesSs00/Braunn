@@ -28,8 +28,9 @@ interface PurchaseDetailsDrawerProps {
   open: boolean;
   purchase: SupplierPurchaseListItem | null;
   onClose: () => void;
-  onReceive: (purchase: SupplierPurchaseListItem) => void;
+  onReceive?: (purchase: SupplierPurchaseListItem) => void;
   onPay?: (purchase: SupplierPurchaseListItem) => void;
+  showReceiveAction?: boolean;
 }
 
 export function PurchaseDetailsDrawer({
@@ -38,6 +39,7 @@ export function PurchaseDetailsDrawer({
   onClose,
   onReceive,
   onPay,
+  showReceiveAction = true,
 }: PurchaseDetailsDrawerProps) {
   const dispatch = useAppDispatch();
   const { selectedPurchaseDetails, detailsStatus } = useAppSelector(
@@ -92,10 +94,17 @@ export function PurchaseDetailsDrawer({
     }
   };
 
-  const isReceived = purchase?.purchaseStatus?.toLowerCase() === 'received';
   const details = selectedPurchaseDetails?.id === purchase?.id ? selectedPurchaseDetails : null;
   const items = details?.items ?? [];
   const summary = purchase?.id ? paymentSummariesByPurchaseId[purchase.id] : undefined;
+
+  const effectiveSupplierName = details?.supplierName || purchase?.supplierName;
+  const effectivePurchaseStatus = details?.purchaseStatus || purchase?.purchaseStatus || 'Pending';
+  const effectivePaymentStatus =
+    summary?.paymentStatus || details?.paymentStatus || purchase?.paymentStatus || 'Pending';
+  const effectivePurchaseDate = details?.purchaseDate || purchase?.purchaseDate;
+  const effectiveNotes = details?.notes || purchase?.notes;
+  const isReceived = effectivePurchaseStatus?.toLowerCase() === 'received';
 
   // Filter items in the invoice (unconditional hook call)
   const filteredItems = useMemo(() => {
@@ -114,12 +123,15 @@ export function PurchaseDetailsDrawer({
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
     try {
-      const d = new Date(dateStr);
+      const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+      const d = new Date(normalized);
       if (isNaN(d.getTime())) return dateStr;
       return d.toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       });
     } catch {
       return dateStr;
@@ -127,11 +139,11 @@ export function PurchaseDetailsDrawer({
   };
 
   // Payment Breakdown Percentages
-  const invTotal = summary ? summary.invoiceTotal : Number(purchase.totalAmount || 0);
+  const invTotal = summary ? summary.invoiceTotal : Number(details?.totalAmount ?? purchase.totalAmount ?? 0);
   const advPaid = summary ? summary.advanceUsed : 0;
   const cshPaid = summary ? summary.cashPaid : 0;
   const instPaid = summary ? summary.installmentsPaid : 0;
-  const remBalance = summary ? summary.remainingBalance : Number(purchase.remainingAmount || 0);
+  const remBalance = summary ? summary.remainingBalance : Number(details?.remainingAmount ?? purchase.remainingAmount ?? 0);
 
   const advPercent = invTotal > 0 ? (advPaid / invTotal) * 100 : 0;
   const cshPercent = invTotal > 0 ? (cshPaid / invTotal) * 100 : 0;
@@ -160,11 +172,11 @@ export function PurchaseDetailsDrawer({
                   <h2 className="text-lg font-bold text-slate-800">
                     Purchase Invoice #{purchase.id}
                   </h2>
-                  <PurchaseStatusBadge status={purchase.purchaseStatus} />
-                  <PaymentStatusBadge status={purchase.paymentStatus} />
+                  <PurchaseStatusBadge status={effectivePurchaseStatus} />
+                  <PaymentStatusBadge status={effectivePaymentStatus} />
                 </div>
                 <p className="text-xs text-slate-400">
-                  Vendor: <span className="font-semibold text-slate-700">{purchase.supplierName}</span>
+                  Vendor: <span className="font-semibold text-slate-700">{effectiveSupplierName}</span>
                 </p>
               </div>
             </div>
@@ -217,18 +229,18 @@ export function PurchaseDetailsDrawer({
               <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-2">
                 <div className="flex items-center gap-1.5 font-bold text-slate-800">
                   <Building2 className="h-4 w-4 text-[#0B4EA2]" />
-                  <span>{purchase.supplierName}</span>
+                  <span>{effectiveSupplierName}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-slate-600 font-medium">
                   <Calendar className="h-4 w-4 text-slate-400" />
-                  <span>{formatDate(purchase.purchaseDate)}</span>
+                  <span>{formatDate(effectivePurchaseDate)}</span>
                 </div>
               </div>
 
-              {purchase.notes && (
+              {effectiveNotes && (
                 <div className="pt-1 text-xs">
                   <span className="font-semibold text-slate-600 block mb-0.5">Order Notes:</span>
-                  <p className="text-slate-500 whitespace-pre-wrap">{purchase.notes}</p>
+                  <p className="text-slate-500 whitespace-pre-wrap">{effectiveNotes}</p>
                 </div>
               )}
             </div>
@@ -642,7 +654,7 @@ export function PurchaseDetailsDrawer({
                   type="button"
                   onClick={() => {
                     onClose();
-                    onPay(purchase);
+                    onPay(details || purchase);
                   }}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B4EA2] px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-[#093d80] active:scale-[0.98] transition-all"
                 >
@@ -650,12 +662,12 @@ export function PurchaseDetailsDrawer({
                   Pay Invoice
                 </button>
               )}
-              {!isReceived && (
+              {showReceiveAction && onReceive && !isReceived && detailsStatus !== 'loading' && (
                 <button
                   type="button"
                   onClick={() => {
                     onClose();
-                    onReceive(purchase);
+                    onReceive(details || purchase);
                   }}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-700 active:scale-[0.98] transition-all"
                 >

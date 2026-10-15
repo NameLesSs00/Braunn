@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   ArrowDownToLine,
   Download,
-  FileSearch,
   Folder,
   PackagePlus,
   Pencil,
@@ -28,48 +27,19 @@ import {
   addMaintenanceIssue,
 } from '../../features/maintenance/maintenanceIssuesSlice'
 import {
-  fetchMaintenancePurchases,
   fetchPendingPurchases,
-  addMaintenancePurchase,
-  changeMaintenancePurchaseStatus,
 } from '../../features/maintenance/maintenancePurchasesSlice'
 import { fetchMaintenanceCategories } from '../../features/maintenance/maintenanceCategoriesSlice'
 import { fetchMaintenanceUnits } from '../../features/maintenance/maintenanceUnitsSlice'
 import { fetchPmsRooms } from '../../features/pmsRooms/pmsRoomsSlice'
 
-import type { PurchaseStatus, PurchaseStatusAction } from '../../models/MaintenancePurchase'
-import { getAvailablePurchaseActions } from '../../models/MaintenancePurchase'
+import { NewPurchaseRequestModal } from './purchases/components/NewPurchaseRequestModal'
+
 import type { MaintenanceItemType, MaintenanceItem } from '../../models/MaintenanceItem'
 
-type InventoryTab = 'Stock Overview' | 'Withdraw Items' | 'Out Stock' | 'Purchase Requests'
+type InventoryTab = 'Stock Overview' | 'Withdraw Items' | 'Out Stock'
 
-const tabOptions: InventoryTab[] = ['Stock Overview', 'Withdraw Items', 'Out Stock', 'Purchase Requests']
-
-export function statusDotClass(status: PurchaseStatus | string): string {
-  switch (status) {
-    case 'Pending':   return 'bg-amber-500'   // Warm warning yellow/orange
-    case 'Viewed':    return 'bg-indigo-500'  // Soft purple/indigo (review phase)
-    case 'Approved':  return 'bg-sky-500'     // Clean bright blue
-    case 'Ordered':   return 'bg-blue-600'    // Deep blue (in progress)
-    case 'Completed': return 'bg-emerald-500' // Success green
-    case 'Rejected':  return 'bg-rose-500'    // Red/rose
-    case 'Cancelled': return 'bg-slate-500'   // Neutral gray
-    default:          return 'bg-slate-400'
-  }
-}
-
-export function getStatusPill(status: PurchaseStatus | string): string {
-  switch (status) {
-    case 'Pending':   return 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-    case 'Viewed':    return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300'
-    case 'Approved':  return 'bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300'
-    case 'Ordered':   return 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300'
-    case 'Completed': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-    case 'Rejected':  return 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-    case 'Cancelled': return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-    default:          return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-  }
-}
+const tabOptions: InventoryTab[] = ['Stock Overview', 'Withdraw Items', 'Out Stock']
 
 function StatCard({ label, value, hint, icon }: { label: string; value: string | number; hint: string; icon: React.ReactNode }) {
   return (
@@ -308,174 +278,6 @@ function QuickWithdrawModal({ open, onClose }: { open: boolean; onClose: () => v
   )
 }
 
-function NewPurchaseRequestModal({ open, onClose, defaultItemId }: { open: boolean; onClose: () => void; defaultItemId?: number }) {
-  const dispatch = useAppDispatch()
-  const { items } = useAppSelector((state) => state.maintenanceItems)
-  const { createStatus } = useAppSelector((state) => state.maintenancePurchases)
-  const user = useAppSelector((state) => state.auth.user)
-
-  const [itemId, setItemId] = useState<number>(defaultItemId || 0)
-  const [priority, setPriority] = useState('Normal')
-  const [qty, setQty] = useState(1)
-  const [reason, setReason] = useState('')
-
-  useEffect(() => {
-    if (open) {
-      setItemId(defaultItemId || (items.length > 0 ? Number(items[0].id) : 0))
-    }
-  }, [open, defaultItemId, items])
-
-  const handleSubmit = async () => {
-    if (!itemId) return
-    const res = await dispatch(addMaintenancePurchase({
-      itemId,
-      quantity: qty,
-    }))
-    if (addMaintenancePurchase.fulfilled.match(res)) {
-      onClose()
-    }
-  }
-
-  const isLoading = createStatus === 'loading'
-  const requestedBy = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.fullName || 'System User' : 'System User'
-
-  useEffect(() => {
-    if (!open) return
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isLoading) {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [open, isLoading, onClose])
-
-  if (!open) return null
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between bg-[#004BB5] px-6 py-4 text-white">
-          <h2 className="text-lg font-semibold">New Purchase Request</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1 text-white hover:bg-white/15 transition disabled:opacity-50 cursor-pointer"
-            disabled={isLoading}
-            aria-label="Close"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <div className="p-6 space-y-4">
-          {/* Requested Part */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-1">
-              Requested Part
-            </label>
-            <select
-              value={itemId}
-              onChange={(e) => setItemId(Number(e.target.value))}
-              disabled={isLoading}
-              className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none disabled:opacity-50"
-            >
-              <option value={0} disabled>Select a part inventory</option>
-              {items.map((entry) => (
-                <option key={entry.id} value={entry.id}>{entry.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Priority */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-1">
-              Priority
-            </label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              disabled={isLoading}
-              className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none disabled:opacity-50"
-            >
-              <option value="Low">Low</option>
-              <option value="Normal">Normal</option>
-              <option value="High">High</option>
-              <option value="Urgent">Urgent</option>
-            </select>
-          </div>
-
-          {/* Quantity */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-1">
-              Quantity
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={qty}
-              onChange={(e) => setQty(parseInt(e.target.value, 10) || 1)}
-              disabled={isLoading}
-              className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none disabled:opacity-50"
-            />
-          </div>
-
-          {/* Request by */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-1">
-              Request by
-            </label>
-            <input
-              type="text"
-              readOnly
-              value={requestedBy}
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-400 cursor-not-allowed"
-            />
-          </div>
-
-          {/* Request Reason */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-1">
-              Request Reason
-            </label>
-            <textarea
-              rows={4}
-              placeholder="Please explain why these materials are needed..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              disabled={isLoading}
-              className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none placeholder:text-gray-400 disabled:opacity-50"
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isLoading}
-              className="w-1/2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="w-1/2 inline-flex justify-center items-center gap-2 rounded-lg bg-[#004BB5] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Submit Request
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function ItemFormModal({ open, onClose, editingItem }: { open: boolean; onClose: () => void; editingItem?: MaintenanceItem }) {
   const dispatch = useAppDispatch()
   const { createStatus, updateStatus } = useAppSelector(state => state.maintenanceItems)
@@ -659,21 +461,22 @@ export function MaintenanceInventoryPage() {
   const [itemFormOpen, setItemFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<MaintenanceItem | undefined>(undefined)
   const [purchaseItemContextId, setPurchaseItemContextId] = useState<number | undefined>(undefined)
+  const [purchaseItemName, setPurchaseItemName] = useState<string | undefined>(undefined)
 
   const { items, lowStockItems } = useAppSelector(state => state.maintenanceItems)
   const { items: issues } = useAppSelector(state => state.maintenanceIssues)
-  const { pendingItems, items: purchases } = useAppSelector(state => state.maintenancePurchases)
+  const { pendingItems } = useAppSelector(state => state.maintenancePurchases)
 
   useEffect(() => {
     dispatch(fetchMaintenanceItems())
     dispatch(fetchLowStockItems())
     dispatch(fetchMaintenanceIssues())
-    dispatch(fetchMaintenancePurchases())
     dispatch(fetchPendingPurchases())
   }, [dispatch])
 
-  const openPurchaseModal = (itemId?: number) => {
+  const openPurchaseModal = (itemId?: number, itemName?: string) => {
     setPurchaseItemContextId(itemId)
+    setPurchaseItemName(itemName)
     setPurchaseOpen(true)
   }
 
@@ -685,14 +488,6 @@ export function MaintenanceInventoryPage() {
   const openEditItemModal = (item: MaintenanceItem) => {
     setEditingItem(item)
     setItemFormOpen(true)
-  }
-
-  const handleStatusAction = (id: number, action: PurchaseStatusAction, currentStatus: PurchaseStatus) => {
-    dispatch(changeMaintenancePurchaseStatus({
-      id,
-      statusAction: action,
-      previousStatus: currentStatus
-    }))
   }
 
   return (
@@ -788,7 +583,7 @@ export function MaintenanceInventoryPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => openPurchaseModal(Number(item.id))}
+                              onClick={() => openPurchaseModal(Number(item.id), item.name)}
                               className={['rounded-lg px-3 py-1.5 text-xs font-bold bg-[#0B4EA2] text-white hover:opacity-90'].join(' ')}>
                               order
                             </button>
@@ -854,7 +649,7 @@ export function MaintenanceInventoryPage() {
                     <div className="flex items-center justify-between"><span>Minimum:</span><span className="font-bold">{item.minimum}</span></div>
                     <div className="flex items-center justify-between"><span>Location:</span><span className="font-bold text-slate-700">{item.location}</span></div>
                   </div>
-                  <button type="button" onClick={() => openPurchaseModal(Number(item.id))} className="mt-4 w-full rounded-xl bg-[#EF4444] px-4 py-2.5 text-sm font-semibold text-white">Create Purchase Request</button>
+                  <button type="button" onClick={() => openPurchaseModal(Number(item.id), item.name)} className="mt-4 w-full rounded-xl bg-[#EF4444] px-4 py-2.5 text-sm font-semibold text-white">Create Purchase Request</button>
                 </div>
               ))}
               {lowStockItems.length === 0 && (
@@ -864,66 +659,13 @@ export function MaintenanceInventoryPage() {
           </div>
         )}
 
-        {activeTab === 'Purchase Requests' && (
-          <div className="space-y-4">
-            <div className="space-y-3">
-              {purchases.map((row) => {
-                const availableActions = getAvailablePurchaseActions(row.status)
-                return (
-                  <div key={row.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-12 w-12 place-items-center rounded-xl bg-[#EEF4FF]">
-                        <FileSearch className="h-5 w-5 text-[#0B4EA2]" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-slate-800">{row.itemName} ({row.quantity} units)</div>
-                        <div className="text-xs text-slate-500">Request ID: PR-{row.id} • Requested by {row.createdBy || 'System User'}</div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className={['inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold select-none', getStatusPill(row.status)].join(' ')}>
-                        <span className={['h-2 w-2 rounded-full', statusDotClass(row.status)].join(' ')} />
-                        {row.status}
-                      </span>
-
-                      {availableActions.length > 0 && (
-                        <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
-                          {availableActions.map((opt) => (
-                            <button
-                              key={opt.action}
-                              type="button"
-                              onClick={() => handleStatusAction(row.id, opt.action, row.status)}
-                              className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${
-                                opt.variant === 'primary'
-                                  ? 'bg-[#0B4EA2] text-white hover:bg-blue-800'
-                                  : opt.variant === 'success'
-                                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                  : opt.variant === 'danger'
-                                  ? 'bg-rose-600 text-white hover:bg-rose-700'
-                                  : opt.variant === 'warning'
-                                  ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                  : 'border border-slate-300 text-slate-700 hover:bg-slate-100'
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-              {purchases.length === 0 && (
-                <div className="text-slate-500">No purchase requests found.</div>
-              )}
-            </div>
-          </div>
-        )}
-
         <QuickWithdrawModal open={quickWithdrawOpen} onClose={() => setQuickWithdrawOpen(false)} />
-        <NewPurchaseRequestModal open={purchaseOpen} onClose={() => setPurchaseOpen(false)} defaultItemId={purchaseItemContextId} />
+        <NewPurchaseRequestModal
+          open={purchaseOpen}
+          onClose={() => setPurchaseOpen(false)}
+          defaultItemId={purchaseItemContextId}
+          defaultItemName={purchaseItemName}
+        />
         <ItemFormModal open={itemFormOpen} onClose={() => setItemFormOpen(false)} editingItem={editingItem} />
       </div>
     </>

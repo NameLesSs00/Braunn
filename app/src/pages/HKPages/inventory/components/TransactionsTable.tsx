@@ -51,7 +51,12 @@ export function TransactionsTable() {
 
     // Map purchases to 'restock' transactions
     purchases.forEach((purchase) => {
-      purchase.purchaseItems.forEach((pItem) => {
+      const pItems = Array.isArray(purchase.purchaseItems)
+        ? purchase.purchaseItems
+        : Array.isArray((purchase as any).items)
+        ? (purchase as any).items
+        : [];
+      pItems.forEach((pItem) => {
         txs.push({
           id: `p-${purchase.id}-${pItem.id}`,
           item: pItem.itemName || `Item #${pItem.itemId}`,
@@ -60,8 +65,8 @@ export function TransactionsTable() {
           dateTime: purchase.date 
             ? new Date(purchase.date).toLocaleString() 
             : new Date(purchase.createdAt).toLocaleString(),
-          staffName: purchase.createdBy || 'System',
-          reason: `Purchase (${purchase.status || 'Pending'}) from ${purchase.supplierName}`,
+          staffName: (purchase.createdBy && !/^[0-9a-fA-F-]{32,36}$/.test(purchase.createdBy)) ? purchase.createdBy : 'HK Staff',
+          reason: purchase.notes || `Purchase Request #${purchase.id} (${purchase.status || 'Pending'})`,
         });
       });
     });

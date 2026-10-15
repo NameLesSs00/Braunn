@@ -86,6 +86,51 @@ export function PurchasingInstallmentsPage() {
     refreshKey,
   ]);
 
+  // Periodic polling & tab focus refresh
+  useEffect(() => {
+    const refreshData = () => {
+      dispatch(
+        fetchPurchasingInstallments({
+          pageNumber: page,
+          pageSize: rowsPerPage,
+          searchTerm: debouncedSearch || undefined,
+          supplierId: selectedSupplierId === 'ALL' ? undefined : selectedSupplierId,
+          status: selectedStatus === 'ALL' ? undefined : selectedStatus,
+          dueFrom: dueFrom || undefined,
+          dueTo: dueTo || undefined,
+          showOnlyOverdue: showOnlyOverdue || undefined,
+          showOnlyUnpaid: showOnlyUnpaid || undefined,
+        })
+      );
+    };
+
+    const interval = setInterval(refreshData, 25000);
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [
+    dispatch,
+    page,
+    rowsPerPage,
+    debouncedSearch,
+    selectedSupplierId,
+    selectedStatus,
+    dueFrom,
+    dueTo,
+    showOnlyOverdue,
+    showOnlyUnpaid,
+  ]);
+
   // Calculated metrics
   const overdueCount = useMemo(() => {
     return installments.filter((i) => i.isOverdue && i.remainingAmount > 0).length;
@@ -143,8 +188,6 @@ export function PurchasingInstallmentsPage() {
           overdueCount={overdueCount}
           remainingAmountSum={remainingAmountSum}
           paidAmountSum={paidAmountSum}
-          onRefresh={handleRefresh}
-          isLoading={fetchStatus === 'loading'}
         />
 
         {/* Filters */}

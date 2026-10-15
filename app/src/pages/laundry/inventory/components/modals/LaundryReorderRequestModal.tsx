@@ -24,7 +24,6 @@ let nextId = 0;
 export function LaundryReorderRequestModal({ isOpen, onClose, initialItem }: LaundryReorderRequestModalProps) {
   const dispatch = useAppDispatch();
   const [requestDate, setRequestDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [supplierName, setSupplierName] = useState('');
   const [notes, setNotes] = useState('');
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItemState[]>([]);
   const [allItems, setAllItems] = useState<LaundryInventoryItemReadDto[]>([]);
@@ -33,7 +32,6 @@ export function LaundryReorderRequestModal({ isOpen, onClose, initialItem }: Lau
   useEffect(() => {
     if (isOpen) {
       setRequestDate(new Date().toISOString().split('T')[0]);
-      setSupplierName('');
       setNotes('');
 
       if (initialItem) {
@@ -76,10 +74,6 @@ export function LaundryReorderRequestModal({ isOpen, onClose, initialItem }: Lau
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplierName) {
-      alert(translateAppText('Supplier is required'));
-      return;
-    }
     const validItems = purchaseItems.filter((i) => i.selectedItem && i.quantity > 0);
     if (validItems.length === 0) {
       alert(translateAppText('At least one item is required'));
@@ -90,10 +84,11 @@ export function LaundryReorderRequestModal({ isOpen, onClose, initialItem }: Lau
     try {
       await dispatch(
         createLaundryPurchase({
-          supplierName,
-          purchaseItems: validItems.map((i) => ({
+          requiredDate: new Date(requestDate).toISOString(),
+          items: validItems.map((i) => ({
             itemId: i.selectedItem!.id,
             quantity: i.quantity,
+            priority: 'Normal',
           })),
         })
       ).unwrap();
@@ -113,7 +108,7 @@ export function LaundryReorderRequestModal({ isOpen, onClose, initialItem }: Lau
           {/* Request Information */}
           <div className="space-y-4">
             <h3 className="text-[15px] font-bold text-slate-800">Request Information</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="max-w-xs">
               <div className="flex flex-col gap-2">
                 <label className="text-[14px] font-medium text-slate-700">
                   Request Date <span className="text-red-500">*</span>
@@ -124,20 +119,6 @@ export function LaundryReorderRequestModal({ isOpen, onClose, initialItem }: Lau
                   value={requestDate}
                   onChange={(e) => setRequestDate(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] text-[14px] text-slate-700"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[14px] font-medium text-slate-700">
-                  Supplier <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={supplierName}
-                  onChange={(e) => setSupplierName(e.target.value)}
-                  placeholder="Enter Supplier Name"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] text-[14px] text-slate-700 bg-white"
                 />
               </div>
             </div>

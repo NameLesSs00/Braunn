@@ -79,12 +79,43 @@ export function SupplierPurchasesPage() {
     );
   }, [dispatch, page, rowsPerPage, selectedSupplierId, selectedStatus, dateFrom, dateTo, refreshKey]);
 
+  // Periodic polling & tab focus refresh
+  useEffect(() => {
+    const refreshData = () => {
+      dispatch(
+        fetchSupplierPurchases({
+          pageNumber: page,
+          pageSize: rowsPerPage,
+          supplierId: selectedSupplierId === 'ALL' ? undefined : selectedSupplierId,
+          status: selectedStatus === 'ALL' ? undefined : selectedStatus,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+        })
+      );
+    };
+
+    const interval = setInterval(refreshData, 25000);
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [dispatch, page, rowsPerPage, selectedSupplierId, selectedStatus, dateFrom, dateTo]);
+
   // Client search filter on the current page items
   const displayPurchases = useMemo(() => {
     if (!debouncedSearch) return purchases;
 
     return purchases.filter((p) => {
-      const idMatch = p.id.toString().includes(debouncedSearch);
+      const idMatch = String(p?.id ?? '').includes(debouncedSearch);
       const supplierMatch = p.supplierName?.toLowerCase().includes(debouncedSearch);
       const notesMatch = p.notes?.toLowerCase().includes(debouncedSearch);
       return idMatch || supplierMatch || notesMatch;

@@ -69,12 +69,12 @@ export const purchasingInstallmentsApi = {
     signal?: AbortSignal
   ): Promise<PaginatedPurchasingInstallments> => {
     const searchParams = new URLSearchParams();
-    if (params?.pageNumber !== undefined) {
-      searchParams.append('PageNumber', params.pageNumber.toString());
-    }
-    if (params?.pageSize !== undefined) {
-      searchParams.append('PageSize', params.pageSize.toString());
-    }
+    const pageNum = params?.pageNumber && params.pageNumber > 0 ? params.pageNumber : 1;
+    searchParams.append('PageNumber', pageNum.toString());
+
+    const pageSize = params?.pageSize && params.pageSize > 0 ? params.pageSize : 20;
+    searchParams.append('PageSize', pageSize.toString());
+
     if (params?.sortBy) {
       searchParams.append('SortBy', params.sortBy);
     }
@@ -90,7 +90,7 @@ export const purchasingInstallmentsApi = {
     if (params?.supplierId !== undefined) {
       searchParams.append('SupplierId', params.supplierId.toString());
     }
-    if (params?.status) {
+    if (params?.status && params.status !== 'ALL' && params.status !== 'All') {
       searchParams.append('Status', params.status);
     }
     if (params?.dueFrom) {
@@ -133,14 +133,18 @@ export const purchasingInstallmentsApi = {
       if (
         inner &&
         typeof inner === 'object' &&
-        ('data' in inner || 'totalCount' in inner || 'TotalCount' in inner)
+        ('data' in inner || 'items' in inner || 'Items' in inner || 'totalCount' in inner || 'TotalCount' in inner)
       ) {
         target = inner;
       }
     }
 
     if (target && typeof target === 'object') {
-      const items: PurchasingInstallmentListItem[] = Array.isArray(target.data)
+      const items: PurchasingInstallmentListItem[] = Array.isArray(target.items)
+        ? target.items
+        : Array.isArray(target.Items)
+        ? target.Items
+        : Array.isArray(target.data)
         ? target.data
         : Array.isArray(target.Data)
         ? target.Data
@@ -148,12 +152,24 @@ export const purchasingInstallmentsApi = {
         ? target
         : [];
       const totalCount = Number(target.totalCount ?? target.TotalCount ?? items.length);
-      const pageNumber = Number(target.pageNumber ?? target.PageNumber ?? params?.pageNumber ?? 1);
-      const pageSize = Number(target.pageSize ?? target.PageSize ?? params?.pageSize ?? 20);
+      const pageNumber = Number(
+        target.pageNumber && target.pageNumber > 0
+          ? target.pageNumber
+          : target.PageNumber && target.PageNumber > 0
+          ? target.PageNumber
+          : pageNum
+      );
+      const resolvedPageSize = Number(
+        target.pageSize && target.pageSize > 0
+          ? target.pageSize
+          : target.PageSize && target.PageSize > 0
+          ? target.PageSize
+          : pageSize
+      );
       const totalPages = Number(
         target.totalPages ??
           target.TotalPages ??
-          Math.max(1, Math.ceil(totalCount / (pageSize || 1)))
+          Math.max(1, Math.ceil(totalCount / (resolvedPageSize || 1)))
       );
       const hasPreviousPage = Boolean(
         target.hasPreviousPage ?? target.HasPreviousPage ?? pageNumber > 1
@@ -166,7 +182,7 @@ export const purchasingInstallmentsApi = {
         data: items,
         totalCount,
         pageNumber,
-        pageSize,
+        pageSize: resolvedPageSize,
         totalPages,
         hasPreviousPage,
         hasNextPage,

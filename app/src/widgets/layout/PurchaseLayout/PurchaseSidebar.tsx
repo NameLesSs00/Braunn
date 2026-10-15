@@ -18,7 +18,7 @@ const navItems: NavItem[] = [
   { to: routes.purchase.advances, label: 'Advances', icon: FiCreditCard },
   { to: routes.purchase.installments, label: 'Installments', icon: FiCalendar },
   { to: routes.purchase.transactions, label: 'Transactions', icon: FiFileText },
-  { to: routes.purchase.transfers, label: 'Inventory Transfers', icon: FiRepeat },
+  { to: routes.purchase.transfers, label: 'Main Inventory', icon: FiRepeat },
 ]
 
 function PurchaseSidebarLink({ item }: { item: NavItem }) {

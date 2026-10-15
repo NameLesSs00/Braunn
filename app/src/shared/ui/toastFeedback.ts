@@ -10,7 +10,7 @@ export function showSuccessToast(message: string) {
   toast.success(message)
 }
 
-export function showErrorToast(error: unknown, fallback: string) {
+export function showErrorToast(error: unknown, fallback: string = 'Operation failed') {
   toast.error(getErrorMessage(error, fallback))
 }
 

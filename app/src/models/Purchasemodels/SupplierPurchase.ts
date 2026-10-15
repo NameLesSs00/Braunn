@@ -85,7 +85,7 @@ export interface CreateSupplierPurchaseItemDto {
   departmentType: PurchasingDepartmentType;
   itemId: number;
   quantity: number;
-  unitId: number;
+  unitId: number | null;
   unitPrice: number;
   notes?: string;
 }

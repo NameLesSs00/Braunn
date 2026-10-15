@@ -8,6 +8,8 @@ import {
   Layers,
   Hash,
   ExternalLink,
+  Wallet,
+  Clock,
 } from 'lucide-react';
 import type { FinanceTransactionListItem } from '../../../../models/Purchasemodels/SupplierFinance';
 
@@ -36,21 +38,32 @@ export function PurchasingTransactionsTable({
   onViewInvoice,
   isFiltered = false,
 }: PurchasingTransactionsTableProps) {
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '—';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateStr;
-    }
+  const parseDate = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+    const d = new Date(normalized);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const formatDateOnly = (dateStr?: string) => {
+    const d = parseDate(dateStr);
+    if (!d) return dateStr || '—';
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const formatTimeOnly = (dateStr?: string) => {
+    const d = parseDate(dateStr);
+    if (!d) return '';
+    return d.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
   };
 
   const getMethodBadge = (method: string) => {
@@ -90,31 +103,26 @@ export function PurchasingTransactionsTable({
     );
   };
 
-  const getTypeBadge = (type: string) => {
-    const t = (type || '').toLowerCase();
-    if (t.includes('advance')) {
+  const getTypeBadge = (tx: FinanceTransactionListItem) => {
+    if (tx.advanceId !== null && tx.advanceId !== undefined) {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
-          Advance Allocation
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-700 border border-purple-200/80">
+          <Wallet className="h-3 w-3 text-purple-500" />
+          Advance Settlement
         </span>
       );
     }
-    if (t.includes('installment')) {
+    if (tx.installmentId !== null && tx.installmentId !== undefined) {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-[#0B4EA2]">
-          Installment Settle
-        </span>
-      );
-    }
-    if (t.includes('mixed')) {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-          Mixed Split
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-[#0B4EA2] border border-blue-200/80">
+          <Layers className="h-3 w-3 text-[#0B4EA2]" />
+          Installment Payment
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200/80">
+        <Receipt className="h-3 w-3 text-emerald-600" />
         Direct Payment
       </span>
     );
@@ -131,7 +139,9 @@ export function PurchasingTransactionsTable({
               <th className="py-3.5 px-4">Supplier</th>
               <th className="py-3.5 px-4">Type</th>
               <th className="py-3.5 px-4">Method</th>
-              <th className="py-3.5 px-4">Linked PO / Plan</th>
+              <th className="py-3.5 px-4" title="Purchase Order or Installment schedule linked to this transaction">
+                Linked PO / Plan
+              </th>
               <th className="py-3.5 px-4">Date</th>
               <th className="py-3.5 px-4">Reference / Notes</th>
               <th className="py-3.5 px-4 text-right">Amount</th>
@@ -206,7 +216,7 @@ export function PurchasingTransactionsTable({
 
                   {/* Type */}
                   <td className="py-3.5 px-4 whitespace-nowrap">
-                    {getTypeBadge(tx.transactionType)}
+                    {getTypeBadge(tx)}
                   </td>
 
                   {/* Method */}
@@ -216,35 +226,75 @@ export function PurchasingTransactionsTable({
 
                   {/* Linked Purchase Order / Installment Plan */}
                   <td className="py-3.5 px-4">
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-1 items-start">
                       {tx.supplierPurchaseId ? (
-                        <div className="flex items-center gap-1 text-xs font-semibold text-slate-700">
-                          <Receipt className="h-3.5 w-3.5 text-[#0B4EA2]" />
-                          <span>PO #{tx.supplierPurchaseId}</span>
-                        </div>
+                        onViewInvoice ? (
+                          <button
+                            type="button"
+                            onClick={() => onViewInvoice(tx.supplierPurchaseId!)}
+                            title={`Inspect Purchase Order #${tx.supplierPurchaseId}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200/80 text-[#0B4EA2] text-xs font-bold hover:shadow-2xs active:scale-[0.98] transition-all cursor-pointer group"
+                          >
+                            <Receipt className="h-3.5 w-3.5 text-[#0B4EA2] shrink-0" />
+                            <span>PO #{tx.supplierPurchaseId}</span>
+                            <ExternalLink className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold">
+                            <Receipt className="h-3.5 w-3.5 text-[#0B4EA2] shrink-0" />
+                            <span>PO #{tx.supplierPurchaseId}</span>
+                          </div>
+                        )
                       ) : null}
 
-                      {tx.installmentPlanId || tx.installmentId ? (
-                        <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                          <Layers className="h-3 w-3 text-slate-400" />
+                      {tx.installmentId !== null && tx.installmentId !== undefined ? (
+                        <div
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50/80 text-[#0B4EA2] border border-blue-200/70"
+                          title={`Payment allocated towards Installment #${tx.installmentId}${tx.installmentPlanId ? ` under Plan #${tx.installmentPlanId}` : ''}`}
+                        >
+                          <Layers className="h-3 w-3 text-[#0B4EA2] shrink-0" />
                           <span>
-                            {tx.installmentPlanId ? `Plan #${tx.installmentPlanId} ` : ''}
-                            (Inst #{tx.installmentNumber || tx.installmentId})
+                            {tx.installmentPlanId ? `Plan #${tx.installmentPlanId} • ` : ''}Installment #{tx.installmentId}
                           </span>
                         </div>
-                      ) : null}
-
-                      {!tx.supplierPurchaseId && !tx.installmentPlanId && !tx.installmentId && (
-                        <span className="text-slate-400">—</span>
+                      ) : tx.advanceId !== null && tx.advanceId !== undefined ? (
+                        <div
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/70"
+                          title={`Deducted from Supplier Advance #${tx.advanceId}`}
+                        >
+                          <Wallet className="h-3 w-3 text-purple-600 shrink-0" />
+                          <span>Advance #{tx.advanceId}</span>
+                        </div>
+                      ) : tx.supplierPurchaseId ? (
+                        <div
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-500 bg-slate-100 border border-slate-200/60"
+                          title="Direct cash payment settled directly on this Purchase Order"
+                        >
+                          <span>Direct Cash Payment</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">Unlinked Ledger</span>
                       )}
                     </div>
                   </td>
 
-                  {/* Date */}
+                  {/* Date & Time */}
                   <td className="py-3.5 px-4 text-sm font-medium text-slate-700 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
-                      <span>{formatDate(tx.transactionDate)}</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500 shrink-0">
+                        <Calendar className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-800">
+                          {formatDateOnly(tx.transactionDate)}
+                        </span>
+                        {formatTimeOnly(tx.transactionDate) && (
+                          <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
+                            <Clock className="h-3 w-3 inline text-slate-400" />
+                            {formatTimeOnly(tx.transactionDate)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
 
