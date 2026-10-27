@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronDown } from 'lucide-react'
+import { X, ChevronDown, AlertTriangle } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks'
 import { editGroupContract, fetchGroupContractById } from '../../../../features/GroupContract/GroupContractSlice'
 import { fetchRoomTypes } from '../../../../features/roomTypes/roomTypesSlice'
@@ -179,7 +179,7 @@ export function EditGroupContractPopup({ contractId, onClose }: EditGroupContrac
 
           {isLocked && (
             <div className="bg-amber-50 text-amber-700 px-4 py-3 rounded-lg border border-amber-200 text-sm font-medium flex items-start gap-2">
-              <span className="mt-0.5">⚠️</span>
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
               <span>This contract is <strong>{formData.status}</strong>. Blocked Rooms, Dates, and Room Type cannot be changed. Only contact details, discount, and deposit can be edited.</span>
             </div>
           )}

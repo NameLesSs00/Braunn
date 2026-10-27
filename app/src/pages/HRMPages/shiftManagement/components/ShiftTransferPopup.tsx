@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, ChevronDown, Calendar } from 'lucide-react';
+import { X, ChevronDown, Calendar, Clock } from 'lucide-react';
 import { Modal } from '../../../../shared/ui/Modal';
 import type { HREmployeeReadDto } from '../../../../models/HRMmodels/HREmployee';
 import type { ShiftReadDto } from '../../../../models/HRMmodels/Shift';
@@ -147,7 +147,7 @@ export function ShiftTransferPopup({ open, onClose, employee }: Props) {
           {/* Transfer To (Shift Selection) */}
           <div>
             <label className="mb-2 flex items-center gap-2 text-[13px] font-bold text-slate-600">
-              <span className="text-slate-400">⏰</span> Transfer To Shift
+              <Clock className="h-4 w-4 text-slate-400 shrink-0" /> Transfer To Shift
             </label>
             <div className="relative">
               <select

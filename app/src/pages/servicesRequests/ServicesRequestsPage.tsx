@@ -220,7 +220,7 @@ function NewRequestModal({ open, onClose }: NewRequestModalProps) {
 
  const roomNumbers = useMemo(() => {
   const list = rooms
-    .map((room) => room.roomNumber)   // 👈 change if needed (e.g. room.number)
+    .map((room) => room.roomNumber)   // change if needed (e.g. room.number)
     .filter((room): room is string => typeof room === 'string' && room.trim() !== '')
   return Array.from(new Set(list)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 }, [rooms])

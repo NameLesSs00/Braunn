@@ -18,6 +18,7 @@ import {
   clearSelectedInventoryItem,
   setActiveTab,
 } from '../../../features/Purchasefeatures/inventoryTransfers/inventoryTransfersSlice';
+import { updateDepartmentRequisitionStatus } from '../../../shared/Purchaseshared/api/inventoryTransfersApi';
 import { PurchaseLayout } from '../../../widgets/layout/PurchaseLayout/PurchaseLayout';
 import type {
   InventoryTransfer,
@@ -55,7 +56,6 @@ export function PurchasingTransfersPage() {
     // Central stock state
     inventoryItems,
     inventoryTotalCount,
-    totalValuation,
     inventoryStatus,
     selectedInventoryItem,
     inventoryDetailStatus,
@@ -92,13 +92,14 @@ export function PurchasingTransfersPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedStockSearch(stockSearch);
-      setStockPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [stockSearch]);
 
-  // Fetch Main Inventory Stock
+  // Fetch Main Inventory Stock ONLY when activeTab === 'stock'
   useEffect(() => {
+    if (activeTab !== 'stock') return;
+
     dispatch(
       fetchMainInventory({
         pageNumber: stockPage,
@@ -111,6 +112,7 @@ export function PurchasingTransfersPage() {
     );
   }, [
     dispatch,
+    activeTab,
     stockPage,
     stockPageSize,
     stockPurchaseType,
@@ -194,8 +196,9 @@ export function PurchasingTransfersPage() {
     dispatch(fetchDepartmentRequests());
   }, [dispatch]);
 
-  // Fetch Transfers
+  // Fetch Transfers when on transfers tab or filter changes
   useEffect(() => {
+    if (activeTab !== 'transfers') return;
     dispatch(
       fetchTransfers({
         pageNumber: page,
@@ -205,66 +208,7 @@ export function PurchasingTransfersPage() {
         dateTo: dateTo || undefined,
       })
     );
-  }, [dispatch, page, pageSize, selectedDepartment, dateFrom, dateTo]);
-
-  // Periodic polling & tab focus refresh
-  useEffect(() => {
-    const refreshData = () => {
-      if (activeTab === 'transfers') {
-        dispatch(
-          fetchTransfers({
-            pageNumber: page,
-            pageSize,
-            departmentType: selectedDepartment !== 'ALL' ? selectedDepartment : undefined,
-            dateFrom: dateFrom || undefined,
-            dateTo: dateTo || undefined,
-          })
-        );
-      } else if (activeTab === 'requests') {
-        dispatch(fetchDepartmentRequests());
-      } else {
-        dispatch(
-          fetchMainInventory({
-            pageNumber: stockPage,
-            pageSize: stockPageSize,
-            purchaseType: stockPurchaseType !== 'ALL' ? stockPurchaseType : undefined,
-            isActive: activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
-            lowStockOnly: lowStockOnly || undefined,
-            search: debouncedStockSearch || undefined,
-          })
-        );
-      }
-    };
-
-    const interval = setInterval(refreshData, 25000);
-    const handleFocus = () => {
-      if (document.visibilityState === 'visible') {
-        refreshData();
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
-    };
-  }, [
-    dispatch,
-    activeTab,
-    page,
-    pageSize,
-    selectedDepartment,
-    dateFrom,
-    dateTo,
-    stockPage,
-    stockPageSize,
-    stockPurchaseType,
-    activeFilter,
-    lowStockOnly,
-    debouncedStockSearch,
-  ]);
+  }, [dispatch, activeTab, page, pageSize, selectedDepartment, dateFrom, dateTo]);
 
   // Compute KPI counts for Transfers
   const confirmedCount = useMemo(
@@ -382,16 +326,18 @@ export function PurchasingTransfersPage() {
       dispatch(fetchPurchasingInventory());
       dispatch(fetchDepartmentRequests());
       dispatch(fetchRestaurantMaterialRequests({ status: 'Pending' }));
-      dispatch(
-        fetchMainInventory({
-          pageNumber: stockPage,
-          pageSize: stockPageSize,
-          purchaseType: stockPurchaseType !== 'ALL' ? stockPurchaseType : undefined,
-          isActive: activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
-          lowStockOnly: lowStockOnly || undefined,
-          search: debouncedStockSearch || undefined,
-        })
-      );
+      if (activeTab === 'stock') {
+        dispatch(
+          fetchMainInventory({
+            pageNumber: stockPage,
+            pageSize: stockPageSize,
+            purchaseType: stockPurchaseType !== 'ALL' ? stockPurchaseType : undefined,
+            isActive: activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
+            lowStockOnly: lowStockOnly || undefined,
+            search: debouncedStockSearch || undefined,
+          })
+        );
+      }
       if (activeTransfer && activeTransfer.id === transfer.id) {
         setActiveTransfer({
           ...activeTransfer,
@@ -419,16 +365,18 @@ export function PurchasingTransfersPage() {
       dispatch(fetchPurchasingInventory());
       dispatch(fetchDepartmentRequests());
       dispatch(fetchRestaurantMaterialRequests({ status: 'Pending' }));
-      dispatch(
-        fetchMainInventory({
-          pageNumber: stockPage,
-          pageSize: stockPageSize,
-          purchaseType: stockPurchaseType !== 'ALL' ? stockPurchaseType : undefined,
-          isActive: activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
-          lowStockOnly: lowStockOnly || undefined,
-          search: debouncedStockSearch || undefined,
-        })
-      );
+      if (activeTab === 'stock') {
+        dispatch(
+          fetchMainInventory({
+            pageNumber: stockPage,
+            pageSize: stockPageSize,
+            purchaseType: stockPurchaseType !== 'ALL' ? stockPurchaseType : undefined,
+            isActive: activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
+            lowStockOnly: lowStockOnly || undefined,
+            search: debouncedStockSearch || undefined,
+          })
+        );
+      }
       if (activeTransfer && activeTransfer.id === id) {
         setActiveTransfer({ ...activeTransfer, status: 'Cancelled' });
       }
@@ -447,16 +395,18 @@ export function PurchasingTransfersPage() {
       dispatch(fetchRestaurantMaterialRequests({ status: 'Pending' }));
       dispatch(fetchDepartmentRequests());
       dispatch(fetchPurchasingInventory());
-      dispatch(
-        fetchMainInventory({
-          pageNumber: stockPage,
-          pageSize: stockPageSize,
-          purchaseType: stockPurchaseType !== 'ALL' ? stockPurchaseType : undefined,
-          isActive: activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
-          lowStockOnly: lowStockOnly || undefined,
-          search: debouncedStockSearch || undefined,
-        })
-      );
+      if (activeTab === 'stock') {
+        dispatch(
+          fetchMainInventory({
+            pageNumber: stockPage,
+            pageSize: stockPageSize,
+            purchaseType: stockPurchaseType !== 'ALL' ? stockPurchaseType : undefined,
+            isActive: activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
+            lowStockOnly: lowStockOnly || undefined,
+            search: debouncedStockSearch || undefined,
+          })
+        );
+      }
       setIsCreateOpen(false);
       setSelectedDeptRequest(null);
     } catch (err: any) {
@@ -465,29 +415,49 @@ export function PurchasingTransfersPage() {
     }
   };
 
-  const handleCreateAdHocSubmit = async (payloads: CreateAdHocTransferRequest[]) => {
+  const handleCreateAdHocSubmit = async (
+    payloads: CreateAdHocTransferRequest[],
+    fulfilledRequisition?: { department: string; id: number; referenceCode?: string }
+  ) => {
     try {
       for (const payload of payloads) {
         await dispatch(createAdHocTransfer(payload)).unwrap();
       }
+
+      if (fulfilledRequisition) {
+        try {
+          await updateDepartmentRequisitionStatus(
+            fulfilledRequisition.department,
+            fulfilledRequisition.id,
+            'view'
+          );
+        } catch (statusErr) {
+          console.error('Failed to update requisition status to Viewed:', statusErr);
+        }
+      }
+
       toast.success(
-        `${payloads.length} material${payloads.length === 1 ? '' : 's'} dispatched to ${
-          payloads[0]?.departmentType || 'department'
-        } successfully!`
+        fulfilledRequisition
+          ? `Dispatched transfer and marked ${fulfilledRequisition.referenceCode || 'requisition'} as Viewed!`
+          : `${payloads.length} material${payloads.length === 1 ? '' : 's'} dispatched to ${
+              payloads[0]?.departmentType || 'department'
+            } successfully!`
       );
       handleRefreshTransfers();
       dispatch(fetchPurchasingInventory());
       dispatch(fetchDepartmentRequests());
-      dispatch(
-        fetchMainInventory({
-          pageNumber: stockPage,
-          pageSize: stockPageSize,
-          purchaseType: stockPurchaseType !== 'ALL' ? stockPurchaseType : undefined,
-          isActive: activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
-          lowStockOnly: lowStockOnly || undefined,
-          search: debouncedStockSearch || undefined,
-        })
-      );
+      if (activeTab === 'stock') {
+        dispatch(
+          fetchMainInventory({
+            pageNumber: stockPage,
+            pageSize: stockPageSize,
+            purchaseType: stockPurchaseType !== 'ALL' ? stockPurchaseType : undefined,
+            isActive: activeFilter === 'ALL' ? undefined : activeFilter === 'ACTIVE',
+            lowStockOnly: lowStockOnly || undefined,
+            search: debouncedStockSearch || undefined,
+          })
+        );
+      }
       setIsCreateOpen(false);
       setSelectedDeptRequest(null);
     } catch (err: any) {
@@ -599,7 +569,6 @@ export function PurchasingTransfersPage() {
               totalCount={inventoryTotalCount}
               activeCount={activeStockCount}
               lowStockCount={lowStockCount}
-              totalValuation={totalValuation}
             />
 
             {/* Filters */}

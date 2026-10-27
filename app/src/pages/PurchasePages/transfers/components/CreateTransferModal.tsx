@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   X,
   AlertCircle,
@@ -7,9 +7,13 @@ import {
   Wrench,
   Sparkles,
   Home,
-  FileText,
   RotateCcw,
 } from 'lucide-react';
+import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
+import { fetchRestaurantMaterials } from '../../../../features/restaurant/restaurantMaterialsSlice';
+import { getLaundryInventoryItems } from '../../../../shared/Laundryshared/api/laundryInventoryItemsApi';
+import { getHkmInventoryItems } from '../../../../shared/HKshared/api/hkmInventoryItemsApi';
+import { getMaintenanceItems } from '../../../../shared/apis/maintenanceItemsApi';
 import type {
   PurchasingInventoryItem,
   RestaurantMaterialRequest,
@@ -18,15 +22,23 @@ import type {
   UnifiedDepartmentRequest,
 } from '../../../../models/Purchasemodels/InventoryTransfer';
 
-import { MaterialSearchCombobox } from './create/MaterialSearchCombobox';
+import {
+  MaterialSearchCombobox,
+  CatalogItem,
+  SelectedMaterialPayload,
+} from './create/MaterialSearchCombobox';
 import { TransferLineItemsTable, StagedTransferRow } from './create/TransferLineItemsTable';
 import { RestaurantRequestSelector } from './create/RestaurantRequestSelector';
+import { DepartmentRequestCardSelector } from './create/DepartmentRequestCardSelector';
 
 interface CreateTransferModalProps {
   open: boolean;
   onClose: () => void;
   onSubmitRestaurant: (payload: CreateRestaurantTransferRequest) => Promise<void>;
-  onSubmitAdHoc: (payload: CreateAdHocTransferRequest[]) => Promise<void>;
+  onSubmitAdHoc: (
+    payload: CreateAdHocTransferRequest[],
+    fulfilledRequisition?: { department: TargetDepartment; id: number; referenceCode?: string }
+  ) => Promise<void>;
   purchasingInventory: PurchasingInventoryItem[];
   materialRequests: RestaurantMaterialRequest[];
   departmentRequests?: UnifiedDepartmentRequest[];
@@ -37,6 +49,23 @@ interface CreateTransferModalProps {
 }
 
 export type TargetDepartment = 'Restaurant' | 'Laundry' | 'Housekeeping' | 'Maintenance';
+
+function matchInventoryItem(
+  inventory: PurchasingInventoryItem[],
+  dept: string,
+  itemId?: number,
+  itemName?: string
+): PurchasingInventoryItem | undefined {
+  const normDept = (dept || '').trim().toLowerCase();
+  const normName = (itemName || '').trim().toLowerCase();
+  return inventory.find((p) => {
+    const pDept = (p.departmentType || '').trim().toLowerCase();
+    if (pDept !== normDept) return false;
+    if (itemId && p.itemId && p.itemId === itemId) return true;
+    if (normName && p.itemName && p.itemName.trim().toLowerCase() === normName) return true;
+    return false;
+  });
+}
 
 export function CreateTransferModal({
   open,
@@ -69,6 +98,91 @@ export function CreateTransferModal({
   const [rows, setRows] = useState<StagedTransferRow[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Department catalog items for rich search across all 4 modules
+  const dispatch = useAppDispatch();
+  const restaurantMaterials = useAppSelector((state) => state.restaurantMaterials.items);
+  const [laundryCatalog, setLaundryCatalog] = useState<CatalogItem[]>([]);
+  const [hkCatalog, setHkCatalog] = useState<CatalogItem[]>([]);
+  const [maintenanceCatalog, setMaintenanceCatalog] = useState<CatalogItem[]>([]);
+
+  // Preload department catalogs when modal opens
+  useEffect(() => {
+    if (open) {
+      if (restaurantMaterials.length === 0) {
+        dispatch(fetchRestaurantMaterials());
+      }
+
+      const loadCatalogs = async () => {
+        try {
+          const [laundryRes, hkRes, maintRes] = await Promise.allSettled([
+            getLaundryInventoryItems({ PageSize: 100 }),
+            getHkmInventoryItems({ PageSize: 100 }),
+            getMaintenanceItems({ pageSize: 100 }),
+          ]);
+
+          if (laundryRes.status === 'fulfilled' && laundryRes.value?.items) {
+            setLaundryCatalog(
+              laundryRes.value.items.map((i) => ({
+                id: i.id,
+                name: i.name,
+                categoryName: i.categoryName,
+                unitName: i.unitName,
+                quantity: i.quantity ?? 0,
+              }))
+            );
+          }
+
+          if (hkRes.status === 'fulfilled' && hkRes.value?.items) {
+            setHkCatalog(
+              hkRes.value.items.map((i) => ({
+                id: i.id,
+                name: i.name,
+                categoryName: i.categoryName,
+                unitName: i.unitName,
+                quantity: i.quantity ?? 0,
+              }))
+            );
+          }
+
+          if (maintRes.status === 'fulfilled' && maintRes.value?.items) {
+            setMaintenanceCatalog(
+              maintRes.value.items.map((i) => ({
+                id: Number(i.id) || 0,
+                name: i.name,
+                categoryName: i.categoryName,
+                code: i.code,
+                quantity: i.quantity ?? 0,
+              }))
+            );
+          }
+        } catch (err) {
+          console.error('Failed to preload department catalogs for transfer', err);
+        }
+      };
+
+      loadCatalogs();
+    }
+  }, [open, restaurantMaterials.length, dispatch]);
+
+  // Compute active department's catalog items
+  const activeDepartmentCatalog = useMemo<CatalogItem[]>(() => {
+    switch (selectedDept) {
+      case 'Laundry':
+        return laundryCatalog;
+      case 'Housekeeping':
+        return hkCatalog;
+      case 'Maintenance':
+        return maintenanceCatalog;
+      case 'Restaurant':
+      default:
+        return restaurantMaterials.map((m) => ({
+          id: m.id,
+          name: m.name,
+          unitName: m.unitName || m.unitSymbol,
+        }));
+    }
+  }, [selectedDept, laundryCatalog, hkCatalog, maintenanceCatalog, restaurantMaterials]);
+
   // Reset form or populate from initialSelectedRequest when modal opens
   useEffect(() => {
     if (open) {
@@ -76,24 +190,49 @@ export function CreateTransferModal({
       if (initialSelectedRequest) {
         setSelectedDept(initialSelectedRequest.department);
         setTransferMode('request');
-        setSelectedDeptReqId(String(initialSelectedRequest.id));
+        if (initialSelectedRequest.department === 'Restaurant') {
+          setSelectedRequestId(initialSelectedRequest.id);
+          setSelectedDeptReqId(String(initialSelectedRequest.id));
+          const matchingReq = materialRequests.find((r) => r.id === initialSelectedRequest.id);
+          if (matchingReq) {
+            const matchingWh = warehouses.find((w) => w.restaurantId === matchingReq.restaurantId);
+            if (matchingWh) {
+              setSelectedWarehouseId(matchingWh.warehouseId);
+            }
+          }
+        } else {
+          setSelectedDeptReqId(String(initialSelectedRequest.id));
+          setSelectedRequestId('none');
+        }
         setNotes(`Fulfillment for ${initialSelectedRequest.referenceCode}`);
 
         const staged: StagedTransferRow[] = initialSelectedRequest.items.map((it) => {
-          const invItem = purchasingInventory.find(
-            (p) =>
-              p.itemId === it.itemId ||
-              p.itemName.toLowerCase() === it.itemName.toLowerCase()
+          const invItem = matchInventoryItem(
+            purchasingInventory,
+            initialSelectedRequest.department,
+            it.itemId,
+            it.itemName
           );
+          const catItem = activeDepartmentCatalog.find(
+            (c) =>
+              c.id === it.itemId ||
+              (c.name && it.itemName && c.name.trim().toLowerCase() === it.itemName.trim().toLowerCase())
+          );
+          const isDeptRest = initialSelectedRequest.department === 'Restaurant';
+          const stock =
+            invItem?.quantity !== undefined
+              ? Number(invItem.quantity)
+              : Number(catItem?.quantity ?? 0);
+
           return {
-            materialId: invItem?.itemId || it.itemId || 1,
+            materialId: it.itemId || invItem?.itemId || 1,
             materialName: it.itemName,
             departmentType: initialSelectedRequest.department,
-            availableStock: invItem?.quantity ?? 0,
+            availableStock: stock,
             requestedQuantity: it.quantity,
-            transferredQuantity: Math.min(it.quantity, invItem?.quantity || it.quantity),
-            unitId: it.unitId || invItem?.unitId || 1,
-            unitSymbol: it.unitSymbol || invItem?.unitSymbol || 'Unit',
+            transferredQuantity: Math.min(it.quantity, stock > 0 ? stock : it.quantity),
+            unitId: isDeptRest ? (it.unitId || invItem?.unitId || 1) : 1,
+            unitSymbol: isDeptRest ? (it.unitSymbol || invItem?.unitSymbol || 'Unit') : 'Amount',
           };
         });
         setRows(staged);
@@ -109,7 +248,7 @@ export function CreateTransferModal({
         }
       }
     }
-  }, [open, initialSelectedRequest, warehouses, purchasingInventory]);
+  }, [open, initialSelectedRequest, warehouses, materialRequests, purchasingInventory, activeDepartmentCatalog]);
 
   // Ensure default warehouse when available
   useEffect(() => {
@@ -134,14 +273,15 @@ export function CreateTransferModal({
         }
 
         const newRows: StagedTransferRow[] = req.items.map((it) => {
-          const invItem = purchasingInventory.find((p) => p.itemId === it.materialId);
+          const invItem = matchInventoryItem(purchasingInventory, 'Restaurant', it.materialId, it.materialName);
+          const stock = invItem?.quantity !== undefined ? Number(invItem.quantity) : 0;
           return {
             materialId: it.materialId,
             materialName: it.materialName,
             departmentType: 'Restaurant',
-            availableStock: invItem?.quantity ?? 0,
+            availableStock: stock,
             requestedQuantity: it.requestedQuantity,
-            transferredQuantity: Math.min(it.requestedQuantity, invItem?.quantity || it.requestedQuantity),
+            transferredQuantity: Math.min(it.requestedQuantity, stock > 0 ? stock : it.requestedQuantity),
             unitId: it.unitId,
             unitSymbol: it.unitSymbol || invItem?.unitSymbol || 'Unit',
           };
@@ -166,52 +306,71 @@ export function CreateTransferModal({
       if (req) {
         setNotes(`Fulfillment for ${req.referenceCode}`);
         const staged: StagedTransferRow[] = req.items.map((it) => {
-          const invItem = purchasingInventory.find(
-            (p) =>
-              p.itemId === it.itemId ||
-              p.itemName.toLowerCase() === it.itemName.toLowerCase()
+          const invItem = matchInventoryItem(purchasingInventory, req.department, it.itemId, it.itemName);
+          const catItem = activeDepartmentCatalog.find(
+            (c) =>
+              c.id === it.itemId ||
+              (c.name && it.itemName && c.name.trim().toLowerCase() === it.itemName.trim().toLowerCase())
           );
+          const stock =
+            invItem?.quantity !== undefined
+              ? Number(invItem.quantity)
+              : Number(catItem?.quantity ?? 0);
+
           return {
-            materialId: invItem?.itemId || it.itemId || 1,
+            materialId: it.itemId || invItem?.itemId || 1,
             materialName: it.itemName,
             departmentType: req.department,
-            availableStock: invItem?.quantity ?? 0,
+            availableStock: stock,
             requestedQuantity: it.quantity,
-            transferredQuantity: Math.min(it.quantity, invItem?.quantity || it.quantity),
-            unitId: it.unitId || invItem?.unitId || 1,
-            unitSymbol: it.unitSymbol || invItem?.unitSymbol || 'Unit',
+            transferredQuantity: Math.min(it.quantity, stock > 0 ? stock : it.quantity),
+            unitId: 1,
+            unitSymbol: 'Amount',
           };
         });
         setRows(staged);
       }
     }
-  }, [selectedDeptReqId, selectedDept, transferMode, departmentRequests, purchasingInventory]);
+  }, [selectedDeptReqId, selectedDept, transferMode, departmentRequests, purchasingInventory, activeDepartmentCatalog]);
 
   if (!open) return null;
 
-  // Add material from Combobox
-  const handleSelectMaterial = (item: PurchasingInventoryItem) => {
+  // Add material or department catalog item from Combobox
+  const handleSelectMaterial = (item: SelectedMaterialPayload) => {
     setFormError(null);
-    const existingIndex = rows.findIndex((r) => r.materialId === (item.itemId || item.id));
+    const targetDept = item.departmentType || selectedDept;
+    const targetId = item.materialId || item.itemId || item.id || 1;
+    const targetName = item.materialName || item.itemName || 'Item';
+
+    const invMatch = matchInventoryItem(purchasingInventory, targetDept, targetId, targetName);
+    const targetStock =
+      invMatch?.quantity !== undefined
+        ? Number(invMatch.quantity)
+        : Number(item.availableStock ?? item.quantity ?? 0);
+
+    const existingIndex = rows.findIndex(
+      (r) => r.materialId === targetId && r.departmentType === targetDept
+    );
     if (existingIndex >= 0) {
       setRows((prev) =>
         prev.map((r, idx) =>
           idx === existingIndex
-            ? { ...r, transferredQuantity: Math.min(r.transferredQuantity + 1, r.availableStock) }
+            ? { ...r, transferredQuantity: r.transferredQuantity + 1 }
             : r
         )
       );
       return;
     }
 
+    const isRest = targetDept === 'Restaurant';
     const newRow: StagedTransferRow = {
-      materialId: item.itemId || item.id,
-      materialName: item.itemName,
-      departmentType: item.departmentType || selectedDept,
-      availableStock: item.quantity,
+      materialId: targetId,
+      materialName: targetName,
+      departmentType: targetDept,
+      availableStock: targetStock,
       transferredQuantity: 1,
-      unitId: item.unitId,
-      unitSymbol: item.unitSymbol || item.unitName || 'Unit',
+      unitId: isRest ? (invMatch?.unitId || item.unitId || 1) : 1,
+      unitSymbol: isRest ? (invMatch?.unitSymbol || item.unitSymbol || item.unitName || 'Unit') : 'Amount',
     };
     setRows((prev) => [newRow, ...prev]);
   };
@@ -247,10 +406,12 @@ export function CreateTransferModal({
 
     for (const r of rows) {
       if (r.transferredQuantity <= 0) {
-        setFormError(`Transfer quantity for ${r.materialName} must be greater than zero.`);
+        setFormError(
+          `Transfer ${selectedDept === 'Restaurant' ? 'quantity' : 'amount'} for ${r.materialName} must be greater than zero.`
+        );
         return;
       }
-      if (r.transferredQuantity > r.availableStock) {
+      if (selectedDept === 'Restaurant' && r.transferredQuantity > r.availableStock) {
         setFormError(
           `Cannot transfer ${r.transferredQuantity} ${r.unitSymbol} of ${r.materialName}. Only ${r.availableStock} ${r.unitSymbol} in central stock.`
         );
@@ -284,7 +445,20 @@ export function CreateTransferModal({
           quantity: r.transferredQuantity,
           notes,
         }));
-        await onSubmitAdHoc(adHocPayloads);
+
+        const fulfilledRequisition =
+          transferMode === 'request' && selectedDeptReqId !== 'none'
+            ? {
+                department: selectedDept,
+                id: Number(selectedDeptReqId),
+                referenceCode:
+                  departmentRequests.find(
+                    (r) => r.department === selectedDept && String(r.id) === String(selectedDeptReqId)
+                  )?.referenceCode || `#${selectedDept.substring(0, 3).toUpperCase()}-${selectedDeptReqId}`,
+              }
+            : undefined;
+
+        await onSubmitAdHoc(adHocPayloads, fulfilledRequisition);
       }
       handleResetForm();
       onClose();
@@ -503,29 +677,12 @@ export function CreateTransferModal({
 
             {/* Sub-section: Laundry / Housekeeping / Maintenance Requisition Selector */}
             {selectedDept !== 'Restaurant' && transferMode === 'request' && (
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">
-                  Select Pending {selectedDept} Purchase Request:
-                </label>
-                {currentDeptPendingRequests.length === 0 ? (
-                  <div className="p-3 bg-white rounded-xl border border-dashed border-slate-200 text-xs text-slate-500 text-center">
-                    No pending purchase requests from {selectedDept}. Use "Direct {selectedDept} Dispatch" to send materials ad-hoc.
-                  </div>
-                ) : (
-                  <select
-                    value={selectedDeptReqId}
-                    onChange={(e) => setSelectedDeptReqId(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-800 outline-none focus:border-[#0B4EA2] focus:ring-2 focus:ring-[#0B4EA2]/10 cursor-pointer"
-                  >
-                    <option value="none">-- Choose {selectedDept} Requisition --</option>
-                    {currentDeptPendingRequests.map((req) => (
-                      <option key={req.id} value={req.id}>
-                        {req.referenceCode} - {req.requesterName} ({req.itemsCount} items) • Required: {new Date(req.requiredDate).toLocaleDateString()}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
+              <DepartmentRequestCardSelector
+                department={selectedDept}
+                requests={departmentRequests}
+                selectedRequestId={selectedDeptReqId}
+                onSelectRequest={setSelectedDeptReqId}
+              />
             )}
 
             {/* Destination Restaurant Warehouse dropdown */}
@@ -551,17 +708,19 @@ export function CreateTransferModal({
             )}
           </div>
 
-          {/* Step 3: Material Search (Visible when Direct Mode is active) */}
+          {/* Step 3: Material / Item Search (Visible when Direct Mode is active) */}
           {transferMode === 'direct' && (
             <div className="space-y-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Search & Select Material to Transfer:
+                Search & Select {selectedDept} Item to Dispatch:
               </label>
               <MaterialSearchCombobox
                 inventory={purchasingInventory}
+                departmentCatalog={activeDepartmentCatalog}
+                selectedDept={selectedDept}
                 selectedItemIds={rows.map((r) => r.materialId)}
                 onSelectMaterial={handleSelectMaterial}
-                placeholder={`Search central inventory by material name for ${selectedDept}...`}
+                placeholder={`Search ${selectedDept} catalog items or central storage...`}
               />
             </div>
           )}
@@ -588,6 +747,8 @@ export function CreateTransferModal({
               rows={rows}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveRow={handleRemoveRow}
+              isFulfillingRequest={transferMode === 'request'}
+              isRestaurant={selectedDept === 'Restaurant'}
             />
           </div>
 

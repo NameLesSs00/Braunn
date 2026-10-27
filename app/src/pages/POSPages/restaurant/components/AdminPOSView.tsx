@@ -320,10 +320,10 @@ const inventoryItems = [
 const inventoryCategories = ['All', 'Meat', 'Seafood', 'Pasta', 'Dairy', 'Oils', 'Vegetables', 'Baking', 'Bakery']
 
 const topSellingItems = [
-  { rank: 1, icon: '🍔', item: 'Grilled Burger', quantity: 320, revenue: '$48,000' },
-  { rank: 2, icon: '🍕', item: 'Margherita Pizza', quantity: 280, revenue: '$42,000' },
-  { rank: 3, icon: '🍝', item: 'Pasta Alfredo', quantity: 210, revenue: '$26,000' },
-  { rank: 4, icon: '🥗', item: 'Chicken Caesar Salad', quantity: 180, revenue: '$18,000' },
+  { rank: 1, item: 'Grilled Burger', quantity: 320, revenue: '$48,000' },
+  { rank: 2, item: 'Margherita Pizza', quantity: 280, revenue: '$42,000' },
+  { rank: 3, item: 'Pasta Alfredo', quantity: 210, revenue: '$26,000' },
+  { rank: 4, item: 'Chicken Caesar Salad', quantity: 180, revenue: '$18,000' },
 ]
 
 const orderRevenueRows = [
@@ -2368,7 +2368,9 @@ function ReportsTab() {
             <div key={item.rank} className="grid min-h-16 grid-cols-[0.4fr_1.6fr_1fr_1fr] items-center border-t border-slate-100 px-4 text-sm text-slate-700">
               <div>{item.rank}</div>
               <div className="flex items-center gap-2">
-                <span className="grid h-6 w-6 place-items-center rounded bg-yellow-50 text-sm">{item.icon}</span>
+                <span className="grid h-6 w-6 place-items-center rounded bg-slate-100 text-slate-600">
+                  <Utensils className="h-3.5 w-3.5" />
+                </span>
                 <span className="max-w-[130px] text-slate-700">{item.item}</span>
               </div>
               <div>{item.quantity}</div>

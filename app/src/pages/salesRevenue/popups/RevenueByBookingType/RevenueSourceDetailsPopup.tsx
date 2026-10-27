@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Printer, X, ChevronDown, Calendar as CalendarIcon } from 'lucide-react'
+import { Printer, X, ChevronDown, Calendar as CalendarIcon, Search } from 'lucide-react'
 
 type SourceTab = 'All' | 'Phone' | 'Website' | 'Walk-in' | 'OTA' | 'Corporate'
 
@@ -212,7 +212,7 @@ export function RevenueSourceDetailsPopup({
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <div className="flex w-full max-w-[200px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <span className="text-slate-400 text-sm">🔍</span>
+                <Search className="h-4 w-4 text-slate-400 shrink-0" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}

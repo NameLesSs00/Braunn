@@ -1,97 +1,93 @@
-import { FiSearch, FiCalendar, FiPrinter } from 'react-icons/fi';
+import { FiSearch, FiRefreshCw, FiUser } from 'react-icons/fi';
+import type { HREmployeeReadDto } from '../../../../models/HRMmodels/HREmployee';
 
 export function CleaningTasksHeader() {
   return (
-    <div className="mb-8">
+    <div className="mb-6">
       <h1 className="text-2xl font-bold text-[#1a365d]">Room Cleaning Management</h1>
-      <p className="mt-2 text-[15px] text-slate-500">Manage checkout queue and cleaning assignments</p>
+      <p className="mt-1 text-sm text-slate-500">
+        Track active reception room assignments, update cleaning progress, and review completion records.
+      </p>
     </div>
   );
 }
 
-export function CleaningTasksFilters() {
+interface CleaningTasksFiltersProps {
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+  selectedEmployeeId: string;
+  onEmployeeChange: (id: string) => void;
+  employees: HREmployeeReadDto[];
+  onRefresh: () => void;
+  isRefreshing?: boolean;
+}
+
+export function CleaningTasksFilters({
+  searchQuery,
+  onSearchChange,
+  selectedEmployeeId,
+  onEmployeeChange,
+  employees,
+  onRefresh,
+  isRefreshing,
+}: CleaningTasksFiltersProps) {
   return (
-    <div className="flex flex-col gap-5 mb-8">
-      {/* Search Bar */}
-      <div className="relative w-full">
-        <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+    <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between mb-6 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+      {/* Search Input */}
+      <div className="relative flex-1 min-w-[240px]">
+        <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
         <input
           type="text"
-          placeholder="Search by Room Number"
-          className="bg-white w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] placeholder:text-slate-400"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search by Room Number or Notes..."
+          className="bg-slate-50/50 w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-sm placeholder:text-slate-400"
         />
       </div>
 
-      {/* Filter Row 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[14px] font-semibold text-slate-800">Status</label>
-          <select className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] text-slate-600">
-            <option>All status</option>
-            <option>Dirty</option>
-            <option>Clean</option>
-            <option>In Progress</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[14px] font-semibold text-slate-800">Floor</label>
-          <select className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] text-slate-600">
-            <option>All Floor</option>
-            <option>1 Floor</option>
-            <option>2 Floor</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[14px] font-semibold text-slate-800">Room Type</label>
-          <select className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] text-slate-600">
-            <option>All Types</option>
-            <option>Single</option>
-            <option>Double</option>
-            <option>Suite</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[14px] font-semibold text-slate-800">Priority</label>
-          <select className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] text-slate-600">
-            <option>All Priority</option>
-            <option>High</option>
-            <option>Medium</option>
-            <option>Low</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Filter Row 2 */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex gap-4 w-full md:w-auto flex-1 max-w-3xl">
-          <div className="flex flex-col gap-1.5 w-1/3">
-            <label className="text-[14px] font-semibold text-slate-800">Staff</label>
-            <select className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] text-slate-600">
-              <option>All Staff</option>
-              <option>Sara Ahmed</option>
-              <option>Maria Garcia</option>
-            </select>
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Employee Filter */}
+        <div className="relative min-w-[200px] flex-1 md:flex-initial">
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <FiUser className="w-4 h-4" />
           </div>
-          <div className="flex flex-col gap-1.5 w-1/3 relative">
-            <label className="text-[14px] font-semibold text-slate-800">Date From</label>
-            <input 
-              type="date" 
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] text-slate-600"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5 w-1/3 relative">
-            <label className="text-[14px] font-semibold text-slate-800">Date To</label>
-            <input 
-              type="date" 
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-[14px] text-slate-600"
-            />
-          </div>
+          <select
+            value={selectedEmployeeId}
+            onChange={(e) => onEmployeeChange(e.target.value)}
+            className="w-full pl-10 pr-8 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#0a4bbd]/20 focus:border-[#0a4bbd] transition-all text-sm text-slate-700 font-medium cursor-pointer"
+          >
+            <option value="">All Assigned Staff</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.fullName || emp.id}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Print Button */}
-        <button className="flex items-center gap-2 px-6 py-2.5 border-2 border-[#0a4bbd] rounded-xl text-[#0a4bbd] hover:bg-blue-50 font-bold transition-colors">
-          <FiPrinter className="w-5 h-5" />
-          <span>Print</span>
+        {/* Clear Filters (if active) */}
+        {(searchQuery || selectedEmployeeId) && (
+          <button
+            type="button"
+            onClick={() => {
+              onSearchChange('');
+              onEmployeeChange('');
+            }}
+            className="px-3 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+          >
+            Reset Filters
+          </button>
+        )}
+
+        {/* Refresh Button */}
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 hover:border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold text-sm transition-colors cursor-pointer disabled:opacity-50"
+        >
+          <FiRefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#0a4bbd]' : 'text-slate-500'}`} />
+          <span>Refresh</span>
         </button>
       </div>
     </div>

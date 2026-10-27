@@ -2,11 +2,7 @@ import { useState } from 'react'
 import { FiSearch, FiUser } from 'react-icons/fi'
 import { Modal } from '../../foundsAndLost/components/modals/Modal'
 import { useAppDispatch } from '../../../../store/hooks'
-import { 
-  createHkmReceptionAssignment, 
-  setHkmReceptionAssignmentProgress 
-} from '../../../../features/HKfeatures/hkmReceptionAssignments/hkmReceptionAssignmentsSlice'
-import { fetchAllRooms } from '../../../../features/housekeeping/housekeepingSlice'
+import { createHkmReceptionAssignment } from '../../../../features/HKfeatures/hkmReceptionAssignments/hkmReceptionAssignmentsSlice'
 import { hrEmployeesApi } from '../../../../shared/HRMshared/api/hrEmployeesApi'
 import type { HREmployeeReadDto } from '../../../../models/HRMmodels/HREmployee'
 
@@ -15,9 +11,10 @@ interface AssignRoomModalProps {
   onClose: () => void
   roomId: string | null
   roomNumber: string
+  onSuccess?: () => void
 }
 
-export function AssignRoomModal({ isOpen, onClose, roomId, roomNumber }: AssignRoomModalProps) {
+export function AssignRoomModal({ isOpen, onClose, roomId, roomNumber, onSuccess }: AssignRoomModalProps) {
   const dispatch = useAppDispatch()
 
   const [note, setNote] = useState('')
@@ -59,20 +56,16 @@ export function AssignRoomModal({ isOpen, onClose, roomId, roomNumber }: AssignR
     
     setIsSubmitting(true)
     try {
-      // 1. Create the assignment
-      const createAction = await dispatch(createHkmReceptionAssignment({
+      // Create the assignment via POST /api/hkm/reception-assignments
+      await dispatch(createHkmReceptionAssignment({
         roomId,
         employeeId: selectedEmployee.id,
         note
       })).unwrap()
       
-      // 2. Set it to in progress in the background
-      await dispatch(setHkmReceptionAssignmentProgress(createAction.id)).unwrap()
+      onSuccess?.()
       
-      // 3. Refresh rooms list to reflect the new status (Cleaning)
-      dispatch(fetchAllRooms())
-      
-      // 4. Reset & Close
+      // Reset & Close
       setNote('')
       setSearchQuery('')
       setEmployeesResult([])

@@ -16,6 +16,7 @@ interface TransferLineItemsTableProps {
   onUpdateQuantity: (materialId: number, newQty: number) => void;
   onRemoveRow: (materialId: number) => void;
   isFulfillingRequest?: boolean;
+  isRestaurant?: boolean;
 }
 
 export function TransferLineItemsTable({
@@ -23,12 +24,13 @@ export function TransferLineItemsTable({
   onUpdateQuantity,
   onRemoveRow,
   isFulfillingRequest = false,
+  isRestaurant = false,
 }: TransferLineItemsTableProps) {
   if (rows.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center text-xs text-slate-400 space-y-1">
-        <p className="font-semibold text-slate-600">No Materials Selected Yet</p>
-        <p>Use the search combobox above to pick materials to transfer.</p>
+        <p className="font-semibold text-slate-600">No Items Selected Yet</p>
+        <p>Use the search combobox above to pick items to transfer.</p>
       </div>
     );
   }
@@ -36,8 +38,9 @@ export function TransferLineItemsTable({
   return (
     <div className="space-y-2.5">
       {rows.map((row) => {
+        const isRowRestaurant = isRestaurant || row.departmentType === 'Restaurant';
         const remainingStock = row.availableStock - row.transferredQuantity;
-        const isExceeding = row.transferredQuantity > row.availableStock;
+        const isExceeding = isRowRestaurant && row.transferredQuantity > row.availableStock;
         const isZeroTransfer = row.transferredQuantity <= 0;
 
         return (
@@ -72,14 +75,17 @@ export function TransferLineItemsTable({
                     <span>
                       In Storage:{' '}
                       <strong className="text-slate-800">
-                        {Number(row.availableStock).toLocaleString()} {row.unitSymbol}
+                        {Number(row.availableStock).toLocaleString()}
+                        {isRowRestaurant ? ` ${row.unitSymbol}` : ''}
                       </strong>
                     </span>
                     {isFulfillingRequest && row.requestedQuantity !== undefined && (
                       <>
                         <span>&bull;</span>
                         <span className="text-blue-600 font-medium">
-                          Requested: {row.requestedQuantity} {row.unitSymbol}
+                          {isRowRestaurant
+                            ? `Requested: ${row.requestedQuantity} ${row.unitSymbol}`
+                            : `Requested Amount: ${row.requestedQuantity}`}
                         </span>
                       </>
                     )}
@@ -118,7 +124,7 @@ export function TransferLineItemsTable({
                   </button>
 
                   <span className="text-[11px] font-semibold text-slate-500 pr-1.5">
-                    {row.unitSymbol}
+                    {isRowRestaurant ? row.unitSymbol : 'Amount'}
                   </span>
                 </div>
 
@@ -141,7 +147,7 @@ export function TransferLineItemsTable({
                           : 'text-emerald-700'
                       }`}
                     >
-                      {remainingStock} {row.unitSymbol}
+                      {remainingStock}{isRowRestaurant ? ` ${row.unitSymbol}` : ''}
                     </span>
                   </div>
                 </div>
@@ -151,7 +157,7 @@ export function TransferLineItemsTable({
                   type="button"
                   onClick={() => onRemoveRow(row.materialId)}
                   className="grid h-8 w-8 place-items-center rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                  title="Remove material"
+                  title="Remove item"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -170,7 +176,7 @@ export function TransferLineItemsTable({
             {isZeroTransfer && (
               <div className="mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 p-2 rounded-xl border border-amber-200">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                <span>Transfer quantity must be greater than 0.</span>
+                <span>Transfer {isRowRestaurant ? 'quantity' : 'amount'} must be greater than 0.</span>
               </div>
             )}
           </div>

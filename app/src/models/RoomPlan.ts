@@ -1,3 +1,5 @@
+import { HousekeepingStatus } from './PmsRoom'
+
 export type RoomPlanReservationStatus =
   | 'Reserved'
   | 'Confirmed'
@@ -63,7 +65,7 @@ export interface RoomPlanRoom {
   roomTypeName: string | null
   floor: string | null
   currentRoomStatus: string | null
-  housekeepingStatus: string | null
+  housekeepingStatus: HousekeepingStatus | string | number | null
   days: RoomPlanDay[] | null
   blocks: RoomPlanBlock[] | null
 }

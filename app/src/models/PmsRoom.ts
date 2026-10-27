@@ -1,3 +1,9 @@
+export enum HousekeepingStatus {
+  Clean = 1,
+  Dirty = 2,
+  InProgress = 3,
+}
+
 export type RoomStatus = 'Available' | 'Occupied' | 'Maintenance' | string
 
 export interface PmsRoom {
@@ -7,9 +13,10 @@ export interface PmsRoom {
   roomTypeName: string
   floor: number
   status: RoomStatus
-  housekeepingStatus?: string
+  housekeepingStatus?: HousekeepingStatus
   ownershipType?: 'HotelOwned' | 'OwnerOwned'
   managementType?: 'HotelManaged' | 'OwnerManaged'
   ownerId?: string | null
   ownerName?: string | null
 }
+

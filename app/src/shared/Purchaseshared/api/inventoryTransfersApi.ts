@@ -1,4 +1,7 @@
 import { apiRequest, unwrapApiResponse } from '../../../shared/apis/apiClient';
+import { changeLaundryPurchaseStatus } from '../../Laundryshared/api/laundryPurchasesApi';
+import { updateHkmPurchaseStatus } from '../../HKshared/api/hkmPurchasesApi';
+import { updateMaintenancePurchaseStatus } from '../../apis/maintenancePurchasesApi';
 import type {
   InventoryTransfer,
   InventoryTransfersFilterQuery,
@@ -12,6 +15,24 @@ import type {
   RestaurantMaterialRequest,
   RestaurantMaterialRequestFilterQuery,
 } from '../../../models/Purchasemodels/InventoryTransfer';
+
+/**
+ * Updates the status of a department purchase/requisition (e.g. to 'Viewed') when staged/dispatched via transfer.
+ */
+export async function updateDepartmentRequisitionStatus(
+  department: 'Laundry' | 'Housekeeping' | 'Maintenance' | 'Restaurant' | string,
+  requisitionId: number,
+  action: string = 'view'
+): Promise<void> {
+  const dept = (department || '').trim().toLowerCase();
+  if (dept === 'laundry') {
+    await changeLaundryPurchaseStatus(requisitionId, action);
+  } else if (dept === 'housekeeping') {
+    await updateHkmPurchaseStatus(requisitionId, action);
+  } else if (dept === 'maintenance') {
+    await updateMaintenancePurchaseStatus(requisitionId, action);
+  }
+}
 
 export const inventoryTransfersApi = {
   // ==========================================

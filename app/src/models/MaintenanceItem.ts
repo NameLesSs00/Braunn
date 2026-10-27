@@ -10,7 +10,7 @@ export interface MaintenanceItem {
   manufactureName: string
   warranty: string
   code: string
-  price: number
+  price?: number
   type: MaintenanceItemType
   quantity: number
   minimum: number
@@ -27,7 +27,7 @@ export interface CreateMaintenanceItemRequest {
   manufactureName: string
   warranty: string
   code: string
-  price: number
+  price?: number
   type: MaintenanceItemType
   quantity: number
   minimum: number

@@ -368,7 +368,12 @@ export function AssetsEquipmentPage() {
                     <div className="text-[12px] text-slate-500">{asset.code}</div>
                   </td>
                   <td className="px-4 py-4 text-[13px] text-slate-700">{asset.location}</td>
-                  <td className="px-4 py-4 text-[13px] text-amber-700">⚠ {asset.warranty}</td>
+                  <td className="px-4 py-4 text-[13px] text-amber-700">
+                    <div className="flex items-center gap-1.5">
+                      <FiAlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                      <span>{asset.warranty}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-2 text-[13px] font-semibold text-rose-600">
                       <span className="h-2 w-2 rounded-full bg-rose-500" />

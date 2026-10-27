@@ -343,9 +343,9 @@ export function NewPurchaseRequestModal({
                       disabled={isLoading}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none transition focus:border-[#0B4EA2] focus:bg-white focus:ring-2 focus:ring-[#0B4EA2]/20 disabled:opacity-60 cursor-pointer"
                     >
-                      <option value="Low">🟢 Low Priority</option>
-                      <option value="Normal">🟡 Normal Priority</option>
-                      <option value="High">🔴 High Priority</option>
+                      <option value="Low">Low</option>
+                      <option value="Normal">Normal</option>
+                      <option value="High">High</option>
                     </select>
                   </div>
 

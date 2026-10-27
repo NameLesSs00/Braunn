@@ -70,8 +70,11 @@ function monthTitle(d: Date) {
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
-function toUiRoomStatus(currentStatus?: string | null, housekeepingStatus?: string | null): RoomStatus {
-  const status = `${currentStatus ?? ''} ${housekeepingStatus ?? ''}`.replace(/[\s_-]/g, '').toLowerCase()
+function toUiRoomStatus(currentStatus?: string | null, housekeepingStatus?: string | number | null): RoomStatus {
+  const hkStr = typeof housekeepingStatus === 'number'
+    ? (housekeepingStatus === 2 ? 'dirty' : housekeepingStatus === 3 ? 'cleaning' : 'clean')
+    : String(housekeepingStatus ?? '')
+  const status = `${currentStatus ?? ''} ${hkStr}`.replace(/[\s_-]/g, '').toLowerCase()
   if (status.includes('maintenance')) return 'maintained'
   if (status.includes('cleaning')) return 'cleaning'
   if (status.includes('dirty')) return 'dirty'
@@ -423,7 +426,7 @@ export function RoomPlanPage() {
     currentRoomStatus: room.currentRoomStatus,
     floor: room.floor ?? '-----',
     bookingType: bookingType === 'all' ? '' : bookingType,
-    housekeeping: (room.housekeepingStatus ?? '').toLowerCase() === 'dirty' ? 'dirty' : 'clean',
+    housekeeping: (room.housekeepingStatus === 2 || String(room.housekeepingStatus ?? '').toLowerCase() === 'dirty') ? 'dirty' : 'clean',
     view: 'city_view',
   })), [bookingType, roomPlanData])
 

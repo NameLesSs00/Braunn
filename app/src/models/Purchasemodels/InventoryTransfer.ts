@@ -17,6 +17,7 @@ export interface UnifiedDepartmentRequest {
   referenceCode: string;
   requesterName: string;
   requiredDate: string;
+  createdAt?: string;
   status: string;
   itemsCount: number;
   items: UnifiedDepartmentRequestItem[];

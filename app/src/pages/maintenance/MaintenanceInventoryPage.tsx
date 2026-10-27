@@ -293,7 +293,6 @@ function ItemFormModal({ open, onClose, editingItem }: { open: boolean; onClose:
   const [manufactureName, setManufactureName] = useState('')
   const [warranty, setWarranty] = useState('')
   const [code, setCode] = useState('')
-  const [price, setPrice] = useState(0)
   const [type, setType] = useState<MaintenanceItemType>('Product')
   const [minimum, setMinimum] = useState(0)
   const [maximum, setMaximum] = useState(0)
@@ -312,7 +311,6 @@ function ItemFormModal({ open, onClose, editingItem }: { open: boolean; onClose:
         setManufactureName(editingItem.manufactureName)
         setWarranty(editingItem.warranty)
         setCode(editingItem.code)
-        setPrice(editingItem.price)
         setType(editingItem.type)
         setMinimum(editingItem.minimum)
         setMaximum(editingItem.maximum)
@@ -325,7 +323,6 @@ function ItemFormModal({ open, onClose, editingItem }: { open: boolean; onClose:
         setManufactureName('')
         setWarranty('')
         setCode('')
-        setPrice(0)
         setType('Product')
         setMinimum(0)
         setMaximum(0)
@@ -338,7 +335,7 @@ function ItemFormModal({ open, onClose, editingItem }: { open: boolean; onClose:
   const handleSubmit = async () => {
     const payload = {
       name, categoryId, unitId, manufactureName, warranty, code,
-      price, type, minimum, maximum, location, notes, quantity: editingItem?.quantity || 0
+      type, minimum, maximum, location, notes, quantity: editingItem?.quantity || 0
     }
 
     if (editingItem) {
@@ -416,10 +413,6 @@ function ItemFormModal({ open, onClose, editingItem }: { open: boolean; onClose:
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Warranty</label>
             <input value={warranty} onChange={e => setWarranty(e.target.value)} disabled={isLoading} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm disabled:opacity-50" placeholder="1 Year" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Price</label>
-            <input type="number" min="0" value={price} onChange={e => setPrice(Number(e.target.value))} disabled={isLoading} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm disabled:opacity-50" placeholder="0" />
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Minimum Stock</label>

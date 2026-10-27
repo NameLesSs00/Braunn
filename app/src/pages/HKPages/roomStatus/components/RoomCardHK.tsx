@@ -9,9 +9,10 @@ import { fetchAllRooms } from '../../../../features/housekeeping/housekeepingSli
 
 interface RoomCardHKProps {
   room: Room
+  onRefresh?: () => void
 }
 
-export function RoomCardHK({ room }: RoomCardHKProps) {
+export function RoomCardHK({ room, onRefresh }: RoomCardHKProps) {
   const theme = roomStatusTheme(room.status)
   const dispatch = useAppDispatch()
   
@@ -23,7 +24,6 @@ export function RoomCardHK({ room }: RoomCardHKProps) {
     try {
       // Find the assignment for this room
       const res = await getHkmReceptionAssignments({ PageSize: 200 })
-      // Assuming the most recent one for this room is the active one
       const assignment = res.items.find(a => a.roomId === room.id)
       
       if (!assignment) {
@@ -33,7 +33,7 @@ export function RoomCardHK({ room }: RoomCardHKProps) {
       }
 
       await completeHkmReceptionAssignment(assignment.id)
-      // Refresh room statuses
+      onRefresh?.()
       dispatch(fetchAllRooms())
     } catch (e: any) {
       console.error('Failed to complete room:', e)
@@ -110,6 +110,7 @@ export function RoomCardHK({ room }: RoomCardHKProps) {
         onClose={() => setIsAssignModalOpen(false)}
         roomId={room.id}
         roomNumber={room.number}
+        onSuccess={onRefresh}
       />
     </>
   )

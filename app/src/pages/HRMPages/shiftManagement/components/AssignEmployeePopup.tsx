@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, ChevronDown, Calendar, CheckCircle2, Trash2 } from 'lucide-react';
+import { X, ChevronDown, Calendar, CheckCircle2, Trash2, Clock } from 'lucide-react';
 import { Modal } from '../../../../shared/ui/Modal';
 import { useAppSelector, useAppDispatch } from '../../../../store/hooks';
 import type { HREmployeeReadDto } from '../../../../models/HRMmodels/HREmployee';
@@ -144,7 +144,7 @@ export function AssignEmployeePopup({ open, onClose, onBack, selectedEmployees }
           {/* Shift */}
           <div>
             <label className="mb-2 flex items-center gap-2 text-[13px] font-bold text-slate-600">
-              <span className="text-slate-400">⏰</span> Shift
+              <Clock className="h-4 w-4 text-slate-400 shrink-0" /> Shift
             </label>
             <div className="relative">
               <select

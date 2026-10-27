@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import { X, Trash2, Users } from 'lucide-react';
 import { Modal } from '../../../../shared/ui/Modal';
 import { Shift } from '../types';
 import { getDeptColor } from '../deptColors';
@@ -162,7 +162,9 @@ export function ShiftDetailsPopup({ open, onClose, shift }: Props) {
               })
             ) : (
               <div className="col-span-2 flex flex-col items-center justify-center py-12 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                <div className="text-4xl mb-3 opacity-50">👥</div>
+                <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-slate-200/60 text-slate-400">
+                  <Users className="h-6 w-6" />
+                </div>
                 <div className="text-[15px] font-semibold text-slate-600">No employees assigned</div>
                 <div className="text-[13px] text-slate-400 mt-1">Assign employees to this shift to see them here.</div>
               </div>

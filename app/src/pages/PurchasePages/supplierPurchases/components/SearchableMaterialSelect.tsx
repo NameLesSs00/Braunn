@@ -1,31 +1,66 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, ChevronDown, Check, Package, X } from 'lucide-react';
+import { Search, ChevronDown, Check, Package, X, Plus } from 'lucide-react';
 import type { RestaurantMaterial } from '../../../../models/RestaurantMaterial';
 
+export interface GenericItemOption {
+  id: number | string;
+  name: string;
+  categoryName?: string;
+  unitId?: number | null;
+  unitName?: string | null;
+  unitSymbol?: string | null;
+  code?: string;
+}
+
 interface SearchableMaterialSelectProps {
-  materials: RestaurantMaterial[];
-  selectedId: number | '';
-  onSelect: (material: RestaurantMaterial) => void;
+  materials?: RestaurantMaterial[];
+  items?: GenericItemOption[];
+  selectedId: number | string | '';
+  selectedName?: string;
+  onSelect: (item: GenericItemOption) => void;
   placeholder?: string;
   required?: boolean;
+  departmentType?: string;
 }
 
 export function SearchableMaterialSelect({
   materials,
+  items,
   selectedId,
+  selectedName,
   onSelect,
-  placeholder = 'Search & select material...',
+  placeholder = 'Search & select item...',
   required = false,
+  departmentType = 'Item',
 }: SearchableMaterialSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedMaterial = useMemo(
-    () => materials.find((m) => m.id === selectedId),
-    [materials, selectedId]
-  );
+  const availableItems: GenericItemOption[] = useMemo(() => {
+    if (items && items.length > 0) return items;
+    if (materials && materials.length > 0) {
+      return materials.map((m) => ({
+        id: m.id,
+        name: m.name,
+        categoryName: m.categoryName,
+        unitId: m.unitId,
+        unitName: m.unitName,
+        unitSymbol: m.unitSymbol,
+      }));
+    }
+    return [];
+  }, [items, materials]);
+
+  const selectedItem = useMemo(() => {
+    const found = availableItems.find((m) => String(m.id) === String(selectedId));
+    if (found) return found;
+    if (selectedName) {
+      return { id: selectedId, name: selectedName };
+    }
+    return undefined;
+  }, [availableItems, selectedId, selectedName]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -53,16 +88,17 @@ export function SearchableMaterialSelect({
     }
   }, [isOpen]);
 
-  const filteredMaterials = useMemo(() => {
-    if (!searchQuery.trim()) return materials;
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return availableItems;
     const query = searchQuery.toLowerCase();
-    return materials.filter(
+    return availableItems.filter(
       (m) =>
         m.name?.toLowerCase().includes(query) ||
+        m.categoryName?.toLowerCase().includes(query) ||
         m.unitName?.toLowerCase().includes(query) ||
-        m.unitSymbol?.toLowerCase().includes(query)
+        m.code?.toLowerCase().includes(query)
     );
-  }, [materials, searchQuery]);
+  }, [availableItems, searchQuery]);
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -76,12 +112,17 @@ export function SearchableMaterialSelect({
       >
         <div className="flex items-center gap-2 truncate">
           <Package className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-          {selectedMaterial ? (
+          {selectedItem ? (
             <div className="flex items-center gap-1.5 truncate">
-              <span className="font-semibold text-slate-800 truncate">{selectedMaterial.name}</span>
-              {selectedMaterial.unitName && (
+              <span className="font-semibold text-slate-800 truncate">{selectedItem.name}</span>
+              {selectedItem.categoryName && (
                 <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] text-slate-500 shrink-0">
-                  {selectedMaterial.unitName}
+                  {selectedItem.categoryName}
+                </span>
+              )}
+              {selectedItem.unitName && (
+                <span className="rounded bg-blue-50 px-1.5 py-0.2 text-[10px] text-[#0B4EA2] font-semibold shrink-0">
+                  {selectedItem.unitName}
                 </span>
               )}
             </div>
@@ -100,7 +141,7 @@ export function SearchableMaterialSelect({
       {required && (
         <input
           type="text"
-          value={selectedId ? selectedId.toString() : ''}
+          value={selectedId ? selectedId.toString() : (selectedName || '')}
           onChange={() => {}}
           required
           className="sr-only"
@@ -119,7 +160,7 @@ export function SearchableMaterialSelect({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search material by name..."
+              placeholder={`Search ${departmentType} item by name or category...`}
               className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-1.5 pl-8 pr-7 text-xs text-slate-800 placeholder-slate-400 focus:border-[#0B4EA2] focus:bg-white focus:outline-none"
             />
             {searchQuery && (
@@ -135,39 +176,84 @@ export function SearchableMaterialSelect({
 
           {/* Items List */}
           <div className="max-h-56 overflow-y-auto space-y-0.5">
-            {filteredMaterials.length === 0 ? (
-              <div className="p-3 text-center text-xs text-slate-400">
-                No materials found matching &ldquo;{searchQuery}&rdquo;
-              </div>
-            ) : (
-              filteredMaterials.map((mat) => {
-                const isSelected = mat.id === selectedId;
-                return (
+            {filteredItems.length === 0 ? (
+              <div className="space-y-2 p-2">
+                <div className="text-center text-xs text-slate-400">
+                  {availableItems.length === 0
+                    ? `No ${departmentType} catalog items loaded.`
+                    : `No items found matching "${searchQuery}"`}
+                </div>
+                {searchQuery.trim() && (
                   <button
-                    key={mat.id}
                     type="button"
                     onClick={() => {
-                      onSelect(mat);
+                      onSelect({
+                        id: Math.floor(Date.now() % 1000000),
+                        name: searchQuery.trim(),
+                      });
                       setIsOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors ${
-                      isSelected
-                        ? 'bg-[#EEF4FF] text-[#0B4EA2] font-semibold'
-                        : 'text-slate-700 hover:bg-slate-50'
-                    }`}
+                    className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 py-1.5 text-xs font-semibold text-[#0B4EA2] hover:bg-blue-100 transition-colors"
                   >
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="truncate">{mat.name}</span>
-                      {mat.unitName && (
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 font-normal">
-                          {mat.unitName}
-                        </span>
-                      )}
-                    </div>
-                    {isSelected && <Check className="h-3.5 w-3.5 text-[#0B4EA2] shrink-0" />}
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Use &ldquo;{searchQuery.trim()}&rdquo;</span>
                   </button>
-                );
-              })
+                )}
+              </div>
+            ) : (
+              <>
+                {filteredItems.map((mat) => {
+                  const isSelected = String(mat.id) === String(selectedId);
+                  return (
+                    <button
+                      key={mat.id}
+                      type="button"
+                      onClick={() => {
+                        onSelect(mat);
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors ${
+                        isSelected
+                          ? 'bg-[#EEF4FF] text-[#0B4EA2] font-semibold'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="truncate">{mat.name}</span>
+                        {mat.categoryName && (
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 font-normal">
+                            {mat.categoryName}
+                          </span>
+                        )}
+                        {mat.unitName && (
+                          <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-[#0B4EA2] font-medium">
+                            {mat.unitName}
+                          </span>
+                        )}
+                      </div>
+                      {isSelected && <Check className="h-3.5 w-3.5 text-[#0B4EA2] shrink-0" />}
+                    </button>
+                  );
+                })}
+
+                {/* If searchQuery doesn't exact match any item, offer to use custom text as well */}
+                {searchQuery.trim() && !filteredItems.some((i) => i.name.toLowerCase() === searchQuery.trim().toLowerCase()) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelect({
+                        id: Math.floor(Date.now() % 1000000),
+                        name: searchQuery.trim(),
+                      });
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors mt-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>Add &ldquo;{searchQuery.trim()}&rdquo; as custom item</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -175,3 +261,5 @@ export function SearchableMaterialSelect({
     </div>
   );
 }
+
+export default SearchableMaterialSelect;

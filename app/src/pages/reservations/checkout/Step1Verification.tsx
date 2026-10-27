@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react'
 import type { PmsReservation, PmsReservationDetails, PmsReservationFolio } from '../../../models/PmsReservation'
 import { formatMoney } from '../../../widgets/reservations/CheckInProcessModal/utils'
 
@@ -126,7 +127,7 @@ export function Step1Verification({ reservation, details, folio, guestCount, onN
       {isLate && (
         <div className="flex flex-col gap-2 rounded-xl border border-orange-100 bg-orange-50 px-6 py-4">
           <div className="flex items-center gap-2 text-sm font-bold text-orange-800">
-            <span className="text-lg">⚠</span>
+            <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
             Late Check-out Detected:
           </div>
           <p className="text-[13px] text-orange-700">

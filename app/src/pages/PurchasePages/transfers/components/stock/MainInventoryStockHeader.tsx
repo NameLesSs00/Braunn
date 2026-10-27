@@ -1,17 +1,15 @@
-import { Package, CheckCircle2, AlertTriangle, DollarSign } from 'lucide-react';
+import { Package, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 interface MainInventoryStockHeaderProps {
   totalCount: number;
   activeCount: number;
   lowStockCount: number;
-  totalValuation: number;
 }
 
 export function MainInventoryStockHeader({
   totalCount,
   activeCount,
   lowStockCount,
-  totalValuation,
 }: MainInventoryStockHeaderProps) {
   return (
     <div className="space-y-4">
@@ -27,7 +25,7 @@ export function MainInventoryStockHeader({
                 Central Inventory Stock
               </h1>
               <p className="text-sm text-slate-500">
-                Real-time stock balance, storage valuation, and material catalog
+                Real-time stock balance, item availability, and material catalog
               </p>
             </div>
           </div>
@@ -35,7 +33,7 @@ export function MainInventoryStockHeader({
       </div>
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {/* Total Items */}
         <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs">
           <div className="flex items-center justify-between">
@@ -76,27 +74,6 @@ export function MainInventoryStockHeader({
           </div>
           <p className="mt-2 text-2xl font-bold text-amber-600">{lowStockCount}</p>
           <span className="text-xs text-slate-400 mt-0.5 block">Need replenishment</span>
-        </div>
-
-        {/* Total Valuation */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Total Valuation
-            </span>
-            <div className="grid h-8 w-8 place-items-center rounded-xl bg-purple-50 text-purple-600">
-              <DollarSign className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-purple-700">
-            {totalValuation > 0
-              ? Number(totalValuation).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })
-              : '0.00'}
-          </p>
-          <span className="text-xs text-slate-400 mt-0.5 block">Estimated asset worth</span>
         </div>
       </div>
     </div>

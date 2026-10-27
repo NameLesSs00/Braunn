@@ -1,7 +1,7 @@
 import { apiRequest, unwrapApiResponse } from '../apis/apiClient'
 import type { Owner, CreateOwnerRequest, UpdateOwnerRequest } from '../../models/Accounting/owner'
 
-const basePath = 'pms/owners'
+const basePath = '/owners'
 
 export function getOwners(fullName?: string, signal?: AbortSignal) {
   const urlParams = new URLSearchParams()

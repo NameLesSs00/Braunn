@@ -5,13 +5,16 @@ import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { createSupplierPurchase } from '../../../../features/Purchasefeatures/supplierPurchases/supplierPurchasesSlice';
 import { fetchRestaurantMaterials } from '../../../../features/restaurant/restaurantMaterialsSlice';
 import { fetchRestaurantUnits } from '../../../../features/restaurant/restaurantUnitsSlice';
+import { getLaundryInventoryItems } from '../../../../shared/Laundryshared/api/laundryInventoryItemsApi';
+import { getHkmInventoryItems } from '../../../../shared/HKshared/api/hkmInventoryItemsApi';
+import { getMaintenanceItems } from '../../../../shared/apis/maintenanceItemsApi';
 import type { Supplier } from '../../../../models/Purchasemodels/Supplier';
 import type {
   CreateSupplierPurchaseDto,
   PurchasingDepartmentType,
 } from '../../../../models/Purchasemodels/SupplierPurchase';
 import type { RestaurantMaterial } from '../../../../models/RestaurantMaterial';
-import { SearchableMaterialSelect } from './SearchableMaterialSelect';
+import { SearchableMaterialSelect, GenericItemOption } from './SearchableMaterialSelect';
 
 interface CreatePurchaseOrderDrawerProps {
   open: boolean;
@@ -61,6 +64,11 @@ export function CreatePurchaseOrderDrawer({
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Catalogs for different departments
+  const [laundryItems, setLaundryItems] = useState<GenericItemOption[]>([]);
+  const [hkItems, setHkItems] = useState<GenericItemOption[]>([]);
+  const [maintenanceItems, setMaintenanceItems] = useState<GenericItemOption[]>([]);
+
   const [lineItems, setLineItems] = useState<FormLineItem[]>([
     {
       key: 'item-1',
@@ -74,13 +82,81 @@ export function CreatePurchaseOrderDrawer({
     },
   ]);
 
-  // Ensure restaurant resources are preloaded
+  // Ensure department catalog resources are preloaded
   useEffect(() => {
     if (open) {
       if (materials.length === 0) dispatch(fetchRestaurantMaterials());
       if (units.length === 0) dispatch(fetchRestaurantUnits());
+
+      const loadDepartmentCatalogs = async () => {
+        try {
+          const [laundryRes, hkRes, maintRes] = await Promise.allSettled([
+            getLaundryInventoryItems({ PageSize: 100 }),
+            getHkmInventoryItems({ PageSize: 100 }),
+            getMaintenanceItems({ pageSize: 100 }),
+          ]);
+
+          if (laundryRes.status === 'fulfilled' && laundryRes.value?.items) {
+            setLaundryItems(
+              laundryRes.value.items.map((i) => ({
+                id: i.id,
+                name: i.name,
+                categoryName: i.categoryName,
+                unitName: i.unitName,
+              }))
+            );
+          }
+
+          if (hkRes.status === 'fulfilled' && hkRes.value?.items) {
+            setHkItems(
+              hkRes.value.items.map((i) => ({
+                id: i.id,
+                name: i.name,
+                categoryName: i.categoryName,
+                unitName: i.unitName,
+              }))
+            );
+          }
+
+          if (maintRes.status === 'fulfilled' && maintRes.value?.items) {
+            setMaintenanceItems(
+              maintRes.value.items.map((i) => ({
+                id: Number(i.id) || 0,
+                name: i.name,
+                categoryName: i.categoryName,
+                code: i.code,
+              }))
+            );
+          }
+        } catch (err) {
+          console.error('Failed to preload department catalogs', err);
+        }
+      };
+
+      loadDepartmentCatalogs();
     }
   }, [open, materials.length, units.length, dispatch]);
+
+  const getCatalogForDepartment = (dept: PurchasingDepartmentType): GenericItemOption[] => {
+    switch (dept) {
+      case 'Laundry':
+        return laundryItems;
+      case 'Housekeeping':
+        return hkItems;
+      case 'Maintenance':
+        return maintenanceItems;
+      case 'Restaurant':
+      default:
+        return materials.map((m) => ({
+          id: m.id,
+          name: m.name,
+          categoryName: m.categoryName,
+          unitId: m.unitId,
+          unitName: m.unitName,
+          unitSymbol: m.unitSymbol,
+        }));
+    }
+  };
 
   // Reset or populate form when drawer opens
   useEffect(() => {
@@ -223,7 +299,7 @@ export function CreatePurchaseOrderDrawer({
         departmentType: itm.departmentType,
         itemId: Number(itm.itemId),
         quantity: Number(itm.quantity),
-        unitId: itm.unitId ? Number(itm.unitId) : null,
+        unitId: itm.departmentType === 'Restaurant' && itm.unitId ? Number(itm.unitId) : null,
         unitPrice: Number(itm.unitPrice),
         notes: itm.notes.trim() || undefined,
       })),
@@ -262,12 +338,9 @@ export function CreatePurchaseOrderDrawer({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-bold text-slate-800">New Purchase Order</h2>
-                  <span className="rounded-md bg-[#EEF4FF] px-2 py-0.5 text-xs font-semibold text-[#0B4EA2]">
-                    Restaurant
-                  </span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Select supplier and add restaurant materials with unit pricing
+                  Select supplier and add department items with unit pricing
                 </p>
               </div>
             </div>
@@ -371,7 +444,7 @@ export function CreatePurchaseOrderDrawer({
                     Order Items ({lineItems.length})
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Search and pick ingredients or supplies from the restaurant catalog
+                    Search and pick supplies from department catalogs
                   </p>
                 </div>
                 <button
@@ -405,77 +478,73 @@ export function CreatePurchaseOrderDrawer({
                           </label>
                           <select
                             value={itm.departmentType}
-                            onChange={(e) =>
-                              handleItemChange(
-                                idx,
-                                'departmentType',
-                                e.target.value as PurchasingDepartmentType
-                              )
-                            }
+                            onChange={(e) => {
+                              const newDept = e.target.value as PurchasingDepartmentType;
+                              handleItemChange(idx, 'departmentType', newDept);
+                              handleItemChange(idx, 'itemId', '');
+                              handleItemChange(idx, 'itemName', '');
+                              handleItemChange(idx, 'unitId', '');
+                            }}
                             className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-800 focus:border-[#0B4EA2] focus:outline-none"
                           >
-                            <option value="Laundry">🧺 Laundry</option>
-                            <option value="Housekeeping">🧹 Housekeeping</option>
-                            <option value="Maintenance">🔧 Maintenance</option>
-                            <option value="Restaurant">🍽️ Restaurant</option>
+                            <option value="Laundry">Laundry</option>
+                            <option value="Housekeeping">Housekeeping</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Restaurant">Restaurant</option>
                           </select>
                         </div>
 
-                        {/* Item search or input */}
-                        <div className="sm:col-span-5">
+                        {/* Item search based on department */}
+                        <div className={itm.departmentType === 'Restaurant' ? 'sm:col-span-5' : 'sm:col-span-8'}>
                           <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
                             {itm.departmentType === 'Restaurant'
                               ? 'Restaurant Material *'
                               : `${itm.departmentType} Item *`}
                           </label>
-                          {itm.departmentType === 'Restaurant' ? (
-                            <SearchableMaterialSelect
-                              materials={materials}
-                              selectedId={itm.itemId}
-                              onSelect={(mat) => handleSelectMaterial(idx, mat)}
-                              required
-                            />
-                          ) : (
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={itm.itemName || (itm.itemId ? `Item #${itm.itemId}` : '')}
-                                onChange={(e) => {
-                                  handleItemChange(idx, 'itemName', e.target.value);
-                                  if (!itm.itemId) handleItemChange(idx, 'itemId', idx + 1);
-                                }}
-                                placeholder={`e.g. ${itm.departmentType} Supply Item...`}
-                                required
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#0B4EA2] focus:outline-none"
-                              />
-                            </div>
-                          )}
+                          <SearchableMaterialSelect
+                            items={getCatalogForDepartment(itm.departmentType)}
+                            selectedId={itm.itemId}
+                            selectedName={itm.itemName}
+                            departmentType={itm.departmentType}
+                            onSelect={(mat) => {
+                              handleItemChange(idx, 'itemId', Number(mat.id) || 1);
+                              handleItemChange(idx, 'itemName', mat.name);
+                              if (itm.departmentType === 'Restaurant' && mat.unitId) {
+                                handleItemChange(idx, 'unitId', Number(mat.unitId));
+                              }
+                            }}
+                            placeholder={`Search ${itm.departmentType} items...`}
+                            required
+                          />
                         </div>
 
-                        {/* Unit selector */}
-                        <div className="sm:col-span-3">
-                          <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                            Unit {itm.departmentType === 'Restaurant' ? '*' : '(Optional)'}
-                          </label>
-                          <select
-                            value={itm.unitId}
-                            onChange={(e) =>
-                              handleItemChange(
-                                idx,
-                                'unitId',
-                                e.target.value ? Number(e.target.value) : ''
-                              )
-                            }
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#0B4EA2] focus:outline-none"
-                          >
-                            <option value="">Choose Unit...</option>
-                            {units.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {u.name} {u.symbol ? `(${u.symbol})` : ''}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        {/* Unit selector - ONLY for Restaurant */}
+                        {itm.departmentType === 'Restaurant' && (
+                          <div className="sm:col-span-3">
+                            <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                              Unit *
+                            </label>
+                            <select
+                              value={itm.unitId}
+                              onChange={(e) =>
+                                handleItemChange(
+                                  idx,
+                                  'unitId',
+                                  e.target.value ? Number(e.target.value) : ''
+                                )
+                              }
+                              required
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-[#0B4EA2] focus:outline-none"
+                            >
+                              <option value="">Choose Unit...</option>
+                              {units.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
 
                         {/* Delete row */}
                         <div className="sm:col-span-1 flex justify-end sm:pt-6">
